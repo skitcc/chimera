@@ -1,0 +1,5 @@
+mode: development
+http:
+  addr: ":8080"
+log:
+  level: ""
