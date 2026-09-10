@@ -1,0 +1,44 @@
+---
+description: Idiomatic Go, Clean Architecture, and SOLID standards for Chimera
+alwaysApply: true
+---
+
+# Go Development Guidelines
+
+## 1. Philosophy & Architecture
+- Follow **Clean Architecture** and **SOLID** principles.
+- Direction of dependencies is strictly inward: `Transport (HTTP) -> Use Cases (Business Logic) -> Domain (Entities)`. Repositories and external clients are driven adapters.
+- Use explicit Dependency Injection via constructors (`New...`). Never use global state.
+- Write idiomatic, concise, and pragmatic Go (1.22+).
+
+## 2. Interfaces & Ports (SOLID: D & I)
+- **Always define interfaces (ports) for layer boundaries**, even if currently there is only one implementation. This is mandatory for unit and integration testing with mocks.
+- **Define interfaces on the consumer side** (e.g., UseCase defines the `TrackRepository` interface it requires; Handler defines the `TrackService` interface it requires).
+- Keep interfaces focused and small (Interface Segregation Principle).
+- Accept interfaces, return concrete structs from constructors.
+
+## 3. Error Handling & Structured Logging
+- **No `fmt.Errorf` for logging or string formatting:** Use structured logging (`log/slog` or the project's logger instance) with `ctx`.
+- **Log with context and key-value attributes:** Prefer `logger.ErrorContext(ctx, "failed to execute action", "error", err, "track_id", id)` over string concatenation.
+- **Do not log and re-return the same error:** 
+  - Low-level layers (repositories/adapters) return errors up to the caller.
+  - Domain/UseCases return typed or sentinel domain errors.
+  - Top boundaries (HTTP handlers, workers) log the error with full structured metadata and return sanitized client-safe responses.
+- Check `if err != nil` immediately. No unhandled errors.
+
+## 4. Eliminate Defensive Code
+- Do not nil-check before `len()`, `cap()`, `append()`, or `range` on slices/maps.
+- No type assertions or reflection unless dealing with `any` from dynamic inputs.
+- No pointless nil pointer guards when control flow already guarantees non-nil.
+- No comments that repeat the function name. Comment only non-obvious business logic.
+- No Java-style getters/setters. Access struct fields directly unless encapsulation is required by an interface.
+
+## 5. Control Flow
+- Guard clauses and early returns. Never write `else` after `return`, `break`, or `continue`.
+- Max 2–3 levels of indentation inside any function.
+
+## 6. Naming & Style
+- Idiomatic short names for local scopes: `ctx`, `r`, `w`, `id`.
+- Single-letter receivers for methods matching the struct type (`func (s *Service) ...`).
+- PascalCase for exported, camelCase for unexported. No snake_case in Go identifiers.
+- DTOs (Data Transfer Objects) live strictly in the transport layer and are mapped to domain models before passing to UseCases.
