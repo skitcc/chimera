@@ -17,6 +17,7 @@ import (
 	"chimera/internal/business_logic/usecase"
 	"chimera/internal/config"
 	"chimera/internal/controllers"
+	"chimera/internal/infra/adapters/memory"
 	"chimera/internal/infra/logger"
 
 	_ "chimera/docs"
@@ -34,9 +35,9 @@ func main() {
 	log := logger.New(cfg)
 
 	router := controllers.NewRouter(controllers.Dependencies{
-		Users:  usecase.NewUserService(),
+		Users:  usecase.NewUserService(memory.NewUserRepository()),
 		Auth:   usecase.NewAuthService(),
-		Tracks: usecase.NewTrackService(),
+		Tracks: usecase.NewTrackService(memory.NewTrackRepository()),
 		Log:    log,
 	})
 
