@@ -53,3 +53,35 @@ alwaysApply: true
 - Single-letter receivers for methods matching the struct type (`func (s *Service) ...`, `func (t *Track) ...`).
 - PascalCase for exported, camelCase for unexported. No snake_case in Go identifiers.
 - DTOs (Data Transfer Objects) live strictly in the transport layer and are mapped to domain models before passing to UseCases.
+
+## 8. Database & Persistence (Anti-Patterns)
+- **No migrations inside repositories:** Repositories must strictly handle data access / DML operations (`SELECT`, `INSERT`, `UPDATE`, `DELETE`). It is FORBIDDEN to put `Migrate()` methods or DDL (`CREATE TABLE`, `ALTER TABLE`) inside repository structs.
+- **Centralized schema management:** Database migrations belong to a dedicated infrastructure step. They must run globally at application bootstrap (`main.go`) *before* any repository is instantiated, or executed via standalone migration tools.
+- **Connection pool discipline:** Use `pgxpool.Pool` across all repositories via Dependency Injection. Never create new connection pools inside individual repository methods.
+
+## 9. Configuration & Secrets Management
+- **Never hardcode secrets or infrastructure parameters:** Port numbers, database DSNs, JWT secret keys, S3 endpoints/credentials, and timeouts must NEVER be hardcoded into the source code.
+- **Twelve-Factor App methodology:** All configurations must be read from environment variables (or `.env` file locally for development).
+- **Typed configuration struct:** Parse all environment variables once during application startup (`main.go`) into a dedicated, strongly-typed `Config` struct. Pass sub-configurations explicitly via Dependency Injection to constructors.
+- **Fail fast on startup:** If a required environment variable (e.g., `DATABASE_URL`, `JWT_SECRET`) is missing or invalid, the application must abort immediately at startup (`log.Fatal`) with a descriptive message.
+- **Protect secrets in Git:** Real secrets must never be committed to version control. Always maintain a `.env.example` file with mock/template values for setup reference.
+
+## 10. No Speculative Code & In-Memory Fakes (Strict YAGNI)
+- **No in-memory/RAM storage implementations:** Strictly FORBIDDEN to create `InMemory...` or `RAM...` repository adapters alongside real database implementations under the pretext of "future testing" or "mocking".
+- **Only required implementations:** If a PostgreSQL repository is being built, implement ONLY PostgreSQL. Do not invent alternative storage engines unless explicitly requested.
+- **Test doubles belong in test files:** Mocks and stubs must live strictly inside `*_test.go` files (or generated via mocking tools). Never pollute production packages (`internal/...`) with dummy/in-memory adapters.
+- **Strict YAGNI (You Aren't Gonna Need It):** Never write speculative abstractions, fake drivers, or boilerplate for hypothetical scenarios. Implement only the exact concrete task requested.
+
+## 11. Package Hygiene & Layer Purity (Transport & Domain)
+- **No "Junk Drawer" packages:** Never dump routing, middlewares, domain entities, use cases, and technical helpers into flat, single-directory folders. Every file must belong to a strictly defined sub-responsibility.
+- **Transport Layer (`internal/transport/http/`):**
+  - **Infrastructure/Plumbing:** Router setup (`router.go`) and response helpers (`respond.go`) live at the transport root.
+  - **Cross-cutting concerns:** All middlewares (auth checks, context injection, request logging, CORS) must live strictly in `middleware/`.
+  - **Handlers:** Controllers, their request/response DTOs, and DTO mappers must live grouped in `v1/` (or `controllers/`). Never put middleware logic here.
+- **Domain Layer (`internal/domain/`):**
+  - **Strict Domain Purity:** Must contain ONLY pure business entities, value objects, domain errors, and self-validation methods.
+  - **No technical leakages:** The domain package must NEVER import HTTP packages, SQL drivers, JWT/crypto libraries, or external frameworks.
+- **Business Logic Layer (`internal/usecase/` or `service/`):**
+  - Contains strictly workflow orchestrators (UseCases) and port interfaces (input/output boundaries).
+  - Do NOT dump low-level utilities (password hashing implementations, token generators, random string generators) into UseCase folders — these are infrastructure adapters implementing domain ports.
+- **Decomposition threshold:** If any package exceeds 5–7 files of mixed responsibilities, immediately group them by sub-domain or responsibility.
