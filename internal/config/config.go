@@ -15,10 +15,6 @@ const (
 	ModeProduction  Mode = "production"
 )
 
-func (m Mode) IsProduction() bool {
-	return m == ModeProduction
-}
-
 type Config struct {
 	Mode Mode `yaml:"mode"`
 	HTTP HTTP `yaml:"http"`
@@ -44,19 +40,17 @@ func Load(path string) (Config, error) {
 	cfg := Defaults()
 
 	if path == "" {
-		path = os.Getenv("CHIMERA_CONFIG")
-	}
-	if path == "" {
 		path = "configs/config.yaml"
 	}
 
 	data, err := os.ReadFile(path)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return Config{}, fmt.Errorf("read config: %w", err)
+	if err != nil && !os.IsNotExist(err) {
+		return Config{}, fmt.Errorf("read config: %w", err)
+	}
+	if err == nil {
+		if err := yaml.Unmarshal(data, &cfg); err != nil {
+			return Config{}, fmt.Errorf("parse config: %w", err)
 		}
-	} else if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return Config{}, fmt.Errorf("parse config: %w", err)
 	}
 
 	applyEnv(&cfg)
