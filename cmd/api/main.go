@@ -23,9 +23,11 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
+
 	cfg, err := config.Load("")
 	if err != nil {
-		slog.Error("load config", "err", err)
+		slog.ErrorContext(ctx, "load config", "error", err)
 		os.Exit(1)
 	}
 
@@ -43,10 +45,10 @@ func main() {
 		Handler: router,
 	}
 
-	log.Info("listening", "addr", cfg.HTTP.Addr)
+	log.InfoContext(ctx, "listening", "addr", cfg.HTTP.Addr)
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Error("http server", "err", err)
+			log.ErrorContext(ctx, "http server", "error", err)
 			os.Exit(1)
 		}
 	}()
@@ -55,13 +57,13 @@ func main() {
 	signal.Notify(closeCh, os.Interrupt, syscall.SIGTERM)
 
 	<-closeCh
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	if err := server.Shutdown(ctx); err != nil {
-		log.Error("shutdown", "err", err)
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.ErrorContext(ctx, "shutdown", "error", err)
 		os.Exit(1)
 	}
 
-	log.Info("graceful shutdown")
+	log.InfoContext(ctx, "graceful shutdown")
 }
