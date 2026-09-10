@@ -1,11 +1,11 @@
 package config
 
 import (
-	"fmt"
+	"bufio"
+	"errors"
 	"os"
 	"strings"
-
-	"gopkg.in/yaml.v3"
+	"time"
 )
 
 type Mode string
@@ -16,72 +16,109 @@ const (
 )
 
 type Config struct {
-	Mode Mode `yaml:"mode"`
-	HTTP HTTP `yaml:"http"`
-	Log  Log  `yaml:"log"`
+	Mode     Mode
+	HTTP     HTTP
+	Log      Log
+	Postgres Postgres
+	Auth     Auth
 }
 
 type HTTP struct {
-	Addr string `yaml:"addr"`
+	Addr            string
+	ShutdownTimeout time.Duration
 }
 
 type Log struct {
-	Level string `yaml:"level"`
+	Level string
 }
 
-func Defaults() Config {
-	return Config{
-		Mode: ModeDevelopment,
-		HTTP: HTTP{Addr: ":8080"},
-	}
+type Postgres struct {
+	DSN string
 }
 
-func Load(path string) (Config, error) {
-	cfg := Defaults()
+type Auth struct {
+	JWTSecret string
+	JWTTTL    time.Duration
+}
 
-	if path == "" {
-		path = "configs/config.yaml"
-	}
+func Load() (Config, error) {
+	loadDotEnv(".env")
 
-	data, err := os.ReadFile(path)
-	if err != nil && !os.IsNotExist(err) {
-		return Config{}, fmt.Errorf("read config: %w", err)
-	}
-	if err == nil {
-		if err := yaml.Unmarshal(data, &cfg); err != nil {
-			return Config{}, fmt.Errorf("parse config: %w", err)
-		}
-	}
-
-	applyEnv(&cfg)
-	if err := cfg.normalize(); err != nil {
+	mode, err := require("APP_MODE")
+	if err != nil {
 		return Config{}, err
 	}
+	addr, err := require("HTTP_ADDR")
+	if err != nil {
+		return Config{}, err
+	}
+	dsn, err := require("DATABASE_URL")
+	if err != nil {
+		return Config{}, err
+	}
+	secret, err := require("JWT_SECRET")
+	if err != nil {
+		return Config{}, err
+	}
+	ttlRaw, err := require("JWT_TTL")
+	if err != nil {
+		return Config{}, err
+	}
+	ttl, err := time.ParseDuration(ttlRaw)
+	if err != nil || ttl <= 0 {
+		return Config{}, errors.New("JWT_TTL is invalid")
+	}
+	shutdownRaw, err := require("HTTP_SHUTDOWN_TIMEOUT")
+	if err != nil {
+		return Config{}, err
+	}
+	shutdown, err := time.ParseDuration(shutdownRaw)
+	if err != nil || shutdown <= 0 {
+		return Config{}, errors.New("HTTP_SHUTDOWN_TIMEOUT is invalid")
+	}
 
+	cfg := Config{
+		Mode:     Mode(strings.ToLower(mode)),
+		HTTP:     HTTP{Addr: addr, ShutdownTimeout: shutdown},
+		Log:      Log{Level: os.Getenv("LOG_LEVEL")},
+		Postgres: Postgres{DSN: dsn},
+		Auth:     Auth{JWTSecret: secret, JWTTTL: ttl},
+	}
+	if cfg.Mode != ModeDevelopment && cfg.Mode != ModeProduction {
+		return Config{}, errors.New("APP_MODE must be development or production")
+	}
 	return cfg, nil
 }
 
-func applyEnv(cfg *Config) {
-	if v := os.Getenv("CHIMERA_MODE"); v != "" {
-		cfg.Mode = Mode(v)
+func require(name string) (string, error) {
+	v := strings.TrimSpace(os.Getenv(name))
+	if v == "" {
+		return "", errors.New("missing required env " + name)
 	}
-	if v := os.Getenv("CHIMERA_HTTP_ADDR"); v != "" {
-		cfg.HTTP.Addr = v
-	}
-	if v := os.Getenv("CHIMERA_LOG_LEVEL"); v != "" {
-		cfg.Log.Level = v
-	}
+	return v, nil
 }
 
-func (c *Config) normalize() error {
-	c.Mode = Mode(strings.ToLower(string(c.Mode)))
-	switch c.Mode {
-	case ModeDevelopment, ModeProduction:
-	default:
-		return fmt.Errorf("unknown mode %q, use development or production", c.Mode)
+func loadDotEnv(path string) {
+	f, err := os.Open(path)
+	if err != nil {
+		return
 	}
-	if c.HTTP.Addr == "" {
-		return fmt.Errorf("http.addr is empty")
+	defer f.Close()
+
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		k, v, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		k = strings.TrimSpace(k)
+		v = strings.Trim(strings.TrimSpace(v), `"'`)
+		if os.Getenv(k) == "" {
+			_ = os.Setenv(k, v)
+		}
 	}
-	return nil
 }
