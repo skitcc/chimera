@@ -69,18 +69,12 @@ func httpStatus(code apperrors.Code) int {
 }
 
 func parsePageQuery(r *http.Request) domain.PageQuery {
-	limit := 20
+	q := domain.PageQuery{Cursor: r.URL.Query().Get("cursor")}
 	if raw := r.URL.Query().Get("limit"); raw != "" {
 		n, err := strconv.Atoi(raw)
-		if err == nil && n > 0 {
-			limit = n
+		if err == nil {
+			q.Limit = n
 		}
 	}
-	if limit > 100 {
-		limit = 100
-	}
-	return domain.PageQuery{
-		Limit:  limit,
-		Cursor: r.URL.Query().Get("cursor"),
-	}
+	return q
 }

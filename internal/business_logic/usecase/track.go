@@ -2,94 +2,56 @@ package usecase
 
 import (
 	"context"
-	"strconv"
 
-	"chimera/internal/business_logic/apperrors"
 	"chimera/internal/business_logic/domain"
 )
 
-var stubTracks = []domain.Track{
-	{ID: "1", Title: "Night Drive", Artist: "Lumen"},
-	{ID: "2", Title: "Open Road", Artist: "Northbound"},
-	{ID: "3", Title: "Low Tide", Artist: "Harbour"},
-	{ID: "4", Title: "Static Bloom", Artist: "Violet Grid"},
-	{ID: "5", Title: "Afterlight", Artist: "Kite"},
+type TrackService struct {
+	tracks TrackRepository
 }
 
-type TrackService struct{}
-
-func NewTrackService() *TrackService {
-	return &TrackService{}
+func NewTrackService(tracks TrackRepository) *TrackService {
+	return &TrackService{tracks: tracks}
 }
 
-func (s *TrackService) List(_ context.Context, q domain.PageQuery) (domain.TrackPage, error) {
-	limit := q.Limit
-	if limit <= 0 {
-		limit = 20
+func (s *TrackService) List(ctx context.Context, q domain.PageQuery) (domain.TrackPage, error) {
+	if err := q.Validate(); err != nil {
+		return domain.TrackPage{}, err
 	}
-	if limit > 100 {
-		limit = 100
+	tracks, err := s.tracks.List(ctx)
+	if err != nil {
+		return domain.TrackPage{}, err
 	}
-
-	start := 0
-	if q.Cursor != "" {
-		n, err := strconv.Atoi(q.Cursor)
-		if err != nil || n < 0 {
-			return domain.TrackPage{}, apperrors.Invalid("invalid cursor")
-		}
-		start = n
-	}
-	if start > len(stubTracks) {
-		start = len(stubTracks)
-	}
-
-	end := start + limit
-	if end > len(stubTracks) {
-		end = len(stubTracks)
-	}
-
-	page := domain.TrackPage{
-		Items: stubTracks[start:end],
-		Limit: limit,
-	}
-	if end < len(stubTracks) {
-		page.NextCursor = strconv.Itoa(end)
-	}
-	return page, nil
+	return q.Page(tracks), nil
 }
 
-func (s *TrackService) GetByID(_ context.Context, id string) (domain.Track, error) {
-	if id == "" {
-		return domain.Track{}, apperrors.Invalid("track id is required")
+func (s *TrackService) GetByID(ctx context.Context, id string) (domain.Track, error) {
+	if err := domain.TrackID(id).Validate(); err != nil {
+		return domain.Track{}, err
 	}
-	for _, t := range stubTracks {
-		if t.ID == id {
-			return t, nil
-		}
-	}
-	return domain.Track{}, apperrors.NotFound("track not found")
+	return s.tracks.GetByID(ctx, id)
 }
 
-func (s *TrackService) Create(_ context.Context, in domain.TrackWrite) (domain.Track, error) {
-	if in.Title == "" {
-		return domain.Track{}, apperrors.Invalid("title is required")
+func (s *TrackService) Create(ctx context.Context, in domain.TrackWrite) (domain.Track, error) {
+	if err := in.Validate(); err != nil {
+		return domain.Track{}, err
 	}
-	return domain.Track{ID: "stub-track", Title: in.Title, Artist: in.Artist}, nil
+	return s.tracks.Create(ctx, in.Track(""))
 }
 
-func (s *TrackService) Update(_ context.Context, id string, in domain.TrackWrite) (domain.Track, error) {
-	if id == "" {
-		return domain.Track{}, apperrors.Invalid("track id is required")
+func (s *TrackService) Update(ctx context.Context, id string, in domain.TrackWrite) (domain.Track, error) {
+	if err := domain.TrackID(id).Validate(); err != nil {
+		return domain.Track{}, err
 	}
-	if in.Title == "" {
-		return domain.Track{}, apperrors.Invalid("title is required")
+	if err := in.Validate(); err != nil {
+		return domain.Track{}, err
 	}
-	return domain.Track{ID: id, Title: in.Title, Artist: in.Artist}, nil
+	return s.tracks.Update(ctx, in.Track(id))
 }
 
-func (s *TrackService) Delete(_ context.Context, id string) error {
-	if id == "" {
-		return apperrors.Invalid("track id is required")
+func (s *TrackService) Delete(ctx context.Context, id string) error {
+	if err := domain.TrackID(id).Validate(); err != nil {
+		return err
 	}
-	return nil
+	return s.tracks.Delete(ctx, id)
 }
