@@ -1,27 +1,27 @@
 basePath: /
 definitions:
-  controllers.AuthResponse:
+  v1.AuthResponse:
     properties:
       token:
         type: string
       user:
-        $ref: '#/definitions/controllers.UserResponse'
+        $ref: '#/definitions/v1.UserResponse'
     type: object
-  controllers.ErrorResponse:
+  v1.ErrorResponse:
     properties:
       code:
         type: string
       message:
         type: string
     type: object
-  controllers.LoginRequest:
+  v1.LoginRequest:
     properties:
       email:
         type: string
       password:
         type: string
     type: object
-  controllers.RegisterRequest:
+  v1.RegisterRequest:
     properties:
       email:
         type: string
@@ -30,18 +30,18 @@ definitions:
       password:
         type: string
     type: object
-  controllers.TrackPageResponse:
+  v1.TrackPageResponse:
     properties:
       items:
         items:
-          $ref: '#/definitions/controllers.TrackResponse'
+          $ref: '#/definitions/v1.TrackResponse'
         type: array
       limit:
         type: integer
       next_cursor:
         type: string
     type: object
-  controllers.TrackResponse:
+  v1.TrackResponse:
     properties:
       artist:
         type: string
@@ -50,14 +50,14 @@ definitions:
       title:
         type: string
     type: object
-  controllers.TrackWriteRequest:
+  v1.TrackWriteRequest:
     properties:
       artist:
         type: string
       title:
         type: string
     type: object
-  controllers.UserResponse:
+  v1.UserResponse:
     properties:
       email:
         type: string
@@ -66,11 +66,13 @@ definitions:
       name:
         type: string
     type: object
-  controllers.UserWriteRequest:
+  v1.UserWriteRequest:
     properties:
       email:
         type: string
       name:
+        type: string
+      password:
         type: string
     type: object
 info:
@@ -89,26 +91,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/controllers.LoginRequest'
+          $ref: '#/definitions/v1.LoginRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/controllers.AuthResponse'
+            $ref: '#/definitions/v1.AuthResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
       summary: Login
       tags:
       - auth
@@ -122,27 +124,47 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/controllers.RegisterRequest'
+          $ref: '#/definitions/v1.RegisterRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/controllers.AuthResponse'
+            $ref: '#/definitions/v1.AuthResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
       summary: Register user
+      tags:
+      - auth
+  /v1/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      summary: Current user
       tags:
       - auth
   /v1/tracks:
@@ -163,15 +185,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/controllers.TrackPageResponse'
+            $ref: '#/definitions/v1.TrackPageResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
       summary: Track feed
       tags:
       - tracks
@@ -184,22 +206,22 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/controllers.TrackWriteRequest'
+          $ref: '#/definitions/v1.TrackWriteRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/controllers.TrackResponse'
+            $ref: '#/definitions/v1.TrackResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
       summary: Create track
       tags:
       - tracks
@@ -219,15 +241,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
       summary: Delete track
       tags:
       - tracks
@@ -244,19 +266,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/controllers.TrackResponse'
+            $ref: '#/definitions/v1.TrackResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
       summary: Get track by id
       tags:
       - tracks
@@ -274,26 +296,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/controllers.TrackWriteRequest'
+          $ref: '#/definitions/v1.TrackWriteRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/controllers.TrackResponse'
+            $ref: '#/definitions/v1.TrackResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
       summary: Update track
       tags:
       - tracks
@@ -306,12 +328,12 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/controllers.UserResponse'
+              $ref: '#/definitions/v1.UserResponse'
             type: array
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
       summary: List users
       tags:
       - users
@@ -324,22 +346,22 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/controllers.UserWriteRequest'
+          $ref: '#/definitions/v1.UserWriteRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/controllers.UserResponse'
+            $ref: '#/definitions/v1.UserResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
       summary: Create user
       tags:
       - users
@@ -359,15 +381,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
       summary: Delete user
       tags:
       - users
@@ -384,19 +406,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/controllers.UserResponse'
+            $ref: '#/definitions/v1.UserResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
       summary: Get user by id
       tags:
       - users
@@ -414,27 +436,32 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/controllers.UserWriteRequest'
+          $ref: '#/definitions/v1.UserWriteRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/controllers.UserResponse'
+            $ref: '#/definitions/v1.UserResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
+            $ref: '#/definitions/v1.ErrorResponse'
       summary: Update user
       tags:
       - users
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

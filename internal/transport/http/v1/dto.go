@@ -1,4 +1,4 @@
-package controllers
+package v1
 
 type RegisterRequest struct {
 	Email    string `json:"email"`
@@ -12,8 +12,9 @@ type LoginRequest struct {
 }
 
 type UserWriteRequest struct {
-	Email string `json:"email"`
-	Name  string `json:"name"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Password string `json:"password,omitempty"`
 }
 
 type UserResponse struct {

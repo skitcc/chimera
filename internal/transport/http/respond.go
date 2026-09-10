@@ -1,4 +1,4 @@
-package controllers
+package httpapi
 
 import (
 	"context"
@@ -6,34 +6,39 @@ import (
 	"net/http"
 	"strconv"
 
-	"chimera/internal/business_logic/apperrors"
-	"chimera/internal/business_logic/domain"
+	"chimera/internal/domain"
+	"chimera/internal/transport/http/middleware"
 )
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
+type ErrorResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func WriteJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func writeNoContent(w http.ResponseWriter) {
+func WriteNoContent(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func decodeJSON(r *http.Request, dst any) error {
+func DecodeJSON(r *http.Request, dst any) error {
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
-		return apperrors.Wrap(apperrors.CodeInvalid, "invalid json", err)
+		return domain.Wrap(domain.CodeInvalid, "invalid json", err)
 	}
 	return nil
 }
 
-func writeAppError(ctx context.Context, w http.ResponseWriter, log Logger, msg string, err error, attrs ...any) {
-	app, ok := apperrors.As(err)
+func WriteAppError(ctx context.Context, w http.ResponseWriter, log middleware.Logger, msg string, err error, attrs ...any) {
+	app, ok := domain.As(err)
 	if !ok {
 		log.ErrorContext(ctx, msg, append(attrs, "error", err)...)
-		writeJSON(w, http.StatusInternalServerError, ErrorResponse{
-			Code:    string(apperrors.CodeInternal),
+		WriteJSON(w, http.StatusInternalServerError, ErrorResponse{
+			Code:    string(domain.CodeInternal),
 			Message: "internal error",
 		})
 		return
@@ -47,28 +52,28 @@ func writeAppError(ctx context.Context, w http.ResponseWriter, log Logger, msg s
 		log.InfoContext(ctx, msg, args...)
 	}
 
-	writeJSON(w, status, ErrorResponse{
+	WriteJSON(w, status, ErrorResponse{
 		Code:    string(app.Code),
 		Message: app.Message,
 	})
 }
 
-func httpStatus(code apperrors.Code) int {
+func httpStatus(code domain.Code) int {
 	switch code {
-	case apperrors.CodeNotFound:
+	case domain.CodeNotFound:
 		return http.StatusNotFound
-	case apperrors.CodeInvalid:
+	case domain.CodeInvalid:
 		return http.StatusBadRequest
-	case apperrors.CodeUnauthorized:
+	case domain.CodeUnauthorized:
 		return http.StatusUnauthorized
-	case apperrors.CodeConflict:
+	case domain.CodeConflict:
 		return http.StatusConflict
 	default:
 		return http.StatusInternalServerError
 	}
 }
 
-func parsePageQuery(r *http.Request) domain.PageQuery {
+func ParsePageQuery(r *http.Request) domain.PageQuery {
 	q := domain.PageQuery{Cursor: r.URL.Query().Get("cursor")}
 	if raw := r.URL.Query().Get("limit"); raw != "" {
 		n, err := strconv.Atoi(raw)

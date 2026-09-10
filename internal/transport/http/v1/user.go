@@ -1,9 +1,13 @@
-package controllers
+package v1
 
 import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+
+	"chimera/internal/domain"
+	httpapi "chimera/internal/transport/http"
+	"chimera/internal/transport/http/middleware"
 )
 
 type UserController struct {
@@ -25,10 +29,10 @@ func NewUserController(users UserService, log Logger) *UserController {
 func (c *UserController) ListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := c.users.List(r.Context())
 	if err != nil {
-		writeAppError(r.Context(), w, c.log, "list users", err)
+		httpapi.WriteAppError(r.Context(), w, c.log, "list users", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, usersToResponse(users))
+	httpapi.WriteJSON(w, http.StatusOK, usersToResponse(users))
 }
 
 // GetUser godoc
@@ -45,10 +49,10 @@ func (c *UserController) GetUser(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	user, err := c.users.GetByID(r.Context(), id)
 	if err != nil {
-		writeAppError(r.Context(), w, c.log, "get user", err, "user_id", id)
+		httpapi.WriteAppError(r.Context(), w, c.log, "get user", err, "user_id", id)
 		return
 	}
-	writeJSON(w, http.StatusOK, userToResponse(user))
+	httpapi.WriteJSON(w, http.StatusOK, userToResponse(user))
 }
 
 // CreateUser godoc
@@ -63,17 +67,17 @@ func (c *UserController) GetUser(w http.ResponseWriter, r *http.Request) {
 // @Router /v1/users [post]
 func (c *UserController) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req UserWriteRequest
-	if err := decodeJSON(r, &req); err != nil {
-		writeAppError(r.Context(), w, c.log, "create user", err)
+	if err := httpapi.DecodeJSON(r, &req); err != nil {
+		httpapi.WriteAppError(r.Context(), w, c.log, "create user", err)
 		return
 	}
 
 	user, err := c.users.Create(r.Context(), req.toDomain())
 	if err != nil {
-		writeAppError(r.Context(), w, c.log, "create user", err)
+		httpapi.WriteAppError(r.Context(), w, c.log, "create user", err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, userToResponse(user))
+	httpapi.WriteJSON(w, http.StatusCreated, userToResponse(user))
 }
 
 // UpdateUser godoc
@@ -90,18 +94,18 @@ func (c *UserController) CreateUser(w http.ResponseWriter, r *http.Request) {
 // @Router /v1/users/{id} [put]
 func (c *UserController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	var req UserWriteRequest
-	if err := decodeJSON(r, &req); err != nil {
-		writeAppError(r.Context(), w, c.log, "update user", err)
+	if err := httpapi.DecodeJSON(r, &req); err != nil {
+		httpapi.WriteAppError(r.Context(), w, c.log, "update user", err)
 		return
 	}
 
 	id := chi.URLParam(r, "id")
 	user, err := c.users.Update(r.Context(), id, req.toDomain())
 	if err != nil {
-		writeAppError(r.Context(), w, c.log, "update user", err, "user_id", id)
+		httpapi.WriteAppError(r.Context(), w, c.log, "update user", err, "user_id", id)
 		return
 	}
-	writeJSON(w, http.StatusOK, userToResponse(user))
+	httpapi.WriteJSON(w, http.StatusOK, userToResponse(user))
 }
 
 // DeleteUser godoc
@@ -116,8 +120,30 @@ func (c *UserController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 func (c *UserController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if err := c.users.Delete(r.Context(), id); err != nil {
-		writeAppError(r.Context(), w, c.log, "delete user", err, "user_id", id)
+		httpapi.WriteAppError(r.Context(), w, c.log, "delete user", err, "user_id", id)
 		return
 	}
-	writeNoContent(w)
+	httpapi.WriteNoContent(w)
+}
+
+// Me godoc
+// @Summary Current user
+// @Tags auth
+// @Produce json
+// @Success 200 {object} UserResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /v1/me [get]
+func (c *UserController) Me(w http.ResponseWriter, r *http.Request) {
+	id, ok := middleware.UserIDFromCtx(r.Context())
+	if !ok {
+		httpapi.WriteAppError(r.Context(), w, c.log, "me", domain.Unauthorized("missing token"))
+		return
+	}
+	user, err := c.users.GetByID(r.Context(), id)
+	if err != nil {
+		httpapi.WriteAppError(r.Context(), w, c.log, "me", err, "user_id", id)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, userToResponse(user))
 }

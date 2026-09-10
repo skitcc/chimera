@@ -1,7 +1,9 @@
-package controllers
+package v1
 
 import (
 	"net/http"
+
+	httpapi "chimera/internal/transport/http"
 )
 
 type AuthController struct {
@@ -26,17 +28,17 @@ func NewAuthController(auth AuthService, log Logger) *AuthController {
 // @Router /v1/auth/register [post]
 func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
-	if err := decodeJSON(r, &req); err != nil {
-		writeAppError(r.Context(), w, c.log, "register", err)
+	if err := httpapi.DecodeJSON(r, &req); err != nil {
+		httpapi.WriteAppError(r.Context(), w, c.log, "register", err)
 		return
 	}
 
 	result, err := c.auth.Register(r.Context(), req.toDomain())
 	if err != nil {
-		writeAppError(r.Context(), w, c.log, "register", err)
+		httpapi.WriteAppError(r.Context(), w, c.log, "register", err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, authToResponse(result))
+	httpapi.WriteJSON(w, http.StatusCreated, authToResponse(result))
 }
 
 // Login godoc
@@ -52,15 +54,15 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 // @Router /v1/auth/login [post]
 func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
-	if err := decodeJSON(r, &req); err != nil {
-		writeAppError(r.Context(), w, c.log, "login", err)
+	if err := httpapi.DecodeJSON(r, &req); err != nil {
+		httpapi.WriteAppError(r.Context(), w, c.log, "login", err)
 		return
 	}
 
 	result, err := c.auth.Login(r.Context(), req.toDomain())
 	if err != nil {
-		writeAppError(r.Context(), w, c.log, "login", err)
+		httpapi.WriteAppError(r.Context(), w, c.log, "login", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, authToResponse(result))
+	httpapi.WriteJSON(w, http.StatusOK, authToResponse(result))
 }

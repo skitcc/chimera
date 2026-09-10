@@ -1,9 +1,15 @@
-package controllers
+package middleware
 
 import (
+	"context"
 	"net/http"
 	"time"
 )
+
+type Logger interface {
+	InfoContext(ctx context.Context, msg string, args ...any)
+	ErrorContext(ctx context.Context, msg string, args ...any)
+}
 
 type statusWriter struct {
 	http.ResponseWriter
@@ -15,7 +21,7 @@ func (w *statusWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
-func requestLogger(log Logger) func(http.Handler) http.Handler {
+func RequestLogger(log Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()

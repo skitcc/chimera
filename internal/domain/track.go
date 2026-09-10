@@ -1,7 +1,5 @@
 package domain
 
-import "chimera/internal/business_logic/apperrors"
-
 type Track struct {
 	ID     string
 	Title  string
@@ -12,7 +10,7 @@ type TrackID string
 
 func (id TrackID) Validate() error {
 	if id == "" {
-		return apperrors.Invalid("track id is required")
+		return Invalid("track id is required")
 	}
 	return nil
 }
@@ -24,7 +22,7 @@ type TrackWrite struct {
 
 func (w TrackWrite) Validate() error {
 	if w.Title == "" {
-		return apperrors.Invalid("title is required")
+		return Invalid("title is required")
 	}
 	return nil
 }

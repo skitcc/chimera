@@ -1,9 +1,9 @@
-package controllers
+package v1
 
 import (
 	"context"
 
-	"chimera/internal/business_logic/domain"
+	"chimera/internal/domain"
 )
 
 type UserService interface {

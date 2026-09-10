@@ -3,7 +3,7 @@ package usecase
 import (
 	"context"
 
-	"chimera/internal/business_logic/domain"
+	"chimera/internal/domain"
 )
 
 type TrackService struct {

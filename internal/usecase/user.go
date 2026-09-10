@@ -3,15 +3,16 @@ package usecase
 import (
 	"context"
 
-	"chimera/internal/business_logic/domain"
+	"chimera/internal/domain"
 )
 
 type UserService struct {
-	users UserRepository
+	users  UserRepository
+	hasher PasswordHasher
 }
 
-func NewUserService(users UserRepository) *UserService {
-	return &UserService{users: users}
+func NewUserService(users UserRepository, hasher PasswordHasher) *UserService {
+	return &UserService{users: users, hasher: hasher}
 }
 
 func (s *UserService) List(ctx context.Context) ([]domain.User, error) {
@@ -26,10 +27,14 @@ func (s *UserService) GetByID(ctx context.Context, id string) (domain.User, erro
 }
 
 func (s *UserService) Create(ctx context.Context, in domain.UserWrite) (domain.User, error) {
-	if err := in.Validate(); err != nil {
+	if err := in.ValidateCreate(); err != nil {
 		return domain.User{}, err
 	}
-	return s.users.Create(ctx, in.User(""))
+	hash, err := s.hasher.Hash(in.Password)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return s.users.Create(ctx, in.User(""), hash)
 }
 
 func (s *UserService) Update(ctx context.Context, id string, in domain.UserWrite) (domain.User, error) {

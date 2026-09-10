@@ -1,6 +1,6 @@
-package controllers
+package v1
 
-import "chimera/internal/business_logic/domain"
+import "chimera/internal/domain"
 
 func userToResponse(u domain.User) UserResponse {
 	return UserResponse{ID: u.ID, Email: u.Email, Name: u.Name}
@@ -38,7 +38,7 @@ func authToResponse(a domain.AuthResult) AuthResponse {
 }
 
 func (r UserWriteRequest) toDomain() domain.UserWrite {
-	return domain.UserWrite{Email: r.Email, Name: r.Name}
+	return domain.UserWrite{Email: r.Email, Name: r.Name, Password: r.Password}
 }
 
 func (r TrackWriteRequest) toDomain() domain.TrackWrite {

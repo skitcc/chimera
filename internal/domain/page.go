@@ -1,10 +1,6 @@
 package domain
 
-import (
-	"strconv"
-
-	"chimera/internal/business_logic/apperrors"
-)
+import "strconv"
 
 const (
 	defaultPageLimit = 20
@@ -22,7 +18,7 @@ func (q *PageQuery) Validate() error {
 		q.Limit = defaultPageLimit
 	}
 	if q.Limit > maxPageLimit {
-		return apperrors.Invalid("limit exceeded")
+		return Invalid("limit exceeded")
 	}
 	if q.Cursor == "" {
 		q.start = 0
@@ -30,18 +26,14 @@ func (q *PageQuery) Validate() error {
 	}
 	n, err := strconv.Atoi(q.Cursor)
 	if err != nil || n < 0 {
-		return apperrors.Invalid("invalid cursor")
+		return Invalid("invalid cursor")
 	}
 	q.start = n
 	return nil
 }
 
 func (q PageQuery) Page(tracks []Track) TrackPage {
-	start := q.start
-	if start > len(tracks) {
-		start = len(tracks)
-	}
-
+	start := min(q.start, len(tracks))
 	end := min(len(tracks), start+q.Limit)
 	page := TrackPage{
 		Items: tracks[start:end],

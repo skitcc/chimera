@@ -1,4 +1,4 @@
-package apperrors
+package domain
 
 import (
 	"errors"
@@ -30,7 +30,7 @@ func (e *Error) Error() string {
 
 func (e *Error) Unwrap() error { return e.err }
 
-func New(code Code, message string) *Error {
+func NewError(code Code, message string) *Error {
 	return &Error{Code: code, Message: message}
 }
 
@@ -38,11 +38,11 @@ func Wrap(code Code, message string, err error) *Error {
 	return &Error{Code: code, Message: message, err: err}
 }
 
-func NotFound(message string) *Error     { return New(CodeNotFound, message) }
-func Invalid(message string) *Error      { return New(CodeInvalid, message) }
-func Unauthorized(message string) *Error { return New(CodeUnauthorized, message) }
-func Conflict(message string) *Error     { return New(CodeConflict, message) }
-func Internal(message string) *Error     { return New(CodeInternal, message) }
+func NotFound(message string) *Error     { return NewError(CodeNotFound, message) }
+func Invalid(message string) *Error      { return NewError(CodeInvalid, message) }
+func Unauthorized(message string) *Error { return NewError(CodeUnauthorized, message) }
+func Conflict(message string) *Error     { return NewError(CodeConflict, message) }
+func Internal(message string) *Error     { return NewError(CodeInternal, message) }
 
 func As(err error) (*Error, bool) {
 	var app *Error

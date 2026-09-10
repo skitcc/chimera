@@ -2,6 +2,9 @@
 // @version 1.0
 // @description Music streaming backend
 // @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 package main
 
 import (
@@ -12,13 +15,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"chimera/internal/business_logic/usecase"
 	"chimera/internal/config"
-	"chimera/internal/controllers"
-	"chimera/internal/infra/adapters/memory"
+	"chimera/internal/infra/adapters/postgres"
+	infraauth "chimera/internal/infra/auth"
 	"chimera/internal/infra/logger"
+	httpapi "chimera/internal/transport/http"
+	v1 "chimera/internal/transport/http/v1"
+	"chimera/internal/usecase"
 
 	_ "chimera/docs"
 )
@@ -26,7 +30,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	cfg, err := config.Load("")
+	cfg, err := config.Load()
 	if err != nil {
 		slog.ErrorContext(ctx, "load config", "error", err)
 		os.Exit(1)
@@ -34,11 +38,32 @@ func main() {
 
 	log := logger.New(cfg)
 
-	router := controllers.NewRouter(controllers.Dependencies{
-		Users:  usecase.NewUserService(memory.NewUserRepository()),
-		Auth:   usecase.NewAuthService(),
-		Tracks: usecase.NewTrackService(memory.NewTrackRepository()),
+	pool, err := postgres.NewPool(ctx, cfg.Postgres)
+	if err != nil {
+		log.ErrorContext(ctx, "postgres", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	if err := postgres.Migrate(ctx, pool); err != nil {
+		log.ErrorContext(ctx, "migrate", "error", err)
+		os.Exit(1)
+	}
+
+	users := postgres.NewUserRepository(pool)
+	tracks := postgres.NewTrackRepository(pool)
+	hasher := infraauth.NewBcryptHasher()
+	tokens := infraauth.NewJWT(cfg.Auth)
+
+	router := httpapi.NewRouter(httpapi.Dependencies{
 		Log:    log,
+		Tokens: tokens,
+		Routes: v1.New(
+			usecase.NewUserService(users, hasher),
+			usecase.NewAuthService(users, hasher, tokens),
+			usecase.NewTrackService(tracks),
+			log,
+		),
 	})
 
 	server := &http.Server{
@@ -58,7 +83,7 @@ func main() {
 	signal.Notify(closeCh, os.Interrupt, syscall.SIGTERM)
 
 	<-closeCh
-	shutdownCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(ctx, cfg.HTTP.ShutdownTimeout)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
