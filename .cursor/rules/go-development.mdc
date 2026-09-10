@@ -17,28 +17,39 @@ alwaysApply: true
 - Keep interfaces focused and small (Interface Segregation Principle).
 - Accept interfaces, return concrete structs from constructors.
 
-## 3. Error Handling & Structured Logging
+## 3. Domain Validation & Model Encapsulation
+- **No inline input/field checks in UseCases:** UseCases must NOT contain low-level validation logic (e.g., checking for empty/nil IDs, string length, limits, boundary checks, empty fields).
+- **Self-validating models (Rich Domain Model):** Validation logic belongs strictly to dedicated methods on the domain entities/input models (e.g., `model.Validate()`, `model.ValidateCreate()`, `track.ValidateLimits()`).
+- **Orchestration in UseCases:** At the beginning of each UseCase, solely invoke the incoming model's validation method:
+  ```go
+  if err := input.Validate(); err != nil {
+      return err
+  }
+  ```
+  Keep the UseCase body focused purely on workflow orchestration, not field inspection.
+
+## 4. Error Handling & Structured Logging
 - **No `fmt.Errorf` for logging or string formatting:** Use structured logging (`log/slog` or the project's logger instance) with `ctx`.
 - **Log with context and key-value attributes:** Prefer `logger.ErrorContext(ctx, "failed to execute action", "error", err, "track_id", id)` over string concatenation.
 - **Do not log and re-return the same error:** 
   - Low-level layers (repositories/adapters) return errors up to the caller.
-  - Domain/UseCases return typed or sentinel domain errors.
+  - Domain/UseCases return typed or sentinel domain errors (e.g., `ErrInvalidInput`, `ErrLimitExceeded`).
   - Top boundaries (HTTP handlers, workers) log the error with full structured metadata and return sanitized client-safe responses.
 - Check `if err != nil` immediately. No unhandled errors.
 
-## 4. Eliminate Defensive Code
+## 5. Eliminate Defensive Code
 - Do not nil-check before `len()`, `cap()`, `append()`, or `range` on slices/maps.
 - No type assertions or reflection unless dealing with `any` from dynamic inputs.
 - No pointless nil pointer guards when control flow already guarantees non-nil.
 - No comments that repeat the function name. Comment only non-obvious business logic.
 - No Java-style getters/setters. Access struct fields directly unless encapsulation is required by an interface.
 
-## 5. Control Flow
+## 6. Control Flow
 - Guard clauses and early returns. Never write `else` after `return`, `break`, or `continue`.
 - Max 2–3 levels of indentation inside any function.
 
-## 6. Naming & Style
+## 7. Naming & Style
 - Idiomatic short names for local scopes: `ctx`, `r`, `w`, `id`.
-- Single-letter receivers for methods matching the struct type (`func (s *Service) ...`).
+- Single-letter receivers for methods matching the struct type (`func (s *Service) ...`, `func (t *Track) ...`).
 - PascalCase for exported, camelCase for unexported. No snake_case in Go identifiers.
 - DTOs (Data Transfer Objects) live strictly in the transport layer and are mapped to domain models before passing to UseCases.
