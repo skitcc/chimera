@@ -2,16 +2,14 @@ package controllers
 
 import (
 	"net/http"
-
-	"chimera/internal/business_logic/port"
 )
 
 type AuthController struct {
-	auth port.AuthService
-	log  port.Logger
+	auth AuthService
+	log  Logger
 }
 
-func NewAuthController(auth port.AuthService, log port.Logger) *AuthController {
+func NewAuthController(auth AuthService, log Logger) *AuthController {
 	return &AuthController{auth: auth, log: log}
 }
 
@@ -29,13 +27,13 @@ func NewAuthController(auth port.AuthService, log port.Logger) *AuthController {
 func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeAppError(w, c.log, "register", err)
+		writeAppError(r.Context(), w, c.log, "register", err)
 		return
 	}
 
 	result, err := c.auth.Register(r.Context(), req.toDomain())
 	if err != nil {
-		writeAppError(w, c.log, "register", err)
+		writeAppError(r.Context(), w, c.log, "register", err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, authToResponse(result))
@@ -55,13 +53,13 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeAppError(w, c.log, "login", err)
+		writeAppError(r.Context(), w, c.log, "login", err)
 		return
 	}
 
 	result, err := c.auth.Login(r.Context(), req.toDomain())
 	if err != nil {
-		writeAppError(w, c.log, "login", err)
+		writeAppError(r.Context(), w, c.log, "login", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, authToResponse(result))

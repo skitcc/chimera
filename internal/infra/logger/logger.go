@@ -5,23 +5,16 @@ import (
 	"os"
 	"strings"
 
-	"chimera/internal/business_logic/port"
 	"chimera/internal/config"
 )
 
-var _ port.Logger = (*slog.Logger)(nil)
-
 func New(cfg config.Config) *slog.Logger {
 	opts := &slog.HandlerOptions{Level: level(cfg)}
-
-	var handler slog.Handler
-	if cfg.Mode.IsProduction() {
-		handler = slog.NewJSONHandler(os.Stdout, opts)
-	} else {
-		handler = slog.NewTextHandler(os.Stdout, opts)
+	h := slog.Handler(slog.NewTextHandler(os.Stdout, opts))
+	if cfg.Mode == config.ModeProduction {
+		h = slog.NewJSONHandler(os.Stdout, opts)
 	}
-
-	return slog.New(handler).With("mode", string(cfg.Mode))
+	return slog.New(h).With("mode", string(cfg.Mode))
 }
 
 func level(cfg config.Config) slog.Leveler {
@@ -35,8 +28,7 @@ func level(cfg config.Config) slog.Leveler {
 	case "error":
 		return slog.LevelError
 	}
-
-	if cfg.Mode.IsProduction() {
+	if cfg.Mode == config.ModeProduction {
 		return slog.LevelInfo
 	}
 	return slog.LevelDebug

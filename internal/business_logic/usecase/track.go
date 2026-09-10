@@ -6,10 +6,7 @@ import (
 
 	"chimera/internal/business_logic/apperrors"
 	"chimera/internal/business_logic/domain"
-	"chimera/internal/business_logic/port"
 )
-
-var _ port.TrackService = (*TrackService)(nil)
 
 var stubTracks = []domain.Track{
 	{ID: "1", Title: "Night Drive", Artist: "Lumen"},
@@ -58,10 +55,6 @@ func (s *TrackService) List(_ context.Context, q domain.PageQuery) (domain.Track
 	if end < len(stubTracks) {
 		page.NextCursor = strconv.Itoa(end)
 	}
-	if page.Items == nil {
-		page.Items = []domain.Track{}
-	}
-
 	return page, nil
 }
 

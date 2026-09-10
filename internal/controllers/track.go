@@ -4,16 +4,14 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-
-	"chimera/internal/business_logic/port"
 )
 
 type TrackController struct {
-	tracks port.TrackService
-	log    port.Logger
+	tracks TrackService
+	log    Logger
 }
 
-func NewTrackController(tracks port.TrackService, log port.Logger) *TrackController {
+func NewTrackController(tracks TrackService, log Logger) *TrackController {
 	return &TrackController{tracks: tracks, log: log}
 }
 
@@ -30,7 +28,7 @@ func NewTrackController(tracks port.TrackService, log port.Logger) *TrackControl
 func (c *TrackController) ListTracks(w http.ResponseWriter, r *http.Request) {
 	page, err := c.tracks.List(r.Context(), parsePageQuery(r))
 	if err != nil {
-		writeAppError(w, c.log, "list tracks", err)
+		writeAppError(r.Context(), w, c.log, "list tracks", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, trackPageToResponse(page))
@@ -50,7 +48,7 @@ func (c *TrackController) GetTrack(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	track, err := c.tracks.GetByID(r.Context(), id)
 	if err != nil {
-		writeAppError(w, c.log, "get track", err)
+		writeAppError(r.Context(), w, c.log, "get track", err, "track_id", id)
 		return
 	}
 	writeJSON(w, http.StatusOK, trackToResponse(track))
@@ -69,13 +67,13 @@ func (c *TrackController) GetTrack(w http.ResponseWriter, r *http.Request) {
 func (c *TrackController) CreateTrack(w http.ResponseWriter, r *http.Request) {
 	var req TrackWriteRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeAppError(w, c.log, "create track", err)
+		writeAppError(r.Context(), w, c.log, "create track", err)
 		return
 	}
 
 	track, err := c.tracks.Create(r.Context(), req.toDomain())
 	if err != nil {
-		writeAppError(w, c.log, "create track", err)
+		writeAppError(r.Context(), w, c.log, "create track", err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, trackToResponse(track))
@@ -94,16 +92,16 @@ func (c *TrackController) CreateTrack(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} ErrorResponse
 // @Router /v1/tracks/{id} [put]
 func (c *TrackController) UpdateTrack(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
 	var req TrackWriteRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeAppError(w, c.log, "update track", err)
+		writeAppError(r.Context(), w, c.log, "update track", err)
 		return
 	}
 
+	id := chi.URLParam(r, "id")
 	track, err := c.tracks.Update(r.Context(), id, req.toDomain())
 	if err != nil {
-		writeAppError(w, c.log, "update track", err)
+		writeAppError(r.Context(), w, c.log, "update track", err, "track_id", id)
 		return
 	}
 	writeJSON(w, http.StatusOK, trackToResponse(track))
@@ -121,7 +119,7 @@ func (c *TrackController) UpdateTrack(w http.ResponseWriter, r *http.Request) {
 func (c *TrackController) DeleteTrack(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if err := c.tracks.Delete(r.Context(), id); err != nil {
-		writeAppError(w, c.log, "delete track", err)
+		writeAppError(r.Context(), w, c.log, "delete track", err, "track_id", id)
 		return
 	}
 	writeNoContent(w)

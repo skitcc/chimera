@@ -5,15 +5,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	httpSwagger "github.com/swaggo/http-swagger"
-
-	"chimera/internal/business_logic/port"
 )
 
 type Dependencies struct {
-	Users  port.UserService
-	Auth   port.AuthService
-	Tracks port.TrackService
-	Log    port.Logger
+	Users  UserService
+	Auth   AuthService
+	Tracks TrackService
+	Log    Logger
 }
 
 func NewRouter(deps Dependencies) http.Handler {

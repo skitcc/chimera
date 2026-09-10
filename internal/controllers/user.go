@@ -4,17 +4,14 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-
-	"chimera/internal/business_logic/domain"
-	"chimera/internal/business_logic/port"
 )
 
 type UserController struct {
-	users port.UserService
-	log   port.Logger
+	users UserService
+	log   Logger
 }
 
-func NewUserController(users port.UserService, log port.Logger) *UserController {
+func NewUserController(users UserService, log Logger) *UserController {
 	return &UserController{users: users, log: log}
 }
 
@@ -28,11 +25,8 @@ func NewUserController(users port.UserService, log port.Logger) *UserController 
 func (c *UserController) ListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := c.users.List(r.Context())
 	if err != nil {
-		writeAppError(w, c.log, "list users", err)
+		writeAppError(r.Context(), w, c.log, "list users", err)
 		return
-	}
-	if users == nil {
-		users = []domain.User{}
 	}
 	writeJSON(w, http.StatusOK, usersToResponse(users))
 }
@@ -51,7 +45,7 @@ func (c *UserController) GetUser(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	user, err := c.users.GetByID(r.Context(), id)
 	if err != nil {
-		writeAppError(w, c.log, "get user", err)
+		writeAppError(r.Context(), w, c.log, "get user", err, "user_id", id)
 		return
 	}
 	writeJSON(w, http.StatusOK, userToResponse(user))
@@ -70,13 +64,13 @@ func (c *UserController) GetUser(w http.ResponseWriter, r *http.Request) {
 func (c *UserController) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req UserWriteRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeAppError(w, c.log, "create user", err)
+		writeAppError(r.Context(), w, c.log, "create user", err)
 		return
 	}
 
 	user, err := c.users.Create(r.Context(), req.toDomain())
 	if err != nil {
-		writeAppError(w, c.log, "create user", err)
+		writeAppError(r.Context(), w, c.log, "create user", err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, userToResponse(user))
@@ -95,16 +89,16 @@ func (c *UserController) CreateUser(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} ErrorResponse
 // @Router /v1/users/{id} [put]
 func (c *UserController) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
 	var req UserWriteRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeAppError(w, c.log, "update user", err)
+		writeAppError(r.Context(), w, c.log, "update user", err)
 		return
 	}
 
+	id := chi.URLParam(r, "id")
 	user, err := c.users.Update(r.Context(), id, req.toDomain())
 	if err != nil {
-		writeAppError(w, c.log, "update user", err)
+		writeAppError(r.Context(), w, c.log, "update user", err, "user_id", id)
 		return
 	}
 	writeJSON(w, http.StatusOK, userToResponse(user))
@@ -122,7 +116,7 @@ func (c *UserController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 func (c *UserController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if err := c.users.Delete(r.Context(), id); err != nil {
-		writeAppError(w, c.log, "delete user", err)
+		writeAppError(r.Context(), w, c.log, "delete user", err, "user_id", id)
 		return
 	}
 	writeNoContent(w)

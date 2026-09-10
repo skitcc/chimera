@@ -5,10 +5,7 @@ import (
 
 	"chimera/internal/business_logic/apperrors"
 	"chimera/internal/business_logic/domain"
-	"chimera/internal/business_logic/port"
 )
-
-var _ port.UserService = (*UserService)(nil)
 
 type UserService struct{}
 

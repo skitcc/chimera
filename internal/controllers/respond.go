@@ -1,13 +1,13 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"chimera/internal/business_logic/apperrors"
 	"chimera/internal/business_logic/domain"
-	"chimera/internal/business_logic/port"
 )
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -28,10 +28,10 @@ func decodeJSON(r *http.Request, dst any) error {
 	return nil
 }
 
-func writeAppError(w http.ResponseWriter, log port.Logger, msg string, err error) {
+func writeAppError(ctx context.Context, w http.ResponseWriter, log Logger, msg string, err error, attrs ...any) {
 	app, ok := apperrors.As(err)
 	if !ok {
-		log.Error(msg, "err", err)
+		log.ErrorContext(ctx, msg, append(attrs, "error", err)...)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{
 			Code:    string(apperrors.CodeInternal),
 			Message: "internal error",
@@ -40,10 +40,11 @@ func writeAppError(w http.ResponseWriter, log port.Logger, msg string, err error
 	}
 
 	status := httpStatus(app.Code)
+	args := append(attrs, "error", err, "code", app.Code)
 	if status >= 500 {
-		log.Error(msg, "err", err, "code", app.Code)
+		log.ErrorContext(ctx, msg, args...)
 	} else {
-		log.Info(msg, "err", err, "code", app.Code)
+		log.InfoContext(ctx, msg, args...)
 	}
 
 	writeJSON(w, status, ErrorResponse{
@@ -70,7 +71,8 @@ func httpStatus(code apperrors.Code) int {
 func parsePageQuery(r *http.Request) domain.PageQuery {
 	limit := 20
 	if raw := r.URL.Query().Get("limit"); raw != "" {
-		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+		n, err := strconv.Atoi(raw)
+		if err == nil && n > 0 {
 			limit = n
 		}
 	}
