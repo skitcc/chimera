@@ -3,44 +3,48 @@ package usecase
 import (
 	"context"
 
-	"chimera/internal/business_logic/apperrors"
 	"chimera/internal/business_logic/domain"
 )
 
-type UserService struct{}
-
-func NewUserService() *UserService {
-	return &UserService{}
+type UserService struct {
+	users UserRepository
 }
 
-func (s *UserService) List(_ context.Context) ([]domain.User, error) {
-	return []domain.User{}, nil
+func NewUserService(users UserRepository) *UserService {
+	return &UserService{users: users}
 }
 
-func (s *UserService) GetByID(_ context.Context, id string) (domain.User, error) {
-	if id == "" {
-		return domain.User{}, apperrors.Invalid("user id is required")
+func (s *UserService) List(ctx context.Context) ([]domain.User, error) {
+	return s.users.List(ctx)
+}
+
+func (s *UserService) GetByID(ctx context.Context, id string) (domain.User, error) {
+	if err := domain.UserID(id).Validate(); err != nil {
+		return domain.User{}, err
 	}
-	return domain.User{ID: id}, nil
+	return s.users.GetByID(ctx, id)
 }
 
-func (s *UserService) Create(_ context.Context, in domain.UserWrite) (domain.User, error) {
-	if in.Email == "" {
-		return domain.User{}, apperrors.Invalid("email is required")
+func (s *UserService) Create(ctx context.Context, in domain.UserWrite) (domain.User, error) {
+	if err := in.Validate(); err != nil {
+		return domain.User{}, err
 	}
-	return domain.User{ID: "stub-user", Email: in.Email, Name: in.Name}, nil
+	return s.users.Create(ctx, in.User(""))
 }
 
-func (s *UserService) Update(_ context.Context, id string, in domain.UserWrite) (domain.User, error) {
-	if id == "" {
-		return domain.User{}, apperrors.Invalid("user id is required")
+func (s *UserService) Update(ctx context.Context, id string, in domain.UserWrite) (domain.User, error) {
+	if err := domain.UserID(id).Validate(); err != nil {
+		return domain.User{}, err
 	}
-	return domain.User{ID: id, Email: in.Email, Name: in.Name}, nil
+	if err := in.Validate(); err != nil {
+		return domain.User{}, err
+	}
+	return s.users.Update(ctx, in.User(id))
 }
 
-func (s *UserService) Delete(_ context.Context, id string) error {
-	if id == "" {
-		return apperrors.Invalid("user id is required")
+func (s *UserService) Delete(ctx context.Context, id string) error {
+	if err := domain.UserID(id).Validate(); err != nil {
+		return err
 	}
-	return nil
+	return s.users.Delete(ctx, id)
 }

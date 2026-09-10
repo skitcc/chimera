@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 
-	"chimera/internal/business_logic/apperrors"
 	"chimera/internal/business_logic/domain"
 )
 
@@ -14,31 +13,21 @@ func NewAuthService() *AuthService {
 }
 
 func (s *AuthService) Register(_ context.Context, in domain.RegisterInput) (domain.AuthResult, error) {
-	if in.Email == "" {
-		return domain.AuthResult{}, apperrors.Invalid("email is required")
-	}
-	if in.Password == "" {
-		return domain.AuthResult{}, apperrors.Invalid("password is required")
+	if err := in.Validate(); err != nil {
+		return domain.AuthResult{}, err
 	}
 	return domain.AuthResult{
 		Token: "stub-token",
-		User: domain.User{
-			ID:    "stub-user",
-			Email: in.Email,
-			Name:  in.Name,
-		},
+		User:  in.User("stub-user"),
 	}, nil
 }
 
 func (s *AuthService) Login(_ context.Context, in domain.LoginInput) (domain.AuthResult, error) {
-	if in.Email == "" || in.Password == "" {
-		return domain.AuthResult{}, apperrors.Unauthorized("invalid credentials")
+	if err := in.Validate(); err != nil {
+		return domain.AuthResult{}, err
 	}
 	return domain.AuthResult{
 		Token: "stub-token",
-		User: domain.User{
-			ID:    "stub-user",
-			Email: in.Email,
-		},
+		User:  in.User("stub-user"),
 	}, nil
 }
