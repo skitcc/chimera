@@ -20,7 +20,7 @@ func (s *TrackService) List(ctx context.Context, q domain.PageQuery) (domain.Tra
 	if err := q.Validate(); err != nil {
 		return domain.TrackPage{}, err
 	}
-	tracks, err := s.tracks.List(ctx)
+	tracks, err := s.tracks.ListByStatus(ctx, domain.TrackReady)
 	if err != nil {
 		return domain.TrackPage{}, err
 	}
@@ -94,16 +94,47 @@ func (s *TrackService) CompleteUpload(ctx context.Context, in domain.TrackUpload
 		return domain.Track{}, err
 	}
 
-	size, err := s.objects.Stat(ctx, track.AudioObjectKey())
-	if err != nil {
-		return domain.Track{}, err
-	}
-	if err := track.ConfirmUpload(size); err != nil {
+	if err := s.verifyObject(ctx, track); err != nil {
 		return domain.Track{}, err
 	}
 	if err := track.MarkProcessing(); err != nil {
 		return domain.Track{}, err
 	}
+	if _, err := s.tracks.Update(ctx, track); err != nil {
+		return domain.Track{}, err
+	}
 
+	return s.publish(ctx, track)
+}
+
+func (s *TrackService) StreamURL(ctx context.Context, id string) (string, error) {
+	if err := domain.TrackID(id).Validate(); err != nil {
+		return "", err
+	}
+	track, err := s.tracks.GetByID(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	if err := track.EnsureReady(); err != nil {
+		return "", err
+	}
+	return s.objects.PresignGet(ctx, track.AudioObjectKey())
+}
+
+func (s *TrackService) publish(ctx context.Context, track domain.Track) (domain.Track, error) {
+	if err := s.verifyObject(ctx, track); err != nil {
+		return domain.Track{}, err
+	}
+	if err := track.MarkReady(); err != nil {
+		return domain.Track{}, err
+	}
 	return s.tracks.Update(ctx, track)
+}
+
+func (s *TrackService) verifyObject(ctx context.Context, track domain.Track) error {
+	size, err := s.objects.Stat(ctx, track.AudioObjectKey())
+	if err != nil {
+		return err
+	}
+	return track.ConfirmUpload(size)
 }

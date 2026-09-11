@@ -20,7 +20,7 @@ type AuthUserRepository interface {
 }
 
 type TrackRepository interface {
-	List(ctx context.Context) ([]domain.Track, error)
+	ListByStatus(ctx context.Context, status domain.TrackStatus) ([]domain.Track, error)
 	GetByID(ctx context.Context, id string) (domain.Track, error)
 	Create(ctx context.Context, t domain.Track) (domain.Track, error)
 	Update(ctx context.Context, t domain.Track) (domain.Track, error)
@@ -29,6 +29,7 @@ type TrackRepository interface {
 
 type ObjectStorage interface {
 	PresignPut(ctx context.Context, key string) (string, error)
+	PresignGet(ctx context.Context, key string) (string, error)
 	Stat(ctx context.Context, key string) (int64, error)
 }
 

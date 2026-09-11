@@ -7,6 +7,7 @@ type TrackStatus string
 const (
 	TrackPending    TrackStatus = "pending"
 	TrackProcessing TrackStatus = "processing"
+	TrackReady      TrackStatus = "ready"
 )
 
 type Track struct {
@@ -44,10 +45,29 @@ func (t Track) ConfirmUpload(size int64) error {
 }
 
 func (t *Track) MarkProcessing() error {
-	if t.Status != TrackPending {
+	switch t.Status {
+	case TrackPending:
+		t.Status = TrackProcessing
+		return nil
+	case TrackProcessing:
+		return nil
+	default:
 		return Conflict("track is not awaiting upload")
 	}
-	t.Status = TrackProcessing
+}
+
+func (t *Track) MarkReady() error {
+	if t.Status != TrackProcessing {
+		return Conflict("track is not ready to publish")
+	}
+	t.Status = TrackReady
+	return nil
+}
+
+func (t Track) EnsureReady() error {
+	if t.Status != TrackReady {
+		return Conflict("track is not ready")
+	}
 	return nil
 }
 

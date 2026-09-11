@@ -148,6 +148,7 @@
         },
         "/v1/tracks": {
             "get": {
+                "description": "Lists ready tracks only.",
                 "produces": [
                     "application/json"
                 ],
@@ -401,6 +402,55 @@
                 }
             }
         },
+        "/v1/tracks/{id}/stream": {
+            "get": {
+                "tags": [
+                    "tracks"
+                ],
+                "summary": "Stream a ready track",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Track ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to audio",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/v1.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/tracks/{id}/upload-complete": {
             "post": {
                 "security": [
@@ -408,6 +458,7 @@
                         "BearerAuth": []
                     }
                 ],
+                "description": "Checks the object in MinIO and publishes the track as ready.",
                 "produces": [
                     "application/json"
                 ],
