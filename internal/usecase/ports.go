@@ -27,6 +27,12 @@ type TrackRepository interface {
 	Delete(ctx context.Context, id string) error
 }
 
+type TrackLikeRepository interface {
+	Add(ctx context.Context, userID, trackID string) error
+	Remove(ctx context.Context, userID, trackID string) error
+	ListReadyByUser(ctx context.Context, userID string) ([]domain.Track, error)
+}
+
 type ObjectStorage interface {
 	PresignPut(ctx context.Context, key string) (string, error)
 	PresignGet(ctx context.Context, key string) (string, error)

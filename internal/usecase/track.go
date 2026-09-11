@@ -8,12 +8,13 @@ import (
 
 type TrackService struct {
 	tracks   TrackRepository
+	likes    TrackLikeRepository
 	objects  ObjectStorage
 	maxBytes int64
 }
 
-func NewTrackService(tracks TrackRepository, objects ObjectStorage, maxBytes int64) *TrackService {
-	return &TrackService{tracks: tracks, objects: objects, maxBytes: maxBytes}
+func NewTrackService(tracks TrackRepository, likes TrackLikeRepository, objects ObjectStorage, maxBytes int64) *TrackService {
+	return &TrackService{tracks: tracks, likes: likes, objects: objects, maxBytes: maxBytes}
 }
 
 func (s *TrackService) List(ctx context.Context, q domain.TrackFeedQuery) (domain.TrackPage, error) {
@@ -28,6 +29,41 @@ func (s *TrackService) ListByUploader(ctx context.Context, q domain.TrackOwnerQu
 		return domain.TrackPage{}, err
 	}
 	return s.page(ctx, q.PageQuery, q.Filter())
+}
+
+func (s *TrackService) ListLiked(ctx context.Context, q domain.TrackLikeListQuery) (domain.TrackPage, error) {
+	if err := q.Validate(); err != nil {
+		return domain.TrackPage{}, err
+	}
+	tracks, err := s.likes.ListReadyByUser(ctx, q.UserID)
+	if err != nil {
+		return domain.TrackPage{}, err
+	}
+	return q.Page(tracks), nil
+}
+
+func (s *TrackService) Like(ctx context.Context, in domain.TrackLike) error {
+	if err := in.Validate(); err != nil {
+		return err
+	}
+	track, err := s.tracks.GetByID(ctx, in.TrackID)
+	if err != nil {
+		return err
+	}
+	if err := track.EnsureReady(); err != nil {
+		return err
+	}
+	return s.likes.Add(ctx, in.UserID, in.TrackID)
+}
+
+func (s *TrackService) Unlike(ctx context.Context, in domain.TrackLike) error {
+	if err := in.Validate(); err != nil {
+		return err
+	}
+	if _, err := s.tracks.GetByID(ctx, in.TrackID); err != nil {
+		return err
+	}
+	return s.likes.Remove(ctx, in.UserID, in.TrackID)
 }
 
 func (s *TrackService) page(ctx context.Context, q domain.PageQuery, filter domain.TrackFilter) (domain.TrackPage, error) {

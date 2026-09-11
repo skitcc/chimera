@@ -38,6 +38,9 @@ func (a *API) Public(r chi.Router) {
 func (a *API) Protected(r chi.Router) {
 	r.Get("/me", a.users.Me)
 	r.Get("/me/tracks", a.tracks.ListMyTracks)
+	r.Get("/me/likes", a.tracks.ListLikedTracks)
+	r.Post("/tracks/{id}/like", a.tracks.LikeTrack)
+	r.Delete("/tracks/{id}/like", a.tracks.UnlikeTrack)
 	r.Post("/users", a.users.CreateUser)
 	r.Put("/users/{id}", a.users.UpdateUser)
 	r.Delete("/users/{id}", a.users.DeleteUser)

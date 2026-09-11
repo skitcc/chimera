@@ -22,5 +22,13 @@ ALTER TABLE tracks ADD COLUMN IF NOT EXISTS object_key TEXT NOT NULL DEFAULT '';
 ALTER TABLE tracks ADD COLUMN IF NOT EXISTS size_bytes BIGINT NOT NULL DEFAULT 0;
 ALTER TABLE tracks ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';
 
+CREATE TABLE IF NOT EXISTS track_likes (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    track_id UUID NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, track_id)
+);
+
 CREATE INDEX IF NOT EXISTS tracks_user_id_idx ON tracks (user_id);
 CREATE INDEX IF NOT EXISTS tracks_status_created_at_idx ON tracks (status, created_at);
+CREATE INDEX IF NOT EXISTS track_likes_user_created_idx ON track_likes (user_id, created_at DESC);

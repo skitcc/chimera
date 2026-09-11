@@ -188,3 +188,27 @@ func (q *TrackOwnerQuery) Validate() error {
 func (q TrackOwnerQuery) Filter() TrackFilter {
 	return TrackFilter{UserID: q.UserID, Status: q.Status}
 }
+
+type TrackLike struct {
+	UserID  string
+	TrackID string
+}
+
+func (in TrackLike) Validate() error {
+	if err := UserID(in.UserID).Validate(); err != nil {
+		return err
+	}
+	return TrackID(in.TrackID).Validate()
+}
+
+type TrackLikeListQuery struct {
+	PageQuery
+	UserID string
+}
+
+func (q *TrackLikeListQuery) Validate() error {
+	if err := UserID(q.UserID).Validate(); err != nil {
+		return err
+	}
+	return q.PageQuery.Validate()
+}

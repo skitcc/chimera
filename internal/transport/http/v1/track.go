@@ -84,6 +84,85 @@ func (c *TrackController) ListUploaderTracks(w http.ResponseWriter, r *http.Requ
 	c.writeTrackPage(w, r, "list uploader tracks", page, err)
 }
 
+// ListLikedTracks godoc
+// @Summary My liked tracks
+// @Tags tracks
+// @Produce json
+// @Param limit query int false "Page size" default(20)
+// @Param cursor query string false "Pagination cursor"
+// @Success 200 {object} TrackPageResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /v1/me/likes [get]
+func (c *TrackController) ListLikedTracks(w http.ResponseWriter, r *http.Request) {
+	userID, ok := actorID(w, r, c.log, "list liked tracks")
+	if !ok {
+		return
+	}
+	page, err := c.tracks.ListLiked(r.Context(), domain.TrackLikeListQuery{
+		PageQuery: httpapi.ParsePageQuery(r),
+		UserID:    userID,
+	})
+	c.writeTrackPage(w, r, "list liked tracks", page, err)
+}
+
+// LikeTrack godoc
+// @Summary Like a ready track
+// @Tags tracks
+// @Param id path string true "Track ID"
+// @Success 204 {string} string "No Content"
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 409 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /v1/tracks/{id}/like [post]
+func (c *TrackController) LikeTrack(w http.ResponseWriter, r *http.Request) {
+	in, ok := c.likeInput(w, r, "like track")
+	if !ok {
+		return
+	}
+	if err := c.tracks.Like(r.Context(), in); err != nil {
+		httpapi.WriteAppError(r.Context(), w, c.log, "like track", err, "track_id", in.TrackID)
+		return
+	}
+	httpapi.WriteNoContent(w)
+}
+
+// UnlikeTrack godoc
+// @Summary Remove a like
+// @Tags tracks
+// @Param id path string true "Track ID"
+// @Success 204 {string} string "No Content"
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /v1/tracks/{id}/like [delete]
+func (c *TrackController) UnlikeTrack(w http.ResponseWriter, r *http.Request) {
+	in, ok := c.likeInput(w, r, "unlike track")
+	if !ok {
+		return
+	}
+	if err := c.tracks.Unlike(r.Context(), in); err != nil {
+		httpapi.WriteAppError(r.Context(), w, c.log, "unlike track", err, "track_id", in.TrackID)
+		return
+	}
+	httpapi.WriteNoContent(w)
+}
+
+func (c *TrackController) likeInput(w http.ResponseWriter, r *http.Request, op string) (domain.TrackLike, bool) {
+	userID, ok := actorID(w, r, c.log, op)
+	if !ok {
+		return domain.TrackLike{}, false
+	}
+	return domain.TrackLike{UserID: userID, TrackID: chi.URLParam(r, "id")}, true
+}
+
 func (c *TrackController) writeTrackPage(w http.ResponseWriter, r *http.Request, op string, page domain.TrackPage, err error) {
 	if err != nil {
 		httpapi.WriteAppError(r.Context(), w, c.log, op, err)
