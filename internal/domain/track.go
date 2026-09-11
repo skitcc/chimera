@@ -61,7 +61,6 @@ func (id TrackID) Validate() error {
 }
 
 type TrackWrite struct {
-	UserID string
 	Title  string
 	Artist string
 }
@@ -71,23 +70,6 @@ func (w TrackWrite) Validate() error {
 		return Invalid("title is required")
 	}
 	return nil
-}
-
-func (w TrackWrite) ValidateCreate() error {
-	if w.UserID == "" {
-		return Invalid("user id is required")
-	}
-	return w.Validate()
-}
-
-func (w TrackWrite) Track(id string) Track {
-	return Track{
-		ID:     id,
-		UserID: w.UserID,
-		Title:  w.Title,
-		Artist: w.Artist,
-		Status: TrackPending,
-	}
 }
 
 type TrackUploadInit struct {

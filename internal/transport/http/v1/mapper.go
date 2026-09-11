@@ -48,8 +48,8 @@ func (r UserWriteRequest) toDomain() domain.UserWrite {
 	return domain.UserWrite{Email: r.Email, Name: r.Name, Password: r.Password}
 }
 
-func (r TrackWriteRequest) toDomain(userID string) domain.TrackWrite {
-	return domain.TrackWrite{UserID: userID, Title: r.Title, Artist: r.Artist}
+func (r TrackWriteRequest) toDomain() domain.TrackWrite {
+	return domain.TrackWrite{Title: r.Title, Artist: r.Artist}
 }
 
 func (r TrackUploadInitRequest) toDomain(userID string) domain.TrackUploadInit {

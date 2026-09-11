@@ -40,7 +40,6 @@ func (a *API) Protected(r chi.Router) {
 	r.Delete("/users/{id}", a.users.DeleteUser)
 	r.Post("/tracks/upload-init", a.tracks.InitUpload)
 	r.Post("/tracks/{id}/upload-complete", a.tracks.CompleteUpload)
-	r.Post("/tracks", a.tracks.CreateTrack)
 	r.Put("/tracks/{id}", a.tracks.UpdateTrack)
 	r.Delete("/tracks/{id}", a.tracks.DeleteTrack)
 }

@@ -57,37 +57,6 @@ func (c *TrackController) GetTrack(w http.ResponseWriter, r *http.Request) {
 	httpapi.WriteJSON(w, http.StatusOK, trackToResponse(track))
 }
 
-// CreateTrack godoc
-// @Summary Create track
-// @Tags tracks
-// @Accept json
-// @Produce json
-// @Param body body TrackWriteRequest true "Track"
-// @Success 201 {object} TrackResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
-// @Security BearerAuth
-// @Router /v1/tracks [post]
-func (c *TrackController) CreateTrack(w http.ResponseWriter, r *http.Request) {
-	userID, ok := actorID(w, r, c.log, "create track")
-	if !ok {
-		return
-	}
-
-	var req TrackWriteRequest
-	if err := httpapi.DecodeJSON(r, &req); err != nil {
-		httpapi.WriteAppError(r.Context(), w, c.log, "create track", err)
-		return
-	}
-
-	track, err := c.tracks.Create(r.Context(), req.toDomain(userID))
-	if err != nil {
-		httpapi.WriteAppError(r.Context(), w, c.log, "create track", err)
-		return
-	}
-	httpapi.WriteJSON(w, http.StatusCreated, trackToResponse(track))
-}
-
 // UpdateTrack godoc
 // @Summary Update track
 // @Tags tracks
@@ -109,7 +78,7 @@ func (c *TrackController) UpdateTrack(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := chi.URLParam(r, "id")
-	track, err := c.tracks.Update(r.Context(), id, req.toDomain(""))
+	track, err := c.tracks.Update(r.Context(), id, req.toDomain())
 	if err != nil {
 		httpapi.WriteAppError(r.Context(), w, c.log, "update track", err, "track_id", id)
 		return

@@ -34,13 +34,6 @@ func (s *TrackService) GetByID(ctx context.Context, id string) (domain.Track, er
 	return s.tracks.GetByID(ctx, id)
 }
 
-func (s *TrackService) Create(ctx context.Context, in domain.TrackWrite) (domain.Track, error) {
-	if err := in.ValidateCreate(); err != nil {
-		return domain.Track{}, err
-	}
-	return s.tracks.Create(ctx, in.Track(""))
-}
-
 func (s *TrackService) Update(ctx context.Context, id string, in domain.TrackWrite) (domain.Track, error) {
 	if err := domain.TrackID(id).Validate(); err != nil {
 		return domain.Track{}, err
