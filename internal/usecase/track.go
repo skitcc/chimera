@@ -16,11 +16,22 @@ func NewTrackService(tracks TrackRepository, objects ObjectStorage, maxBytes int
 	return &TrackService{tracks: tracks, objects: objects, maxBytes: maxBytes}
 }
 
-func (s *TrackService) List(ctx context.Context, q domain.PageQuery) (domain.TrackPage, error) {
+func (s *TrackService) List(ctx context.Context, q domain.TrackFeedQuery) (domain.TrackPage, error) {
 	if err := q.Validate(); err != nil {
 		return domain.TrackPage{}, err
 	}
-	tracks, err := s.tracks.ListByStatus(ctx, domain.TrackReady)
+	return s.page(ctx, q.PageQuery, q.Filter())
+}
+
+func (s *TrackService) ListByUploader(ctx context.Context, q domain.TrackOwnerQuery) (domain.TrackPage, error) {
+	if err := q.Validate(); err != nil {
+		return domain.TrackPage{}, err
+	}
+	return s.page(ctx, q.PageQuery, q.Filter())
+}
+
+func (s *TrackService) page(ctx context.Context, q domain.PageQuery, filter domain.TrackFilter) (domain.TrackPage, error) {
+	tracks, err := s.tracks.List(ctx, filter)
 	if err != nil {
 		return domain.TrackPage{}, err
 	}

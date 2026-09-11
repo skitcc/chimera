@@ -20,7 +20,7 @@ type AuthUserRepository interface {
 }
 
 type TrackRepository interface {
-	ListByStatus(ctx context.Context, status domain.TrackStatus) ([]domain.Track, error)
+	List(ctx context.Context, filter domain.TrackFilter) ([]domain.Track, error)
 	GetByID(ctx context.Context, id string) (domain.Track, error)
 	Create(ctx context.Context, t domain.Track) (domain.Track, error)
 	Update(ctx context.Context, t domain.Track) (domain.Track, error)

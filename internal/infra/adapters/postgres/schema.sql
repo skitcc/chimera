@@ -21,3 +21,6 @@ ALTER TABLE tracks ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id);
 ALTER TABLE tracks ADD COLUMN IF NOT EXISTS object_key TEXT NOT NULL DEFAULT '';
 ALTER TABLE tracks ADD COLUMN IF NOT EXISTS size_bytes BIGINT NOT NULL DEFAULT 0;
 ALTER TABLE tracks ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';
+
+CREATE INDEX IF NOT EXISTS tracks_user_id_idx ON tracks (user_id);
+CREATE INDEX IF NOT EXISTS tracks_status_created_at_idx ON tracks (status, created_at);

@@ -23,6 +23,7 @@ func NewTrackController(tracks TrackService, log Logger) *TrackController {
 // @Description Lists ready tracks only.
 // @Tags tracks
 // @Produce json
+// @Param artist query string false "Exact artist credit (case-insensitive)"
 // @Param limit query int false "Page size" default(20)
 // @Param cursor query string false "Pagination cursor"
 // @Success 200 {object} TrackPageResponse
@@ -30,9 +31,62 @@ func NewTrackController(tracks TrackService, log Logger) *TrackController {
 // @Failure 500 {object} ErrorResponse
 // @Router /v1/tracks [get]
 func (c *TrackController) ListTracks(w http.ResponseWriter, r *http.Request) {
-	page, err := c.tracks.List(r.Context(), httpapi.ParsePageQuery(r))
+	page, err := c.tracks.List(r.Context(), domain.TrackFeedQuery{
+		PageQuery: httpapi.ParsePageQuery(r),
+		Artist:    r.URL.Query().Get("artist"),
+	})
+	c.writeTrackPage(w, r, "list tracks", page, err)
+}
+
+// ListMyTracks godoc
+// @Summary My uploaded tracks
+// @Description All tracks uploaded by the current user, including drafts.
+// @Tags tracks
+// @Produce json
+// @Param limit query int false "Page size" default(20)
+// @Param cursor query string false "Pagination cursor"
+// @Success 200 {object} TrackPageResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /v1/me/tracks [get]
+func (c *TrackController) ListMyTracks(w http.ResponseWriter, r *http.Request) {
+	userID, ok := actorID(w, r, c.log, "list my tracks")
+	if !ok {
+		return
+	}
+	page, err := c.tracks.ListByUploader(r.Context(), domain.TrackOwnerQuery{
+		PageQuery: httpapi.ParsePageQuery(r),
+		UserID:    userID,
+	})
+	c.writeTrackPage(w, r, "list my tracks", page, err)
+}
+
+// ListUploaderTracks godoc
+// @Summary Tracks uploaded by a user
+// @Description Ready tracks uploaded by the given user.
+// @Tags tracks
+// @Produce json
+// @Param id path string true "User ID"
+// @Param limit query int false "Page size" default(20)
+// @Param cursor query string false "Pagination cursor"
+// @Success 200 {object} TrackPageResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /v1/users/{id}/tracks [get]
+func (c *TrackController) ListUploaderTracks(w http.ResponseWriter, r *http.Request) {
+	page, err := c.tracks.ListByUploader(r.Context(), domain.TrackOwnerQuery{
+		PageQuery: httpapi.ParsePageQuery(r),
+		UserID:    chi.URLParam(r, "id"),
+		Status:    domain.TrackReady,
+	})
+	c.writeTrackPage(w, r, "list uploader tracks", page, err)
+}
+
+func (c *TrackController) writeTrackPage(w http.ResponseWriter, r *http.Request, op string, page domain.TrackPage, err error) {
 	if err != nil {
-		httpapi.WriteAppError(r.Context(), w, c.log, "list tracks", err)
+		httpapi.WriteAppError(r.Context(), w, c.log, op, err)
 		return
 	}
 	httpapi.WriteJSON(w, http.StatusOK, trackPageToResponse(page))
