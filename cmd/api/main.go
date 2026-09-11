@@ -5,6 +5,7 @@
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
+// @description JWT from /v1/auth/login. Paste only the token, or "Bearer <token>".
 package main
 
 import (
@@ -18,6 +19,7 @@ import (
 
 	"chimera/internal/config"
 	"chimera/internal/infra/adapters/postgres"
+	"chimera/internal/infra/adapters/s3"
 	infraauth "chimera/internal/infra/auth"
 	"chimera/internal/infra/logger"
 	httpapi "chimera/internal/transport/http"
@@ -52,6 +54,16 @@ func main() {
 
 	users := postgres.NewUserRepository(pool)
 	tracks := postgres.NewTrackRepository(pool)
+	objects, err := s3.New(cfg.S3)
+	if err != nil {
+		log.ErrorContext(ctx, "s3", "error", err)
+		os.Exit(1)
+	}
+	if err := objects.EnsureBucket(ctx); err != nil {
+		log.ErrorContext(ctx, "s3 bucket", "error", err)
+		os.Exit(1)
+	}
+
 	hasher := infraauth.NewBcryptHasher()
 	tokens := infraauth.NewJWT(cfg.Auth)
 
@@ -61,7 +73,7 @@ func main() {
 		Routes: v1.New(
 			usecase.NewUserService(users, hasher),
 			usecase.NewAuthService(users, hasher, tokens),
-			usecase.NewTrackService(tracks),
+			usecase.NewTrackService(tracks, objects, cfg.Upload.MaxBytes),
 			log,
 		),
 	})

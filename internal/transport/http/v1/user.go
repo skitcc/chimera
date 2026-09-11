@@ -64,6 +64,7 @@ func (c *UserController) GetUser(w http.ResponseWriter, r *http.Request) {
 // @Success 201 {object} UserResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
 // @Router /v1/users [post]
 func (c *UserController) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req UserWriteRequest
@@ -91,6 +92,7 @@ func (c *UserController) CreateUser(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
 // @Router /v1/users/{id} [put]
 func (c *UserController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	var req UserWriteRequest
@@ -116,6 +118,7 @@ func (c *UserController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
 // @Router /v1/users/{id} [delete]
 func (c *UserController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -133,6 +136,7 @@ func (c *UserController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} UserResponse
 // @Failure 401 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
 // @Router /v1/me [get]
 func (c *UserController) Me(w http.ResponseWriter, r *http.Request) {
 	id, ok := middleware.UserIDFromCtx(r.Context())

@@ -85,3 +85,11 @@ alwaysApply: true
   - Contains strictly workflow orchestrators (UseCases) and port interfaces (input/output boundaries).
   - Do NOT dump low-level utilities (password hashing implementations, token generators, random string generators) into UseCase folders — these are infrastructure adapters implementing domain ports.
 - **Decomposition threshold:** If any package exceeds 5–7 files of mixed responsibilities, immediately group them by sub-domain or responsibility.
+
+## 12. Docker Compose & Environment Parameterization
+- **No hardcoded values in Compose files:** NEVER hardcode sensitive data or environment-specific parameters directly inside `docker-compose.yml` (e.g., exposed host ports, container names, database credentials, root passwords, access keys, bucket names).
+- **Mandatory variable substitution:** Always parameterize services using environment variable syntax:
+  - Secrets & Credentials: `${POSTGRES_PASSWORD}`, `${MINIO_ROOT_PASSWORD}` (no default fallbacks for secrets).
+  - Ports & Names (with safe defaults if applicable): `${POSTGRES_PORT:-5432}:5432`, `${PROJECT_NAME:-chimera}-postgres`.
+- **Synchronize `.env.example`:** Whenever a new service, port, or credential is added or modified in `docker-compose.yml`, immediately update `.env.example` with safe placeholder/mock values.
+- **Gitignore discipline:** Never commit the real `.env` file. All secrets and infrastructure configurations must remain strictly local.

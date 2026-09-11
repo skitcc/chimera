@@ -28,11 +28,14 @@ func UserIDFromCtx(ctx context.Context) (string, bool) {
 }
 
 func bearerToken(r *http.Request) string {
-	h := r.Header.Get("Authorization")
-	if !strings.HasPrefix(h, "Bearer ") {
+	h := strings.TrimSpace(r.Header.Get("Authorization"))
+	if h == "" {
 		return ""
 	}
-	return strings.TrimSpace(strings.TrimPrefix(h, "Bearer "))
+	if after, ok := strings.CutPrefix(h, "Bearer "); ok {
+		return strings.TrimSpace(after)
+	}
+	return h
 }
 
 func RequireAuth(log Logger, tokens TokenParser, writeErr ErrorWriter) func(http.Handler) http.Handler {

@@ -47,7 +47,29 @@ definitions:
         type: string
       id:
         type: string
+      size_bytes:
+        type: integer
+      status:
+        type: string
       title:
+        type: string
+      user_id:
+        type: string
+    type: object
+  v1.TrackUploadInitRequest:
+    properties:
+      artist:
+        type: string
+      size:
+        type: integer
+      title:
+        type: string
+    type: object
+  v1.TrackUploadInitResponse:
+    properties:
+      track:
+        $ref: '#/definitions/v1.TrackResponse'
+      upload_url:
         type: string
     type: object
   v1.TrackWriteRequest:
@@ -164,6 +186,8 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Current user
       tags:
       - auth
@@ -197,34 +221,6 @@ paths:
       summary: Track feed
       tags:
       - tracks
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Track
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/v1.TrackWriteRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/v1.TrackResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      summary: Create track
-      tags:
-      - tracks
   /v1/tracks/{id}:
     delete:
       parameters:
@@ -250,6 +246,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete track
       tags:
       - tracks
@@ -316,7 +314,84 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update track
+      tags:
+      - tracks
+  /v1/tracks/{id}/upload-complete:
+    post:
+      parameters:
+      - description: Track ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.TrackResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Finish track upload
+      tags:
+      - tracks
+  /v1/tracks/upload-init:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Track metadata
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.TrackUploadInitRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/v1.TrackUploadInitResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Start track upload
       tags:
       - tracks
   /v1/users:
@@ -362,6 +437,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Create user
       tags:
       - users
@@ -390,6 +467,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Delete user
       tags:
       - users
@@ -456,11 +535,14 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Update user
       tags:
       - users
 securityDefinitions:
   BearerAuth:
+    description: JWT from /v1/auth/login. Paste only the token, or "Bearer <token>".
     in: header
     name: Authorization
     type: apiKey
