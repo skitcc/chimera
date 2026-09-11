@@ -1,6 +1,14 @@
 package v1
 
-import "github.com/go-chi/chi/v5"
+import (
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+
+	"chimera/internal/domain"
+	httpapi "chimera/internal/transport/http"
+	"chimera/internal/transport/http/middleware"
+)
 
 type API struct {
 	users  *UserController
@@ -30,7 +38,18 @@ func (a *API) Protected(r chi.Router) {
 	r.Post("/users", a.users.CreateUser)
 	r.Put("/users/{id}", a.users.UpdateUser)
 	r.Delete("/users/{id}", a.users.DeleteUser)
+	r.Post("/tracks/upload-init", a.tracks.InitUpload)
+	r.Post("/tracks/{id}/upload-complete", a.tracks.CompleteUpload)
 	r.Post("/tracks", a.tracks.CreateTrack)
 	r.Put("/tracks/{id}", a.tracks.UpdateTrack)
 	r.Delete("/tracks/{id}", a.tracks.DeleteTrack)
+}
+
+func actorID(w http.ResponseWriter, r *http.Request, log Logger, op string) (string, bool) {
+	id, ok := middleware.UserIDFromCtx(r.Context())
+	if !ok {
+		httpapi.WriteAppError(r.Context(), w, log, op, domain.Unauthorized("missing token"))
+		return "", false
+	}
+	return id, true
 }

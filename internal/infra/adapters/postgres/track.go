@@ -10,6 +10,8 @@ import (
 	"chimera/internal/domain"
 )
 
+const trackCols = `id::text, user_id::text, title, artist, object_key, size_bytes, status`
+
 type TrackRepository struct {
 	pool *pgxpool.Pool
 }
@@ -18,8 +20,20 @@ func NewTrackRepository(pool *pgxpool.Pool) *TrackRepository {
 	return &TrackRepository{pool: pool}
 }
 
+type scanner interface {
+	Scan(dest ...any) error
+}
+
+func scanTrack(row scanner) (domain.Track, error) {
+	var t domain.Track
+	var status string
+	err := row.Scan(&t.ID, &t.UserID, &t.Title, &t.Artist, &t.ObjectKey, &t.SizeBytes, &status)
+	t.Status = domain.TrackStatus(status)
+	return t, err
+}
+
 func (r *TrackRepository) List(ctx context.Context) ([]domain.Track, error) {
-	rows, err := r.pool.Query(ctx, `SELECT id::text, title, artist FROM tracks ORDER BY created_at`)
+	rows, err := r.pool.Query(ctx, `SELECT `+trackCols+` FROM tracks ORDER BY created_at`)
 	if err != nil {
 		return nil, mapError(err, "list tracks")
 	}
@@ -27,8 +41,8 @@ func (r *TrackRepository) List(ctx context.Context) ([]domain.Track, error) {
 
 	tracks := make([]domain.Track, 0)
 	for rows.Next() {
-		var t domain.Track
-		if err := rows.Scan(&t.ID, &t.Title, &t.Artist); err != nil {
+		t, err := scanTrack(rows)
+		if err != nil {
 			return nil, mapError(err, "scan track")
 		}
 		tracks = append(tracks, t)
@@ -40,9 +54,7 @@ func (r *TrackRepository) List(ctx context.Context) ([]domain.Track, error) {
 }
 
 func (r *TrackRepository) GetByID(ctx context.Context, id string) (domain.Track, error) {
-	var t domain.Track
-	err := r.pool.QueryRow(ctx, `SELECT id::text, title, artist FROM tracks WHERE id = $1::uuid`, id).
-		Scan(&t.ID, &t.Title, &t.Artist)
+	t, err := scanTrack(r.pool.QueryRow(ctx, `SELECT `+trackCols+` FROM tracks WHERE id = $1::uuid`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Track{}, domain.NotFound("track not found")
 	}
@@ -53,11 +65,13 @@ func (r *TrackRepository) GetByID(ctx context.Context, id string) (domain.Track,
 }
 
 func (r *TrackRepository) Create(ctx context.Context, t domain.Track) (domain.Track, error) {
-	err := r.pool.QueryRow(ctx,
-		`INSERT INTO tracks (title, artist) VALUES ($1, $2)
-		 RETURNING id::text, title, artist`,
-		t.Title, t.Artist,
-	).Scan(&t.ID, &t.Title, &t.Artist)
+	t, err := scanTrack(r.pool.QueryRow(ctx,
+		`INSERT INTO tracks (id, user_id, title, artist, object_key, size_bytes, status)
+		 SELECT i, $1::uuid, $2, $3, i::text || '.mp3', $4, $5
+		 FROM (SELECT gen_random_uuid() AS i) s
+		 RETURNING `+trackCols,
+		t.UserID, t.Title, t.Artist, t.SizeBytes, string(t.Status),
+	))
 	if err != nil {
 		return domain.Track{}, mapError(err, "create track")
 	}
@@ -65,11 +79,12 @@ func (r *TrackRepository) Create(ctx context.Context, t domain.Track) (domain.Tr
 }
 
 func (r *TrackRepository) Update(ctx context.Context, t domain.Track) (domain.Track, error) {
-	err := r.pool.QueryRow(ctx,
-		`UPDATE tracks SET title = $2, artist = $3 WHERE id = $1::uuid
-		 RETURNING id::text, title, artist`,
-		t.ID, t.Title, t.Artist,
-	).Scan(&t.ID, &t.Title, &t.Artist)
+	t, err := scanTrack(r.pool.QueryRow(ctx,
+		`UPDATE tracks SET user_id = $2::uuid, title = $3, artist = $4, object_key = $5, size_bytes = $6, status = $7
+		 WHERE id = $1::uuid
+		 RETURNING `+trackCols,
+		t.ID, t.UserID, t.Title, t.Artist, t.AudioObjectKey(), t.SizeBytes, string(t.Status),
+	))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Track{}, domain.NotFound("track not found")
 	}

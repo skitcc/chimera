@@ -25,6 +25,8 @@ type TrackService interface {
 	Create(ctx context.Context, in domain.TrackWrite) (domain.Track, error)
 	Update(ctx context.Context, id string, in domain.TrackWrite) (domain.Track, error)
 	Delete(ctx context.Context, id string) error
+	InitUpload(ctx context.Context, in domain.TrackUploadInit) (domain.TrackUploadSession, error)
+	CompleteUpload(ctx context.Context, in domain.TrackUploadComplete) (domain.Track, error)
 }
 
 type Logger interface {

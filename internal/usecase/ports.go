@@ -27,6 +27,11 @@ type TrackRepository interface {
 	Delete(ctx context.Context, id string) error
 }
 
+type ObjectStorage interface {
+	PresignPut(ctx context.Context, key string) (string, error)
+	Stat(ctx context.Context, key string) (int64, error)
+}
+
 type PasswordHasher interface {
 	Hash(password string) (string, error)
 	Compare(hash, password string) error

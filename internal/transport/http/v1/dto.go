@@ -28,10 +28,24 @@ type TrackWriteRequest struct {
 	Artist string `json:"artist"`
 }
 
-type TrackResponse struct {
-	ID     string `json:"id"`
+type TrackUploadInitRequest struct {
 	Title  string `json:"title"`
 	Artist string `json:"artist"`
+	Size   int64  `json:"size"`
+}
+
+type TrackResponse struct {
+	ID        string `json:"id"`
+	UserID    string `json:"user_id"`
+	Title     string `json:"title"`
+	Artist    string `json:"artist"`
+	Status    string `json:"status"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
+type TrackUploadInitResponse struct {
+	Track     TrackResponse `json:"track"`
+	UploadURL string        `json:"upload_url"`
 }
 
 type TrackPageResponse struct {

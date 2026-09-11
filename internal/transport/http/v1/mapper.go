@@ -15,7 +15,14 @@ func usersToResponse(users []domain.User) []UserResponse {
 }
 
 func trackToResponse(t domain.Track) TrackResponse {
-	return TrackResponse{ID: t.ID, Title: t.Title, Artist: t.Artist}
+	return TrackResponse{
+		ID:        t.ID,
+		UserID:    t.UserID,
+		Title:     t.Title,
+		Artist:    t.Artist,
+		Status:    string(t.Status),
+		SizeBytes: t.SizeBytes,
+	}
 }
 
 func trackPageToResponse(p domain.TrackPage) TrackPageResponse {
@@ -41,8 +48,19 @@ func (r UserWriteRequest) toDomain() domain.UserWrite {
 	return domain.UserWrite{Email: r.Email, Name: r.Name, Password: r.Password}
 }
 
-func (r TrackWriteRequest) toDomain() domain.TrackWrite {
-	return domain.TrackWrite{Title: r.Title, Artist: r.Artist}
+func (r TrackWriteRequest) toDomain(userID string) domain.TrackWrite {
+	return domain.TrackWrite{UserID: userID, Title: r.Title, Artist: r.Artist}
+}
+
+func (r TrackUploadInitRequest) toDomain(userID string) domain.TrackUploadInit {
+	return domain.TrackUploadInit{UserID: userID, Title: r.Title, Artist: r.Artist, SizeBytes: r.Size}
+}
+
+func uploadSessionToResponse(s domain.TrackUploadSession) TrackUploadInitResponse {
+	return TrackUploadInitResponse{
+		Track:     trackToResponse(s.Track),
+		UploadURL: s.UploadURL,
+	}
 }
 
 func (r RegisterRequest) toDomain() domain.RegisterInput {
