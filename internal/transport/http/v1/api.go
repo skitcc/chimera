@@ -30,6 +30,7 @@ func (a *API) Public(r chi.Router) {
 	r.Get("/users", a.users.ListUsers)
 	r.Get("/users/{id}", a.users.GetUser)
 	r.Get("/tracks", a.tracks.ListTracks)
+	r.Get("/tracks/{id}/stream", a.tracks.StreamTrack)
 	r.Get("/tracks/{id}", a.tracks.GetTrack)
 }
 

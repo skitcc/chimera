@@ -20,6 +20,7 @@ func NewTrackController(tracks TrackService, log Logger) *TrackController {
 
 // ListTracks godoc
 // @Summary Track feed
+// @Description Lists ready tracks only.
 // @Tags tracks
 // @Produce json
 // @Param limit query int false "Page size" default(20)
@@ -55,6 +56,26 @@ func (c *TrackController) GetTrack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpapi.WriteJSON(w, http.StatusOK, trackToResponse(track))
+}
+
+// StreamTrack godoc
+// @Summary Stream a ready track
+// @Tags tracks
+// @Param id path string true "Track ID"
+// @Success 302 {string} string "Redirect to audio"
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 409 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /v1/tracks/{id}/stream [get]
+func (c *TrackController) StreamTrack(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	url, err := c.tracks.StreamURL(r.Context(), id)
+	if err != nil {
+		httpapi.WriteAppError(r.Context(), w, c.log, "stream track", err, "track_id", id)
+		return
+	}
+	http.Redirect(w, r, url, http.StatusFound)
 }
 
 // UpdateTrack godoc
@@ -139,6 +160,7 @@ func (c *TrackController) InitUpload(w http.ResponseWriter, r *http.Request) {
 
 // CompleteUpload godoc
 // @Summary Finish track upload
+// @Description Checks the object in MinIO and publishes the track as ready.
 // @Tags tracks
 // @Produce json
 // @Param id path string true "Track ID"

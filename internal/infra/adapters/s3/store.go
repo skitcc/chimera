@@ -51,8 +51,17 @@ func (s *Store) EnsureBucket(ctx context.Context) error {
 
 func (s *Store) PresignPut(ctx context.Context, key string) (string, error) {
 	u, err := s.client.PresignedPutObject(ctx, s.cfg.Bucket, key, s.cfg.PresignTTL)
+	return s.presignURL(u, err, "presign upload")
+}
+
+func (s *Store) PresignGet(ctx context.Context, key string) (string, error) {
+	u, err := s.client.PresignedGetObject(ctx, s.cfg.Bucket, key, s.cfg.PresignTTL, nil)
+	return s.presignURL(u, err, "presign stream")
+}
+
+func (s *Store) presignURL(u *url.URL, err error, fallback string) (string, error) {
 	if err != nil {
-		return "", domain.Wrap(domain.CodeInternal, "presign upload", err)
+		return "", domain.Wrap(domain.CodeInternal, fallback, err)
 	}
 	u.Scheme = s.presign.Scheme
 	u.Host = s.presign.Host

@@ -193,6 +193,7 @@ paths:
       - auth
   /v1/tracks:
     get:
+      description: Lists ready tracks only.
       parameters:
       - default: 20
         description: Page size
@@ -319,8 +320,41 @@ paths:
       summary: Update track
       tags:
       - tracks
+  /v1/tracks/{id}/stream:
+    get:
+      parameters:
+      - description: Track ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Redirect to audio
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      summary: Stream a ready track
+      tags:
+      - tracks
   /v1/tracks/{id}/upload-complete:
     post:
+      description: Checks the object in MinIO and publishes the track as ready.
       parameters:
       - description: Track ID
         in: path

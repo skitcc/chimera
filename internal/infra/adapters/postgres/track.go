@@ -32,8 +32,8 @@ func scanTrack(row scanner) (domain.Track, error) {
 	return t, err
 }
 
-func (r *TrackRepository) List(ctx context.Context) ([]domain.Track, error) {
-	rows, err := r.pool.Query(ctx, `SELECT `+trackCols+` FROM tracks ORDER BY created_at`)
+func (r *TrackRepository) ListByStatus(ctx context.Context, status domain.TrackStatus) ([]domain.Track, error) {
+	rows, err := r.pool.Query(ctx, `SELECT `+trackCols+` FROM tracks WHERE status = $1 ORDER BY created_at`, string(status))
 	if err != nil {
 		return nil, mapError(err, "list tracks")
 	}
