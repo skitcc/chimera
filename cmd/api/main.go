@@ -54,6 +54,7 @@ func main() {
 
 	users := postgres.NewUserRepository(pool)
 	tracks := postgres.NewTrackRepository(pool)
+	likes := postgres.NewTrackLikeRepository(pool)
 	objects, err := s3.New(cfg.S3)
 	if err != nil {
 		log.ErrorContext(ctx, "s3", "error", err)
@@ -73,7 +74,7 @@ func main() {
 		Routes: v1.New(
 			usecase.NewUserService(users, hasher),
 			usecase.NewAuthService(users, hasher, tokens),
-			usecase.NewTrackService(tracks, objects, cfg.Upload.MaxBytes),
+			usecase.NewTrackService(tracks, likes, objects, cfg.Upload.MaxBytes),
 			log,
 		),
 	})

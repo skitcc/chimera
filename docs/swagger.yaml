@@ -191,10 +191,87 @@ paths:
       summary: Current user
       tags:
       - auth
+  /v1/me/likes:
+    get:
+      parameters:
+      - default: 20
+        description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.TrackPageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: My liked tracks
+      tags:
+      - tracks
+  /v1/me/tracks:
+    get:
+      description: All tracks uploaded by the current user, including drafts.
+      parameters:
+      - default: 20
+        description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.TrackPageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: My uploaded tracks
+      tags:
+      - tracks
   /v1/tracks:
     get:
       description: Lists ready tracks only.
       parameters:
+      - description: Exact artist credit (case-insensitive)
+        in: query
+        name: artist
+        type: string
       - default: 20
         description: Page size
         in: query
@@ -318,6 +395,77 @@ paths:
       security:
       - BearerAuth: []
       summary: Update track
+      tags:
+      - tracks
+  /v1/tracks/{id}/like:
+    delete:
+      parameters:
+      - description: Track ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remove a like
+      tags:
+      - tracks
+    post:
+      parameters:
+      - description: Track ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Like a ready track
       tags:
       - tracks
   /v1/tracks/{id}/stream:
@@ -574,6 +722,42 @@ paths:
       summary: Update user
       tags:
       - users
+  /v1/users/{id}/tracks:
+    get:
+      description: Ready tracks uploaded by the given user.
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 20
+        description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.TrackPageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      summary: Tracks uploaded by a user
+      tags:
+      - tracks
 securityDefinitions:
   BearerAuth:
     description: JWT from /v1/auth/login. Paste only the token, or "Bearer <token>".

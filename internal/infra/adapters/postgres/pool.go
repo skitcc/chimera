@@ -28,7 +28,14 @@ func mapError(err error, fallback string) error {
 	if errors.As(err, &pgErr) {
 		switch pgErr.Code {
 		case "23505":
-			return domain.Conflict("email already exists")
+			switch pgErr.ConstraintName {
+			case "track_likes_pkey":
+				return domain.Conflict("track already liked")
+			default:
+				return domain.Conflict("email already exists")
+			}
+		case "23503":
+			return domain.NotFound("not found")
 		case "22P02":
 			return domain.Invalid("invalid id")
 		}

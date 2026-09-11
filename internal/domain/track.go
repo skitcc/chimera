@@ -1,6 +1,9 @@
 package domain
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 type TrackStatus string
 
@@ -147,4 +150,65 @@ func (in TrackUploadComplete) Validate() error {
 type TrackUploadSession struct {
 	Track     Track
 	UploadURL string
+}
+
+type TrackFilter struct {
+	Status TrackStatus
+	UserID string
+	Artist string
+}
+
+type TrackFeedQuery struct {
+	PageQuery
+	Artist string
+}
+
+func (q *TrackFeedQuery) Validate() error {
+	q.Artist = strings.TrimSpace(q.Artist)
+	return q.PageQuery.Validate()
+}
+
+func (q TrackFeedQuery) Filter() TrackFilter {
+	return TrackFilter{Status: TrackReady, Artist: q.Artist}
+}
+
+type TrackOwnerQuery struct {
+	PageQuery
+	UserID string
+	Status TrackStatus
+}
+
+func (q *TrackOwnerQuery) Validate() error {
+	if err := UserID(q.UserID).Validate(); err != nil {
+		return err
+	}
+	return q.PageQuery.Validate()
+}
+
+func (q TrackOwnerQuery) Filter() TrackFilter {
+	return TrackFilter{UserID: q.UserID, Status: q.Status}
+}
+
+type TrackLike struct {
+	UserID  string
+	TrackID string
+}
+
+func (in TrackLike) Validate() error {
+	if err := UserID(in.UserID).Validate(); err != nil {
+		return err
+	}
+	return TrackID(in.TrackID).Validate()
+}
+
+type TrackLikeListQuery struct {
+	PageQuery
+	UserID string
+}
+
+func (q *TrackLikeListQuery) Validate() error {
+	if err := UserID(q.UserID).Validate(); err != nil {
+		return err
+	}
+	return q.PageQuery.Validate()
 }

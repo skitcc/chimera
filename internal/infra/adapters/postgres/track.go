@@ -32,11 +32,7 @@ func scanTrack(row scanner) (domain.Track, error) {
 	return t, err
 }
 
-func (r *TrackRepository) ListByStatus(ctx context.Context, status domain.TrackStatus) ([]domain.Track, error) {
-	rows, err := r.pool.Query(ctx, `SELECT `+trackCols+` FROM tracks WHERE status = $1 ORDER BY created_at`, string(status))
-	if err != nil {
-		return nil, mapError(err, "list tracks")
-	}
+func collectTracks(rows pgx.Rows) ([]domain.Track, error) {
 	defer rows.Close()
 
 	tracks := make([]domain.Track, 0)
@@ -51,6 +47,35 @@ func (r *TrackRepository) ListByStatus(ctx context.Context, status domain.TrackS
 		return nil, mapError(err, "list tracks")
 	}
 	return tracks, nil
+}
+
+func (r *TrackRepository) List(ctx context.Context, filter domain.TrackFilter) ([]domain.Track, error) {
+	var status any
+	if filter.Status != "" {
+		status = string(filter.Status)
+	}
+	var userID any
+	if filter.UserID != "" {
+		userID = filter.UserID
+	}
+	var artist any
+	if filter.Artist != "" {
+		artist = filter.Artist
+	}
+
+	rows, err := r.pool.Query(ctx,
+		`SELECT `+trackCols+`
+		 FROM tracks
+		 WHERE ($1::text IS NULL OR status = $1)
+		   AND ($2::uuid IS NULL OR user_id = $2)
+		   AND ($3::text IS NULL OR lower(btrim(artist)) = lower(btrim($3)))
+		 ORDER BY created_at`,
+		status, userID, artist,
+	)
+	if err != nil {
+		return nil, mapError(err, "list tracks")
+	}
+	return collectTracks(rows)
 }
 
 func (r *TrackRepository) GetByID(ctx context.Context, id string) (domain.Track, error) {
