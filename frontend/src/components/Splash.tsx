@@ -33,12 +33,7 @@ export function Splash({ onDone }: { onDone: () => void }) {
 
   return (
     <div className={`splash ${phase}`} onClick={() => setPhase('gone')} role="presentation">
-      <div className="splash-rings">
-        <span />
-        <span />
-        <span />
-      </div>
-      <Eyes className="splash-eyes" open={phase !== 'dark'} gaze glow={1.4} />
+      <Eyes className="splash-eyes" open={phase !== 'dark'} glow={1.4} />
       <p className="splash-word">
         {'SOUND CHIMERA'.split('').map((ch, i) => (
           <span key={i} style={{ '--i': i } as React.CSSProperties}>

@@ -78,28 +78,26 @@ input {
   --lid: 0;
 }
 
-/* fast shut, slower release */
+/* One continuous eyelid movement: quick close, gently eased opening. */
 .eyes.blink .lid {
-  animation: blink 0.36s cubic-bezier(0.4, 0, 0.3, 1) both;
+  animation: blink 0.56s linear both;
 }
 
 @keyframes blink {
   0% {
     transform: scaleY(1);
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
   }
-  26% {
+  43% {
     transform: scaleY(0.03);
   }
-  40% {
+  49% {
     transform: scaleY(0.03);
+    animation-timing-function: cubic-bezier(0, 0.55, 0.45, 1);
   }
   100% {
     transform: scaleY(1);
   }
-}
-
-.eyes .gaze {
-  will-change: transform;
 }
 
 .eyes.lit {
@@ -133,87 +131,15 @@ input {
   transition: transform 0.9s cubic-bezier(0.6, 0, 0.2, 1), opacity 0.9s ease;
 }
 
-/* waking up: a crack of light, a flutter, then the eyes settle open */
-.splash-eyes.open .lid {
-  animation: wake 2.6s cubic-bezier(0.45, 0, 0.2, 1) both;
-}
-
-@keyframes wake {
-  0% {
-    transform: scaleY(0);
-  }
-  18% {
-    transform: scaleY(0.14);
-  }
-  28% {
-    transform: scaleY(0.06);
-  }
-  46% {
-    transform: scaleY(0.58);
-  }
-  56% {
-    transform: scaleY(0.46);
-  }
-  78% {
-    transform: scaleY(1.02);
-  }
-  100% {
-    transform: scaleY(1);
-  }
-}
-
-.splash-eyes .halo {
-  transition: none;
+/* A single uninterrupted lift avoids the stepped keyframe look. */
+.splash-eyes .lid {
+  transition-duration: 2.4s;
+  transition-timing-function: cubic-bezier(0.16, 0.74, 0.18, 1);
 }
 
 .splash.gone .splash-eyes {
   transform: scale(1.35);
   opacity: 0;
-}
-
-.splash-rings {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-}
-
-.splash-rings span {
-  position: absolute;
-  width: 32vmin;
-  height: 32vmin;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  opacity: 0;
-  filter: blur(0.6px);
-}
-
-.splash.awake .splash-rings span,
-.splash.brand .splash-rings span {
-  animation: ripple 4.4s cubic-bezier(0.15, 0.55, 0.25, 1) infinite;
-}
-
-.splash-rings span:nth-child(2) {
-  animation-delay: 1.4s;
-}
-
-.splash-rings span:nth-child(3) {
-  animation-delay: 2.8s;
-}
-
-@keyframes ripple {
-  0% {
-    transform: scale(0.35);
-    opacity: 0;
-  }
-  10% {
-    opacity: 0.45;
-  }
-  100% {
-    transform: scale(4.4);
-    opacity: 0;
-  }
 }
 
 .splash-word {
@@ -260,43 +186,12 @@ input {
   top: 34%;
   width: min(1100px, 120vw);
   transform: translate(-50%, -50%);
-  opacity: 0.09;
+  opacity: 0.24;
   transition: opacity 1.6s ease;
-}
-
-.backdrop.awake .backdrop-eyes {
-  opacity: 0.22;
 }
 
 .backdrop.quiet .backdrop-eyes {
   opacity: 0;
-}
-
-.backdrop-glow {
-  position: absolute;
-  left: 50%;
-  top: 34%;
-  width: 90vmax;
-  height: 90vmax;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.06), transparent 70%);
-  opacity: 0.5;
-  animation: breathe 9s ease-in-out infinite;
-}
-
-.backdrop.awake .backdrop-glow {
-  animation-duration: 4s;
-  opacity: 1;
-}
-
-@keyframes breathe {
-  0%,
-  100% {
-    transform: translate(-50%, -50%) scale(0.92);
-  }
-  50% {
-    transform: translate(-50%, -50%) scale(1.08);
-  }
 }
 
 .backdrop-grain {
@@ -853,9 +748,7 @@ label input:focus {
   }
 
   .eyes.lit,
-  .backdrop-glow,
-  .backdrop-grain,
-  .splash-rings span {
+  .backdrop-grain {
     animation: none;
   }
 }
