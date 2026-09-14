@@ -35,6 +35,14 @@ func New(cfg config.S3) (*Store, error) {
 	return &Store{client: client, cfg: cfg, presign: presign}, nil
 }
 
+func (s *Store) Ping(ctx context.Context) error {
+	_, err := s.client.BucketExists(ctx, s.cfg.Bucket)
+	if err != nil {
+		return domain.Wrap(domain.CodeInternal, "ping s3", err)
+	}
+	return nil
+}
+
 func (s *Store) EnsureBucket(ctx context.Context) error {
 	ok, err := s.client.BucketExists(ctx, s.cfg.Bucket)
 	if err != nil {
