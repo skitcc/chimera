@@ -16,7 +16,7 @@ export function TrackList({ title, kicker, tracks, empty, showStatus, loading }:
     <section className="page">
       {kicker ? <p className="eyebrow">{kicker}</p> : null}
       <h1>{title}</h1>
-      {loading ? <p className="muted">Собираем пластинку…</p> : null}
+      {loading ? <p className="muted">Тишина…</p> : null}
       {!loading && tracks.length === 0 ? empty : null}
       <div className="stack">
         {tracks.map((track) => (

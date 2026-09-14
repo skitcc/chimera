@@ -4,14 +4,14 @@ import { usePlayer } from '../player/PlayerContext'
 export function PlayerBar() {
   const { track, playing, progress, duration, toggle, seek } = usePlayer()
   if (!track) {
-    return <footer className="player player-empty">Выберите трек — Chimera донесёт его напрямую из хранилища.</footer>
+    return <footer className="player player-empty">Тишина. Выберите трек.</footer>
   }
 
   const ratio = duration ? progress / duration : 0
 
   return (
     <footer className="player">
-      <Cover id={track.id} title={track.title} />
+      <Cover id={track.id} lit={playing} />
       <div className="player-copy">
         <strong>{track.title}</strong>
         <span>{track.artist || 'неизвестный артист'}</span>

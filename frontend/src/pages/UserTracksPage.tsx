@@ -18,7 +18,7 @@ export function UserTracksPage() {
 
   return (
     <TrackList
-      kicker="Каталог автора"
+      kicker="Автор"
       title="Загрузки"
       tracks={tracks}
       loading={loading}

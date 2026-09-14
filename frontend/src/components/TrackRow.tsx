@@ -27,7 +27,7 @@ export function TrackRow({ track, showStatus = false }: Props) {
         onClick={() => ready && play(track)}
         aria-label={active && playing ? 'Пауза' : 'Играть'}
       >
-        <Cover id={track.id} title={track.title} />
+        <Cover id={track.id} lit={active && playing} />
         <span className="row-glyph">{active && playing ? '❚❚' : '▶'}</span>
       </button>
       <div className="row-meta">

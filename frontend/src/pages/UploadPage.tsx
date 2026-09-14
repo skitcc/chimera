@@ -19,9 +19,9 @@ export function UploadPage() {
 
   return (
     <section className="page">
-      <p className="eyebrow">Свой канал</p>
+      <p className="eyebrow">Сигнал</p>
       <h1>Загрузить трек</h1>
-      <p className="lede">Файл уходит в MinIO напрямую. API только выдаёт ссылку и ставит ready.</p>
+      <p className="lede">Файл уходит в хранилище напрямую. API только открывает глаза и ставит ready.</p>
       <form
         className="upload"
         onSubmit={(e) => {

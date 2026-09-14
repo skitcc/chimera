@@ -28,11 +28,11 @@ export function LikesPage() {
 
   return (
     <TrackList
-      kicker="Только ваше"
+      kicker="Избранное"
       title="Любимое"
       tracks={tracks.filter((t) => ids.has(t.id))}
       loading={loading}
-      empty={<p className="muted">Отметьте сердце на треке — он осядет здесь.</p>}
+      empty={<p className="muted">Отметьте трек — он останется здесь.</p>}
     />
   )
 }

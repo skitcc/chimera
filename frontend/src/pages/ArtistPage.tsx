@@ -25,7 +25,7 @@ export function ArtistPage() {
 
   return (
     <TrackList
-      kicker="По кредиту"
+      kicker="Артист"
       title={artist || 'Артист'}
       tracks={tracks}
       loading={loading}

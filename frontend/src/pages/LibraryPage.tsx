@@ -26,7 +26,7 @@ export function LibraryPage() {
 
   return (
     <TrackList
-      kicker="Архив автора"
+      kicker="Архив"
       title="Мои треки"
       tracks={tracks}
       loading={loading}

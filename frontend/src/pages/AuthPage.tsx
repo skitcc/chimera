@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
+import { Eyes } from '../components/Eyes'
 
 export function AuthPage() {
   const { user, login, register } = useAuth()
@@ -20,9 +21,10 @@ export function AuthPage() {
 
   return (
     <div className="gate">
+      <Eyes className="gate-eyes" />
       <div className="gate-card">
-        <p className="eyebrow">Chimera</p>
-        <h1>Музыка без посредника.</h1>
+        <p className="wordmark">Sound Chimera</p>
+        <h1>Слушает в темноте.</h1>
         <p className="lede">Войдите, чтобы заливать треки и собирать любимое. Ленту можно слушать сразу.</p>
         <div className="tabs">
           <button type="button" className={mode === 'login' ? 'on' : ''} onClick={() => setMode('login')}>
@@ -62,7 +64,7 @@ export function AuthPage() {
           </button>
         </form>
         <Link to="/" className="ghost">
-          Сначала просто послушать →
+          Слушать без входа
         </Link>
       </div>
     </div>

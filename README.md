@@ -1,6 +1,6 @@
 # Chimera
 
-Uncensorable music service. Monorepo: Go API in `backend/`, React client in `frontend/`.
+Uncensorable music. Go API in `backend/`, Sound Chimera web client in `frontend/`.
 
 ## Run
 

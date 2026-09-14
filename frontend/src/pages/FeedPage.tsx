@@ -16,11 +16,11 @@ export function FeedPage() {
 
   return (
     <TrackList
-      kicker="Сейчас в эфире"
+      kicker="Эфир"
       title="Лента"
       tracks={tracks}
       loading={loading}
-      empty={<p className="muted">Пока тихо. Залейте первый трек — и лента оживёт.</p>}
+      empty={<p className="muted">Пока пусто. Первый трек разбудит её.</p>}
     />
   )
 }
