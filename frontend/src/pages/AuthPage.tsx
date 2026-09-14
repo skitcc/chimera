@@ -21,7 +21,7 @@ export function AuthPage() {
 
   return (
     <div className="gate">
-      <Eyes className="gate-eyes" />
+      <Eyes className="gate-eyes" blink gaze glow={1.3} />
       <div className="gate-card">
         <p className="wordmark">Sound Chimera</p>
         <h1>Слушает в темноте.</h1>

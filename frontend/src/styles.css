@@ -47,29 +47,252 @@ input {
   font: inherit;
 }
 
+/* ---------- the eyes ---------- */
+
 .eyes {
+  --lid: 1;
+  --squint: 1;
+  --glow: 1;
   display: block;
+  width: 100%;
+  overflow: visible;
   user-select: none;
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.25));
+  fill: #fff;
+  filter: drop-shadow(0 0 calc(10px * var(--glow)) rgba(255, 255, 255, calc(0.3 * var(--glow))));
+}
+
+.eyes .lid {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scaleY(calc(var(--lid) * var(--squint)));
+  /* slow, heavy lids; the overshoot gives the open a living twitch */
+  transition: transform 1.4s cubic-bezier(0.2, 0.9, 0.2, 1.08);
+}
+
+.eyes .halo {
+  opacity: calc(0.55 * var(--glow));
+}
+
+.eyes.shut {
+  --lid: 0;
+}
+
+.eyes.blink {
+  --lid: 0.02;
+}
+
+.eyes.blink .lid {
+  transition-duration: 0.07s;
+  transition-timing-function: ease-in;
+}
+
+.eyes .gaze {
+  will-change: transform;
 }
 
 .eyes.lit {
-  animation: stare 2.4s ease-in-out infinite;
+  animation: stare 2.6s ease-in-out infinite;
 }
 
 @keyframes stare {
   0%,
   100% {
-    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
-    opacity: 0.92;
+    filter: drop-shadow(0 0 calc(8px * var(--glow)) rgba(255, 255, 255, 0.25));
   }
   50% {
-    filter: drop-shadow(0 0 22px rgba(255, 255, 255, 0.55));
-    opacity: 1;
+    filter: drop-shadow(0 0 calc(26px * var(--glow)) rgba(255, 255, 255, 0.7));
   }
 }
 
+/* ---------- splash ---------- */
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: #000;
+  cursor: pointer;
+  transition: opacity 0.9s ease, visibility 0.9s;
+}
+
+.splash.gone {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.splash-eyes {
+  width: min(640px, 78vw);
+  transition: transform 0.9s cubic-bezier(0.6, 0, 0.2, 1), opacity 0.9s ease;
+}
+
+.splash-eyes .lid {
+  transition-duration: 1.9s;
+}
+
+.splash.gone .splash-eyes {
+  transform: scale(1.35);
+  opacity: 0;
+}
+
+.splash-rings {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.splash-rings span {
+  position: absolute;
+  width: 32vmin;
+  height: 32vmin;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  opacity: 0;
+}
+
+.splash.awake .splash-rings span,
+.splash.brand .splash-rings span {
+  animation: ripple 3.2s cubic-bezier(0.1, 0.6, 0.3, 1) infinite;
+}
+
+.splash-rings span:nth-child(2) {
+  animation-delay: 1.05s;
+}
+
+.splash-rings span:nth-child(3) {
+  animation-delay: 2.1s;
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(4.2);
+    opacity: 0;
+  }
+}
+
+.splash-word {
+  position: absolute;
+  bottom: 14vh;
+  margin: 0;
+  display: flex;
+  font-family: Syne, sans-serif;
+  font-weight: 700;
+  font-size: clamp(14px, 1.7vw, 22px);
+  letter-spacing: 0.6em;
+  color: #fff;
+}
+
+.splash-word span {
+  opacity: 0;
+  transform: translateY(12px);
+  filter: blur(6px);
+  transition: opacity 0.7s ease, transform 0.7s ease, filter 0.7s ease;
+  transition-delay: calc(var(--i) * 45ms);
+}
+
+.splash.brand .splash-word span,
+.splash.gone .splash-word span {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+/* ---------- backdrop ---------- */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #000;
+}
+
+.backdrop-eyes {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  width: min(1100px, 120vw);
+  transform: translate(-50%, -50%);
+  opacity: 0.09;
+  transition: opacity 1.6s ease;
+}
+
+.backdrop.awake .backdrop-eyes {
+  opacity: 0.22;
+}
+
+.backdrop.quiet .backdrop-eyes {
+  opacity: 0;
+}
+
+.backdrop-glow {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  width: 90vmax;
+  height: 90vmax;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.06), transparent 70%);
+  opacity: 0.5;
+  animation: breathe 9s ease-in-out infinite;
+}
+
+.backdrop.awake .backdrop-glow {
+  animation-duration: 4s;
+  opacity: 1;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+.backdrop-grain {
+  position: absolute;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grain 0.6s steps(3) infinite;
+}
+
+@keyframes grain {
+  0% {
+    transform: translate(0, 0);
+  }
+  33% {
+    transform: translate(-2%, 1%);
+  }
+  66% {
+    transform: translate(1%, -2%);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+/* ---------- layout ---------- */
+
 .app {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: var(--rail) 1fr;
   min-height: 100vh;
@@ -85,7 +308,8 @@ input {
   display: flex;
   flex-direction: column;
   gap: 40px;
-  background: #000;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(18px);
 }
 
 .mark {
@@ -226,24 +450,24 @@ input {
   width: 64px;
   height: 64px;
   border-radius: 2px;
-  background: #050505;
+  background: #030303;
+  border: 1px solid var(--line);
   display: grid;
   place-items: center;
   position: relative;
   overflow: hidden;
 }
 
-.cover-eye {
-  position: absolute;
-  width: 18px;
-  height: 8px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.45);
+.cover .eyes {
+  width: 78%;
 }
 
-.cover.lit .cover-eye {
-  animation: stare 2.4s ease-in-out infinite;
+.cover .eyes .lid {
+  transition-duration: 0.5s;
+}
+
+.row-play:hover .cover .eyes {
+  --squint: 1;
 }
 
 .row-glyph {
@@ -306,7 +530,9 @@ input {
   align-items: center;
   padding: 0 24px 0 calc(var(--rail) + 24px);
   border-top: 1px solid var(--line);
-  background: #000;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(18px);
+  z-index: 2;
 }
 
 .player .cover {
@@ -383,12 +609,12 @@ input {
   justify-content: center;
   gap: 28px;
   padding: 40px 20px 64px;
-  background: #000;
+  position: relative;
+  z-index: 1;
 }
 
 .gate-eyes {
-  width: min(420px, 86vw);
-  filter: drop-shadow(0 0 28px rgba(255, 255, 255, 0.28));
+  width: min(460px, 86vw);
 }
 
 .gate-card {
@@ -551,5 +777,24 @@ label input:focus {
 
   .scrub {
     display: none;
+  }
+
+  .backdrop-eyes {
+    width: 150vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eyes .lid,
+  .splash-eyes,
+  .splash-word span {
+    transition-duration: 0.01s;
+  }
+
+  .eyes.lit,
+  .backdrop-glow,
+  .backdrop-grain,
+  .splash-rings span {
+    animation: none;
   }
 }

@@ -1,16 +1,17 @@
+import { Eyes } from './Eyes'
+
 type Props = {
   id: string
   lit?: boolean
 }
 
+// Every track gets its own squint, so a list reads as a crowd rather than copies.
 export function Cover({ id, lit = false }: Props) {
   const n = hash(id)
-  const gap = 10 + (n % 6)
-  const squat = 0.42 + ((n >> 3) % 12) / 100
+  const squint = 0.55 + (n % 46) / 100
   return (
     <div className={`cover ${lit ? 'lit' : ''}`} aria-hidden>
-      <span className="cover-eye" style={{ transform: `translateX(-${gap}px) scaleY(${squat})` }} />
-      <span className="cover-eye" style={{ transform: `translateX(${gap}px) scaleY(${squat})` }} />
+      <Eyes squint={lit ? 1 : squint} lit={lit} glow={0.7} />
     </div>
   )
 }
