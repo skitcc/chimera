@@ -15,13 +15,15 @@ type Routes interface {
 }
 
 type Dependencies struct {
-	Log    middleware.Logger
-	Tokens middleware.TokenParser
-	Routes Routes
+	Log         middleware.Logger
+	Tokens      middleware.TokenParser
+	Routes      Routes
+	CORSOrigins []string
 }
 
 func NewRouter(deps Dependencies) http.Handler {
 	r := chi.NewRouter()
+	r.Use(middleware.CORS(deps.CORSOrigins))
 	r.Use(middleware.RequestLogger(deps.Log))
 
 	r.Get("/swagger/*", httpSwagger.WrapHandler)

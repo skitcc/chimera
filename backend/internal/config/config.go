@@ -30,6 +30,7 @@ type Config struct {
 type HTTP struct {
 	Addr            string
 	ShutdownTimeout time.Duration
+	CORSOrigins     []string
 }
 
 type Log struct {
@@ -62,6 +63,7 @@ type Upload struct {
 
 func Load() (Config, error) {
 	loadDotEnv(".env")
+	loadDotEnv("../.env")
 
 	mode, err := require("APP_MODE")
 	if err != nil {
@@ -95,6 +97,10 @@ func Load() (Config, error) {
 	if err != nil || shutdown <= 0 {
 		return Config{}, errors.New("HTTP_SHUTDOWN_TIMEOUT is invalid")
 	}
+	origins, err := loadCORSOrigins()
+	if err != nil {
+		return Config{}, err
+	}
 
 	s3, err := loadS3()
 	if err != nil {
@@ -107,7 +113,7 @@ func Load() (Config, error) {
 
 	cfg := Config{
 		Mode:     Mode(strings.ToLower(mode)),
-		HTTP:     HTTP{Addr: addr, ShutdownTimeout: shutdown},
+		HTTP:     HTTP{Addr: addr, ShutdownTimeout: shutdown, CORSOrigins: origins},
 		Log:      Log{Level: os.Getenv("LOG_LEVEL")},
 		Postgres: Postgres{DSN: dsn},
 		Auth:     Auth{JWTSecret: secret, JWTTTL: ttl},
@@ -184,6 +190,26 @@ func loadUpload() (Upload, error) {
 		return Upload{}, errors.New("TRACK_MAX_BYTES is invalid")
 	}
 	return Upload{MaxBytes: n}, nil
+}
+
+func loadCORSOrigins() ([]string, error) {
+	raw, err := require("HTTP_CORS_ORIGIN")
+	if err != nil {
+		return nil, err
+	}
+	parts := strings.Split(raw, ",")
+	origins := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		origins = append(origins, p)
+	}
+	if len(origins) == 0 {
+		return nil, errors.New("HTTP_CORS_ORIGIN is invalid")
+	}
+	return origins, nil
 }
 
 func parseS3Endpoint(raw string) (host string, useSSL bool, err error) {

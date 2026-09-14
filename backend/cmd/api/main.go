@@ -69,8 +69,9 @@ func main() {
 	tokens := infraauth.NewJWT(cfg.Auth)
 
 	router := httpapi.NewRouter(httpapi.Dependencies{
-		Log:    log,
-		Tokens: tokens,
+		Log:         log,
+		Tokens:      tokens,
+		CORSOrigins: cfg.HTTP.CORSOrigins,
 		Routes: v1.New(
 			usecase.NewUserService(users, hasher),
 			usecase.NewAuthService(users, hasher, tokens),
