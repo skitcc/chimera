@@ -1,10 +1,5 @@
 # Chimera web
 
-React + TypeScript client. Dev server proxies `/v1` to the API on `:8080`.
+React + TypeScript client. `docker compose up --build` from the repo root builds it and proxies `/v1` to the API.
 
-```bash
-npm install
-npm run dev
-```
-
-Open http://localhost:5173
+UI: http://localhost:5173
