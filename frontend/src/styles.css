@@ -51,7 +51,6 @@ input {
 
 .eyes {
   --lid: 1;
-  --squint: 1;
   --glow: 1;
   display: block;
   width: 100%;
@@ -59,31 +58,44 @@ input {
   user-select: none;
   fill: #fff;
   filter: drop-shadow(0 0 calc(10px * var(--glow)) rgba(255, 255, 255, calc(0.3 * var(--glow))));
+  transition: filter 1.6s ease;
 }
 
 .eyes .lid {
   transform-box: fill-box;
-  transform-origin: center;
-  transform: scaleY(calc(var(--lid) * var(--squint)));
-  /* slow, heavy lids; the overshoot gives the open a living twitch */
-  transition: transform 1.4s cubic-bezier(0.2, 0.9, 0.2, 1.08);
+  /* the upper lid does most of the travel, like a real eye */
+  transform-origin: 50% 82%;
+  transform: scaleY(var(--lid));
+  transition: transform 1.6s cubic-bezier(0.3, 0, 0.15, 1);
 }
 
 .eyes .halo {
   opacity: calc(0.55 * var(--glow));
+  transition: opacity 1.6s ease;
 }
 
 .eyes.shut {
   --lid: 0;
 }
 
-.eyes.blink {
-  --lid: 0.02;
+/* fast shut, slower release */
+.eyes.blink .lid {
+  animation: blink 0.36s cubic-bezier(0.4, 0, 0.3, 1) both;
 }
 
-.eyes.blink .lid {
-  transition-duration: 0.07s;
-  transition-timing-function: ease-in;
+@keyframes blink {
+  0% {
+    transform: scaleY(1);
+  }
+  26% {
+    transform: scaleY(0.03);
+  }
+  40% {
+    transform: scaleY(0.03);
+  }
+  100% {
+    transform: scaleY(1);
+  }
 }
 
 .eyes .gaze {
@@ -91,17 +103,11 @@ input {
 }
 
 .eyes.lit {
-  animation: stare 2.6s ease-in-out infinite;
+  filter: drop-shadow(0 0 calc(22px * var(--glow)) rgba(255, 255, 255, calc(0.55 * var(--glow))));
 }
 
-@keyframes stare {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 calc(8px * var(--glow)) rgba(255, 255, 255, 0.25));
-  }
-  50% {
-    filter: drop-shadow(0 0 calc(26px * var(--glow)) rgba(255, 255, 255, 0.7));
-  }
+.eyes.lit .halo {
+  opacity: calc(0.9 * var(--glow));
 }
 
 /* ---------- splash ---------- */
@@ -127,8 +133,37 @@ input {
   transition: transform 0.9s cubic-bezier(0.6, 0, 0.2, 1), opacity 0.9s ease;
 }
 
-.splash-eyes .lid {
-  transition-duration: 1.9s;
+/* waking up: a crack of light, a flutter, then the eyes settle open */
+.splash-eyes.open .lid {
+  animation: wake 2.6s cubic-bezier(0.45, 0, 0.2, 1) both;
+}
+
+@keyframes wake {
+  0% {
+    transform: scaleY(0);
+  }
+  18% {
+    transform: scaleY(0.14);
+  }
+  28% {
+    transform: scaleY(0.06);
+  }
+  46% {
+    transform: scaleY(0.58);
+  }
+  56% {
+    transform: scaleY(0.46);
+  }
+  78% {
+    transform: scaleY(1.02);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+.splash-eyes .halo {
+  transition: none;
 }
 
 .splash.gone .splash-eyes {
@@ -149,33 +184,34 @@ input {
   width: 32vmin;
   height: 32vmin;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   opacity: 0;
+  filter: blur(0.6px);
 }
 
 .splash.awake .splash-rings span,
 .splash.brand .splash-rings span {
-  animation: ripple 3.2s cubic-bezier(0.1, 0.6, 0.3, 1) infinite;
+  animation: ripple 4.4s cubic-bezier(0.15, 0.55, 0.25, 1) infinite;
 }
 
 .splash-rings span:nth-child(2) {
-  animation-delay: 1.05s;
+  animation-delay: 1.4s;
 }
 
 .splash-rings span:nth-child(3) {
-  animation-delay: 2.1s;
+  animation-delay: 2.8s;
 }
 
 @keyframes ripple {
   0% {
-    transform: scale(0.4);
+    transform: scale(0.35);
     opacity: 0;
   }
-  12% {
-    opacity: 0.5;
+  10% {
+    opacity: 0.45;
   }
   100% {
-    transform: scale(4.2);
+    transform: scale(4.4);
     opacity: 0;
   }
 }
@@ -458,16 +494,41 @@ input {
   overflow: hidden;
 }
 
-.cover .eyes {
-  width: 78%;
+.wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 60%;
 }
 
-.cover .eyes .lid {
-  transition-duration: 0.5s;
+.wave i {
+  display: block;
+  width: 2px;
+  height: calc(var(--h) * 100%);
+  border-radius: 1px;
+  background: #fff;
+  opacity: 0.4;
+  transition: opacity 0.6s ease, height 0.6s ease;
 }
 
-.row-play:hover .cover .eyes {
-  --squint: 1;
+.row-play:hover .wave i {
+  opacity: 0.75;
+}
+
+.cover.lit .wave i {
+  opacity: 0.95;
+  animation: pulse 1.6s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.19s);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    height: calc(var(--h) * 100%);
+  }
+  50% {
+    height: calc(var(--h) * 45%);
+  }
 }
 
 .row-glyph {

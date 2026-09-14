@@ -15,7 +15,7 @@ export function Shell() {
     <div className="app">
       <aside className="rail">
         <NavLink to="/" className="mark">
-          <Eyes lit={playing} blink className="mark-eyes" />
+          <Eyes lit={playing} className="mark-eyes" />
           <span>Sound Chimera</span>
         </NavLink>
         <nav>

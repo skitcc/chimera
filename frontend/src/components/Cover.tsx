@@ -1,25 +1,32 @@
-import { Eyes } from './Eyes'
-
 type Props = {
   id: string
   lit?: boolean
 }
 
-// Every track gets its own squint, so a list reads as a crowd rather than copies.
+const BARS = 9
+
+// A small waveform seeded by the track id: every track gets its own silhouette.
 export function Cover({ id, lit = false }: Props) {
-  const n = hash(id)
-  const squint = 0.55 + (n % 46) / 100
+  let n = hash(id)
+  const bars = Array.from({ length: BARS }, (_, i) => {
+    n = (n * 1103515245 + 12345) >>> 0
+    return { h: 0.25 + (n % 60) / 100, i }
+  })
   return (
     <div className={`cover ${lit ? 'lit' : ''}`} aria-hidden>
-      <Eyes squint={lit ? 1 : squint} lit={lit} glow={0.7} />
+      <span className="wave">
+        {bars.map((b) => (
+          <i key={b.i} style={{ '--h': b.h, '--i': b.i } as React.CSSProperties} />
+        ))}
+      </span>
     </div>
   )
 }
 
 function hash(id: string) {
-  let n = 0
+  let n = 2166136261
   for (const ch of id) {
-    n = (n * 33 + ch.charCodeAt(0)) >>> 0
+    n = ((n ^ ch.charCodeAt(0)) * 16777619) >>> 0
   }
   return n
 }

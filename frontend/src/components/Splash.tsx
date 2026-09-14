@@ -16,8 +16,8 @@ export function Splash({ onDone }: { onDone: () => void }) {
         ]
       : [
           ['awake', 500],
-          ['brand', 1700],
-          ['gone', 3300],
+          ['brand', 2300],
+          ['gone', 4300],
         ]
     const timers = steps.map(([next, at]) => window.setTimeout(() => setPhase(next), at))
     return () => timers.forEach(window.clearTimeout)
