@@ -25,6 +25,8 @@ type Config struct {
 	Auth     Auth
 	S3       S3
 	Upload   Upload
+	Workers  Workers
+	Health   Health
 }
 
 type HTTP struct {
@@ -38,12 +40,26 @@ type Log struct {
 }
 
 type Postgres struct {
-	DSN string
+	DSN               string
+	MinConns          int32
+	MaxConns          int32
+	MaxConnIdleTime   time.Duration
+	MaxConnLifetime   time.Duration
+	HealthCheckPeriod time.Duration
 }
 
 type Auth struct {
 	JWTSecret string
 	JWTTTL    time.Duration
+}
+
+type Workers struct {
+	Size int
+}
+
+type Health struct {
+	Interval time.Duration
+	Timeout  time.Duration
 }
 
 type S3 struct {
@@ -81,27 +97,22 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	ttlRaw, err := require("JWT_TTL")
+	ttl, err := requireDuration("JWT_TTL")
 	if err != nil {
 		return Config{}, err
 	}
-	ttl, err := time.ParseDuration(ttlRaw)
-	if err != nil || ttl <= 0 {
-		return Config{}, errors.New("JWT_TTL is invalid")
-	}
-	shutdownRaw, err := require("HTTP_SHUTDOWN_TIMEOUT")
+	shutdown, err := requireDuration("HTTP_SHUTDOWN_TIMEOUT")
 	if err != nil {
 		return Config{}, err
 	}
-	shutdown, err := time.ParseDuration(shutdownRaw)
-	if err != nil || shutdown <= 0 {
-		return Config{}, errors.New("HTTP_SHUTDOWN_TIMEOUT is invalid")
+	pg, err := loadPostgres(dsn)
+	if err != nil {
+		return Config{}, err
 	}
 	origins, err := loadCORSOrigins()
 	if err != nil {
 		return Config{}, err
 	}
-
 	s3, err := loadS3()
 	if err != nil {
 		return Config{}, err
@@ -110,20 +121,83 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	workers, err := loadWorkers()
+	if err != nil {
+		return Config{}, err
+	}
+	health, err := loadHealth()
+	if err != nil {
+		return Config{}, err
+	}
+	pg.HealthCheckPeriod = health.Interval
 
 	cfg := Config{
 		Mode:     Mode(strings.ToLower(mode)),
 		HTTP:     HTTP{Addr: addr, ShutdownTimeout: shutdown, CORSOrigins: origins},
 		Log:      Log{Level: os.Getenv("LOG_LEVEL")},
-		Postgres: Postgres{DSN: dsn},
+		Postgres: pg,
 		Auth:     Auth{JWTSecret: secret, JWTTTL: ttl},
 		S3:       s3,
 		Upload:   upload,
+		Workers:  workers,
+		Health:   health,
 	}
 	if cfg.Mode != ModeDevelopment && cfg.Mode != ModeProduction {
 		return Config{}, errors.New("APP_MODE must be development or production")
 	}
 	return cfg, nil
+}
+
+func loadPostgres(dsn string) (Postgres, error) {
+	minConns, err := requireInt32("POSTGRES_MIN_CONNS")
+	if err != nil {
+		return Postgres{}, err
+	}
+	maxConns, err := requireInt32("POSTGRES_MAX_CONNS")
+	if err != nil {
+		return Postgres{}, err
+	}
+	if minConns > maxConns {
+		return Postgres{}, errors.New("POSTGRES_MIN_CONNS must be <= POSTGRES_MAX_CONNS")
+	}
+	idle, err := requireDuration("POSTGRES_MAX_CONN_IDLE")
+	if err != nil {
+		return Postgres{}, err
+	}
+	lifetime, err := requireDuration("POSTGRES_MAX_CONN_LIFETIME")
+	if err != nil {
+		return Postgres{}, err
+	}
+	return Postgres{
+		DSN:             dsn,
+		MinConns:        minConns,
+		MaxConns:        maxConns,
+		MaxConnIdleTime: idle,
+		MaxConnLifetime: lifetime,
+	}, nil
+}
+
+func loadWorkers() (Workers, error) {
+	size, err := requireInt("WORKER_POOL_SIZE")
+	if err != nil {
+		return Workers{}, err
+	}
+	return Workers{Size: size}, nil
+}
+
+func loadHealth() (Health, error) {
+	interval, err := requireDuration("HEALTH_CHECK_INTERVAL")
+	if err != nil {
+		return Health{}, err
+	}
+	timeout, err := requireDuration("HEALTH_CHECK_TIMEOUT")
+	if err != nil {
+		return Health{}, err
+	}
+	if timeout >= interval {
+		return Health{}, errors.New("HEALTH_CHECK_TIMEOUT must be < HEALTH_CHECK_INTERVAL")
+	}
+	return Health{Interval: interval, Timeout: timeout}, nil
 }
 
 func loadS3() (S3, error) {
@@ -226,6 +300,38 @@ func require(name string) (string, error) {
 		return "", errors.New("missing required env " + name)
 	}
 	return v, nil
+}
+
+func requireInt(name string) (int, error) {
+	raw, err := require(name)
+	if err != nil {
+		return 0, err
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n <= 0 {
+		return 0, errors.New(name + " is invalid")
+	}
+	return n, nil
+}
+
+func requireInt32(name string) (int32, error) {
+	n, err := requireInt(name)
+	if err != nil {
+		return 0, err
+	}
+	return int32(n), nil
+}
+
+func requireDuration(name string) (time.Duration, error) {
+	raw, err := require(name)
+	if err != nil {
+		return 0, err
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		return 0, errors.New(name + " is invalid")
+	}
+	return d, nil
 }
 
 func loadDotEnv(path string) {

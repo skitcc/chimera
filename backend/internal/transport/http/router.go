@@ -19,6 +19,7 @@ type Dependencies struct {
 	Tokens      middleware.TokenParser
 	Routes      Routes
 	CORSOrigins []string
+	Health      Readiness
 }
 
 func NewRouter(deps Dependencies) http.Handler {
@@ -26,6 +27,8 @@ func NewRouter(deps Dependencies) http.Handler {
 	r.Use(middleware.CORS(deps.CORSOrigins))
 	r.Use(middleware.RequestLogger(deps.Log))
 
+	r.Get("/live", Live)
+	r.Get("/ready", Ready(deps.Health))
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	r.Route("/v1", func(r chi.Router) {
