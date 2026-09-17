@@ -1,3 +1,10 @@
 tmp
+test-results
+allure-results
+allure-report
+coverage.out
+coverage.html
+condition-coverage.txt
+branch-coverage.txt
 .git
 *.md

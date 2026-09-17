@@ -3,10 +3,12 @@ module chimera
 go 1.26.0
 
 require (
+	github.com/allure-framework/allure-go/commons v1.3.1
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/minio/minio-go/v7 v7.3.0
+	github.com/pashagolub/pgxmock/v5 v5.2.0
 	github.com/swaggo/http-swagger v1.3.4
 	github.com/swaggo/swag v1.16.6
 	golang.org/x/crypto v0.57.0
