@@ -125,4 +125,14 @@ the official `allure-framework/allure-go` adapter. Every reported case has an
 AAA description and a test-technique label selected from boundary values,
 equivalence classes, state transitions, decision tables, and error guessing.
 `make allure-report` then uses a containerized Allure CLI to generate
-`allure-report/index.html`; neither Java nor Allure is installed on the host.
+`allure-report/`. Do not open `index.html` as a local file: the UI loads JSON
+over HTTP, so the browser or a file preview often shows a blank page or HTTP
+500. Serve it instead:
+
+```bash
+make allure-open
+```
+
+That pulls `nginx:1.27-alpine` on the first run if needed and serves
+`http://127.0.0.1:5252`. Override the port with `ALLURE_PORT`. Neither Java
+nor Allure is installed on the host.

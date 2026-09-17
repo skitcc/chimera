@@ -5,6 +5,7 @@ backend/tmp
 backend/test-results/
 backend/allure-results/
 backend/allure-report/
+backend/allure-report.html
 backend/coverage.out
 backend/coverage.html
 backend/condition-coverage.txt

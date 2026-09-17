@@ -2,6 +2,7 @@ tmp
 test-results
 allure-results
 allure-report
+allure-report.html
 coverage.out
 coverage.html
 condition-coverage.txt

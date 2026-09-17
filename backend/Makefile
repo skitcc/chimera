@@ -5,6 +5,8 @@ ARTIFACTS_DIR ?= $(CURDIR)
 TEST_IMAGE ?= chimera-backend-test:local
 GOBCO_VERSION ?= v1.3.4
 ALLURE_IMAGE ?= tobix/allure-cli:2
+ALLURE_PORT ?= 5252
+NGINX_IMAGE ?= nginx:1.27-alpine
 COMPOSE_PROJECT_NAME ?= chimera-tests
 COMPOSE := docker compose --project-name $(COMPOSE_PROJECT_NAME) --project-directory $(ROOT_DIR) -f $(ROOT_DIR)/docker-compose.test.yml
 
@@ -22,7 +24,7 @@ TEST_GID := $(shell id -g)
 RUN_TEST_IMAGE = docker run --rm --user $(TEST_UID):$(TEST_GID) -e HOME=/tmp -e ALLURE_RESULTS_DIR=/artifacts/allure-results -v "$(ARTIFACTS_DIR):/artifacts" "$(TEST_IMAGE)"
 GO_TEST_FLAGS = -count=1 -p=$(GO_TEST_P) -parallel=$(GO_TEST_PARALLEL)
 
-.PHONY: help test-image test test-shuffle test-offline test-integration test-all coverage gobco-condition gobco-branch allure-results allure-report clean-test-results
+.PHONY: help test-image test test-shuffle test-offline test-integration test-all coverage gobco-condition gobco-branch allure-results allure-report allure-open clean-test-results
 .NOTPARALLEL: test-all
 
 help:
@@ -37,7 +39,8 @@ help:
 		'gobco-condition  Write gobco condition coverage output' \
 		'gobco-branch     Write gobco branch coverage output' \
 		'allure-results   Run tests configured to emit Allure result files' \
-		'allure-report    Generate an Allure HTML report in Docker'
+		'allure-report    Generate an Allure HTML report in Docker' \
+		'allure-open      Serve the report at http://127.0.0.1:$(ALLURE_PORT)'
 
 test-image:
 	docker build --target test --build-arg GOBCO_VERSION="$(GOBCO_VERSION)" --tag "$(TEST_IMAGE)" .
@@ -86,9 +89,18 @@ allure-report: allure-results
 		-v "$(ARTIFACTS_DIR):/work" "$(ALLURE_IMAGE)" \
 		generate /work/allure-results --clean -o /work/allure-report
 
+allure-open:
+	@test -f "$(ARTIFACTS_DIR)/allure-report/index.html" || { printf '%s\n' 'report is missing; run make allure-report first' >&2; exit 1; }
+	@docker image inspect "$(NGINX_IMAGE)" >/dev/null 2>&1 || docker pull "$(NGINX_IMAGE)"
+	@printf '%s\n' "serving Allure report at http://127.0.0.1:$(ALLURE_PORT)"
+	docker run --rm --pull=never -p "$(ALLURE_PORT):80" \
+		-v "$(ARTIFACTS_DIR)/allure-report:/usr/share/nginx/html:ro" \
+		"$(NGINX_IMAGE)"
+
 test-all: test test-shuffle test-offline coverage gobco-condition gobco-branch test-integration
 
 clean-test-results:
 	rm -rf "$(ARTIFACTS_DIR)/allure-results" "$(ARTIFACTS_DIR)/allure-report"
+	rm -f "$(ARTIFACTS_DIR)/allure-report.html"
 	rm -f "$(ARTIFACTS_DIR)/coverage.out" "$(ARTIFACTS_DIR)/coverage.html"
 	rm -f "$(ARTIFACTS_DIR)/condition-coverage.txt" "$(ARTIFACTS_DIR)/branch-coverage.txt"
