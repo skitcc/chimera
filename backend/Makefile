@@ -43,7 +43,7 @@ help:
 		'allure-open      Serve the report at http://127.0.0.1:$(ALLURE_PORT)'
 
 test-image:
-	docker build --target test --build-arg GOBCO_VERSION="$(GOBCO_VERSION)" --tag "$(TEST_IMAGE)" .
+	docker build -f Dockerfile.test --build-arg GOBCO_VERSION="$(GOBCO_VERSION)" --tag "$(TEST_IMAGE)" .
 
 $(ARTIFACTS_DIR):
 	mkdir -p "$(ARTIFACTS_DIR)"

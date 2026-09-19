@@ -25,8 +25,30 @@ Compose network, and is removed after the command.
 
 ## Targets and options
 
-- `test-image` builds the `test` Dockerfile stage. Module downloads and gobco
-  are baked into the image; the production stage remains the default image.
+- `test-image` builds `Dockerfile.test`. All modules from `go.mod`, including
+  test-only libraries (allure-go, pgxmock), and gobco are baked into the image.
+  The production `Dockerfile` is separate: it drops `*_test.go` and
+  `internal/testkit` before `go build`, so test libraries are neither
+  downloaded nor linked into the API binary.
+
+## Test-only dependencies
+
+Go has no `devDependencies`: a single `go.mod` lists every module the module's
+packages *and their tests* import. The split is kept explicit instead:
+
+- `go.mod` has a dedicated `require` block for test-only modules
+  (`go mod tidy` preserves it). Add new test libraries there.
+- The production `Dockerfile` never runs `go mod download`; it deletes
+  `*_test.go` and `internal/testkit`, builds `./cmd/api`, and then fails the
+  build if `go version -m /api` reports a test-only module. Importing a test
+  library from production code therefore breaks `docker compose build`.
+
+| Module | Used from | Purpose |
+| --- | --- | --- |
+| `github.com/allure-framework/allure-go/commons` | `internal/testkit/report.go` | Allure adapter: wraps `t.Run`, emits result JSON with suites, AAA step, and test-technique labels |
+| `github.com/pashagolub/pgxmock/v5` | `internal/infra/adapters/postgres/*_test.go` | In-memory stand-in for `pgxpool.Pool`: expected SQL, canned rows/errors, `ExpectationsWereMet` |
+
+`gobco` is a binary installed in `Dockerfile.test`, not a `go.mod` dependency.
 - `test` runs `go test` against `TEST_PACKAGES` (default `./...`).
 - `test-shuffle` uses `-shuffle`. Its default `SHUFFLE_SEED=on` prints a random
   seed. Reproduce a failure with, for example,

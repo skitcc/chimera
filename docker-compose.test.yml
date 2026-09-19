@@ -17,7 +17,7 @@ services:
     image: ${TEST_IMAGE:-chimera-backend-test:local}
     build:
       context: ./backend
-      target: test
+      dockerfile: Dockerfile.test
       args:
         GOBCO_VERSION: ${GOBCO_VERSION:-v1.3.4}
     user: ${TEST_UID:-1000}:${TEST_GID:-1000}
