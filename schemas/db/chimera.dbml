@@ -1,0 +1,142 @@
+// Physical model aligned with the conceptual ER in docs/architecture.md §6.
+// users, tracks, track_likes match schema.sql.
+// playlists, playlist_tracks, picks, pick_tracks, follows are not migrated yet.
+
+Project chimera {
+  database_type: 'PostgreSQL'
+  Note: '''
+    Sound Chimera.
+    Интересы пользователя не хранятся отдельной таблицей:
+    это track_likes, follows и artist у связанных треков.
+    Подборку (picks) собирает система для одного пользователя.
+  '''
+}
+
+TableGroup already_in_schema {
+  users
+  tracks
+  track_likes
+}
+
+TableGroup planned {
+  playlists
+  playlist_tracks
+  picks
+  pick_tracks
+  follows
+}
+
+Table users {
+  id uuid [pk, default: `gen_random_uuid()`]
+  email text [not null, unique]
+  name text [not null, default: '']
+  password_hash text [not null]
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table tracks {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  title text [not null]
+  artist text [not null, default: '', note: 'Строка для поиска, не аккаунт']
+  object_key text [not null, default: '']
+  size_bytes bigint [not null, default: 0]
+  status text [not null, default: 'pending', note: 'pending | processing | ready']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id) [name: 'tracks_user_id_idx']
+    (status, created_at) [name: 'tracks_status_created_at_idx']
+  }
+}
+
+Table track_likes {
+  user_id uuid [pk, not null]
+  track_id uuid [pk, not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, created_at) [name: 'track_likes_user_created_idx']
+  }
+
+  Note: 'Пара (user_id, track_id) уникальна. Это избранное, не оценка.'
+}
+
+Table playlists {
+  id uuid [pk, default: `gen_random_uuid()`]
+  owner_id uuid [not null]
+  title text [not null]
+  is_public boolean [not null, default: false]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    owner_id
+  }
+
+  Note: 'Список, который пользователь собирает сам. Публичный читается без входа.'
+}
+
+Table playlist_tracks {
+  playlist_id uuid [pk, not null]
+  track_id uuid [pk, not null]
+  position int [not null]
+  added_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (playlist_id, position)
+  }
+}
+
+Table picks {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, note: 'Кому собрана подборка']
+  title text [not null]
+  generated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, generated_at)
+  }
+
+  Note: 'Новая генерация — новая строка. Старые подборки не затираются.'
+}
+
+Table pick_tracks {
+  pick_id uuid [pk, not null]
+  track_id uuid [pk, not null]
+  position int [not null]
+  note text [not null, default: '', note: 'Почему система выбрала трек: лайк, подписка или артист']
+
+  indexes {
+    (pick_id, position)
+  }
+}
+
+Table follows {
+  follower_id uuid [pk, not null]
+  followee_id uuid [pk, not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    followee_id
+  }
+
+  Note: 'follower_id <> followee_id. Подписка на аккаунт, не на строку artist.'
+}
+
+Ref: tracks.user_id > users.id
+
+Ref: track_likes.user_id > users.id [delete: cascade]
+Ref: track_likes.track_id > tracks.id [delete: cascade]
+
+Ref: playlists.owner_id > users.id [delete: cascade]
+
+Ref: playlist_tracks.playlist_id > playlists.id [delete: cascade]
+Ref: playlist_tracks.track_id > tracks.id [delete: cascade]
+
+Ref: picks.user_id > users.id [delete: cascade]
+
+Ref: pick_tracks.pick_id > picks.id [delete: cascade]
+Ref: pick_tracks.track_id > tracks.id [delete: cascade]
+
+Ref: follows.follower_id > users.id [delete: cascade]
+Ref: follows.followee_id > users.id [delete: cascade]

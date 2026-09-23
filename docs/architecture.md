@@ -16,30 +16,32 @@
 - зарегистрироваться, загружать треки и отмечать любимые;
 - видеть свои загрузки, включая ещё не опубликованные.
 
+
+
 ## 2. Требования
+
+
 
 ### Функциональные
 
-| ID | Требование | Как сделано сейчас |
-| --- | --- | --- |
-| FR-1 | Регистрация и вход по email и паролю | `POST /v1/auth/register`, `POST /v1/auth/login` |
-| FR-2 | Публичная лента только треков | `GET /v1/tracks` |
-| FR-3 | Поиск ленты по точному имени артиста  | query `artist` |
-| FR-4 | Публикация трека| `POST /v1/tracks/upload-init`, PUT в хранилище, `POST /v1/tracks/{id}/upload-complete` |
-| FR-5 | Воспроизведение готового трека | `GET /v1/tracks/{id}/stream` → `302` на временную ссылку |
-| FR-6 | Лайк и снятие лайка, список любимого | `POST/DELETE /v1/tracks/{id}/like`, `GET /v1/me/likes` |
-| FR-7 | Свои загрузки всех статусов и публичный каталог автора | `GET /v1/me/tracks`, `GET /v1/users/{id}/tracks` |
-| FR-8 | Профиль текущего пользователя и справочник пользователей | `GET /v1/me`, `GET /v1/users`, `GET /v1/users/{id}` |
+
+| ID   | Требование                                               | Как сделано сейчас                                                                     |
+| ---- | -------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| FR-1 | Регистрация и вход по email и паролю                     | `POST /v1/auth/register`, `POST /v1/auth/login`                                        |
+| FR-2 | Публичная лента только треков                            | `GET /v1/tracks`                                                                       |
+| FR-3 | Поиск ленты по точному имени артиста                     | query `artist`                                                                         |
+| FR-4 | Публикация трека                                         | `POST /v1/tracks/upload-init`, PUT в хранилище, `POST /v1/tracks/{id}/upload-complete` |
+| FR-5 | Воспроизведение готового трека                           | `GET /v1/tracks/{id}/stream` → `302` на временную ссылку                               |
+| FR-6 | Лайк и снятие лайка, список любимого                     | `POST/DELETE /v1/tracks/{id}/like`, `GET /v1/me/likes`                                 |
+| FR-7 | Свои загрузки всех статусов и публичный каталог автора   | `GET /v1/me/tracks`, `GET /v1/users/{id}/tracks`                                       |
+| FR-8 | Профиль текущего пользователя и справочник пользователей | `GET /v1/me`, `GET /v1/users`, `GET /v1/users/{id}`                                    |
+
 
 Мутации каталога, лайки и загрузка требуют `Authorization: Bearer <jwt>`. Чтение ленты, карточки трека, стрим и каталог автора — публичные.
 
 ### Нефункциональные
 
 Измеримые пороги ниже — целевые требования, согласованные с уже заданными лимитами в коде и `.env.example`. Это не результаты нагрузочного прогона.
-
-**Производительность.** p95 ответа `GET /v1/tracks` при `limit` ≤ 20 и каталоге до 10 000 треков `ready` — не более 300 мс при 50 одновременных запросах. Время скачивания аудио из объектного хранилища в этот бюджет не входит. В коде страница по умолчанию 20 элементов, потолок 100 (`defaultPageLimit`, `maxPageLimit` в `domain/page.go`); `limit` выше 100 отклоняется как `invalid`.
-
-**Надёжность.** `GET /ready` переходит в неготовое состояние, если проверка PostgreSQL или S3 не укладывается в `HEALTH_CHECK_TIMEOUT` = 3 с, и снова становится готовой не позднее одного интервала `HEALTH_CHECK_INTERVAL` = 10 с после восстановления зависимости. Остановка процесса завершает приём HTTP не дольше `HTTP_SHUTDOWN_TIMEOUT` = 3 с. Если выпуск ссылки на загрузку не удался, созданная строка трека удаляется (`TrackService.InitUpload`).
 
 **Безопасность.** Пароль не короче 8 символов и хранится только как bcrypt-хеш; хеш в API не отдаётся. Неизвестный email и неверный пароль дают один и тот же ответ `unauthorized`. Мутации принимаются только с JWT HS256 со сроком `JWT_TTL` = 24 ч; пустой или неверный токен — 401. Прямая запись и чтение объекта живут не дольше `S3_PRESIGN_TTL` = 15 мин. Файл больше `TRACK_MAX_BYTES` = 104 857 600 (100 МиБ) не принимается. Браузерный доступ к API ограничен списком `HTTP_CORS_ORIGIN`.
 
@@ -51,316 +53,19 @@
 
 Подборки, плейлисты и подписки на диаграмме — целевые варианты. В текущем API их ещё нет; им соответствуют сущности раздела 6.
 
-```mermaid
-flowchart LR
-  guest((Гость))
-  user((Пользователь))
-  user -.->|обобщение| guest
-
-  subgraph sys["Sound Chimera"]
-    direction TB
-    ucFeed([Смотреть ленту])
-    ucPicks([Смотреть подборки])
-    ucArtist([Искать по артисту])
-    ucAuthor([Смотреть каталог автора])
-    ucPlay([Слушать трек])
-    ucReg([Зарегистрироваться])
-    ucLogin([Войти])
-    ucUpload([Опубликовать трек])
-    ucLibrary([Смотреть свои загрузки])
-    ucLike([Отметить любимое])
-    ucLikes([Смотреть любимое])
-    ucPlaylist([Вести плейлист])
-    ucFollow([Подписаться на автора])
-  end
-
-  guest --> ucFeed
-  guest --> ucPicks
-  guest --> ucArtist
-  guest --> ucAuthor
-  guest --> ucPlay
-  guest --> ucReg
-  guest --> ucLogin
-
-  user --> ucUpload
-  user --> ucLibrary
-  user --> ucLike
-  user --> ucLikes
-  user --> ucPlaylist
-  user --> ucFollow
-
-  ucUpload -.->|include| ucLogin
-  ucLike -.->|include| ucLogin
-  ucLikes -.->|include| ucLogin
-  ucLibrary -.->|include| ucLogin
-  ucPlaylist -.->|include| ucLogin
-  ucFollow -.->|include| ucLogin
-  ucPlaylist -.->|include| ucPlay
-  ucPicks -.->|include| ucPlay
-  ucFeed -.->|extend| ucArtist
-```
+[draw.io](../schemas/usecase.drawio)
 
 `Опубликовать трек` включает проверку размера, запись объекта и смену статуса. `Отметить любимое` и позиции плейлиста допускают только трек `ready`. `Слушать трек` для неготового трека завершается отказом `409`. `Искать по артисту` расширяет ленту тем же списком с фильтром `artist`.
 
 ## 4. BPMN основных процессов
 
-Нотация BPMN 2.0, диаграмма взаимодействия. Участник — пул. Сплошная стрелка не выходит за границу пула: это поток управления. Пунктир между пулами — поток сообщений. Круг — стартовое событие, двойной круг — конечное. Прямоугольник — задача. Ромб с подписью `XOR` — исключающий шлюз: срабатывает ровно одна исходящая ветка.
 
-| Элемент BPMN 2.0 | На диаграмме |
-| --- | --- |
-| Стартовое событие | круг |
-| Конечное событие | двойной круг |
-| Задача | прямоугольник |
-| Шлюз XOR | ромб |
-| Поток управления | сплошная стрелка внутри пула |
-| Поток сообщений | пунктир между пулами |
+[draw.io](../schemas/bpmn/processes.drawio) · [вход](../schemas/bpmn/auth.drawio) · [публикация](../schemas/bpmn/upload.drawio) · [прослушивание](../schemas/bpmn/play.drawio)
 
-### 4.1. Регистрация и вход
-
-```mermaid
-flowchart TB
-  subgraph browser["Пул: Браузер"]
-    direction TB
-    bStart((Старт))
-    form[Заполнить форму входа или регистрации]
-    show429[Показать слишком часто]
-    showErr[Показать ошибку]
-    openFeed[Открыть ленту]
-    bStop(((Отказ)))
-    bDone(((В системе)))
-    bStart --> form
-    show429 --> bStop
-    showErr --> bStop
-    openFeed --> bDone
-  end
-
-  subgraph api["Пул: API"]
-    direction TB
-    limit{"XOR лимит IP или email"}
-    reject[Ответить 429 и Retry-After]
-    mode{"XOR режим"}
-    validReg[Проверить email и пароль от 8 символов]
-    regOk{"XOR данные"}
-    badReg[Ответить 400]
-    save[Хеш bcrypt и создать пользователя]
-    free{"XOR email свободен"}
-    dup[Ответить 409]
-    validLog[Проверить что поля не пустые]
-    logOk{"XOR данные"}
-    badLog[Ответить 400]
-    check[Найти пользователя и сверить bcrypt]
-    cred{"XOR совпало"}
-    badCred[Ответить 401 invalid credentials]
-    issue[Выдать JWT на 24 часа]
-    aStop(((Отказ)))
-    aDone(((Токен выдан)))
-    limit -->|исчерпан| reject
-    reject --> aStop
-    limit -->|свободно| mode
-    mode -->|регистрация| validReg
-    validReg --> regOk
-    regOk -->|нет| badReg
-    badReg --> aStop
-    regOk -->|да| save
-    save --> free
-    free -->|нет| dup
-    dup --> aStop
-    free -->|да| issue
-    mode -->|вход| validLog
-    validLog --> logOk
-    logOk -->|нет| badLog
-    badLog --> aStop
-    logOk -->|да| check
-    check --> cred
-    cred -->|нет| badCred
-    badCred --> aStop
-    cred -->|да| issue
-    issue --> aDone
-  end
-
-  form -.->|POST /v1/auth| limit
-  reject -.->|429| show429
-  badReg -.->|400| showErr
-  dup -.->|409| showErr
-  badLog -.->|400| showErr
-  badCred -.->|401| showErr
-  issue -.->|200 token| openFeed
-```
-
-Лимитер — первый шлюз в пуле API. Счётчики IP и email растут до bcrypt и до чтения пользователя. Снаружи неизвестный email и неверный пароль — один и тот же `401`.
-
-### 4.2. Публикация трека
-
-```mermaid
-flowchart TB
-  subgraph browser["Пул: Браузер"]
-    direction TB
-    bStart((Старт))
-    submit[Отправить название, артиста и размер]
-    toAuth[Перейти на экран входа]
-    put[PUT файла по временной ссылке]
-    putOk{"XOR PUT успешен"}
-    complete[Отправить upload-complete]
-    showErr[Показать ошибку загрузки]
-    openLib[Открыть мои треки]
-    bNoAuth(((Нет сессии)))
-    bFail(((Сбой)))
-    bDone(((Опубликован)))
-    bStart --> submit
-    toAuth --> bNoAuth
-    put --> putOk
-    putOk -->|нет| showErr
-    putOk -->|да| complete
-    showErr --> bFail
-    openLib --> bDone
-  end
-
-  subgraph api["Пул: API"]
-    direction TB
-    auth{"XOR JWT"}
-    deny[Ответить 401]
-    size{"XOR размер до 100 МиБ"}
-    badSize[Ответить 400]
-    row[Создать трек pending]
-    signed{"XOR ссылка выпущена"}
-    rollback[Удалить строку трека]
-    issued(((Ссылка выдана)))
-    caught((Пришёл upload-complete))
-    owner{"XOR владелец"}
-    denyOwner[Ответить 401]
-    check[Сверить объект через Stat]
-    stat{"XOR размер совпал"}
-    mismatch[Ответить 400]
-    state{"XOR статус ждёт публикацию"}
-    conflict[Ответить 409]
-    publish[Перевести в processing и ready]
-    aFail(((Отказ)))
-    aDone(((Ready)))
-    auth -->|нет| deny
-    deny --> aFail
-    auth -->|да| size
-    size -->|нет| badSize
-    badSize --> aFail
-    size -->|да| row
-    row --> signed
-    signed -->|нет| rollback
-    rollback --> aFail
-    signed -->|да| issued
-    caught --> owner
-    owner -->|нет| denyOwner
-    denyOwner --> aFail
-    owner -->|да| check
-    check --> stat
-    stat -->|нет| mismatch
-    mismatch --> aFail
-    stat -->|да| state
-    state -->|нет| conflict
-    conflict --> aFail
-    state -->|да| publish
-    publish --> aDone
-  end
-
-  subgraph store["Пул: Object storage"]
-    direction TB
-    accept[Принять объект]
-    report[Вернуть размер]
-    accept --> report
-  end
-
-  submit -.->|upload-init| auth
-  deny -.->|401| toAuth
-  badSize -.->|400| showErr
-  rollback -.->|ошибка| showErr
-  signed -.->|upload_url| put
-  put -.->|PUT| accept
-  complete -.->|upload-complete| caught
-  denyOwner -.->|401| showErr
-  check -.->|Stat| report
-  report -.->|size| stat
-  mismatch -.->|400| showErr
-  conflict -.->|409| showErr
-  publish -.->|200 track| openLib
-```
-
-В пуле API два старта одного процесса: обычный — на `upload-init`, по сообщению — на `upload-complete`. Пока файл не лежит в хранилище, публикация не продолжается. Если ссылку выпустить не удалось, строка `pending` удаляется. В ленту попадает только `ready`.
-
-### 4.3. Прослушивание и «любимое»
-
-```mermaid
-flowchart TB
-  subgraph browser["Пул: Браузер"]
-    direction TB
-    bStart((Старт))
-    open[Открыть ленту, артиста или каталог]
-    emptyView[Показать пустое состояние]
-    pick[Выбрать трек]
-    disabled[Оставить play выключенным]
-    play[Играть аудио]
-    heart{"XOR сердечко"}
-    sendLike[Отправить like или unlike]
-    askAuth[Открыть экран входа]
-    bEmpty(((Пусто)))
-    bNoAuth(((Нет сессии)))
-    bDone(((Играет)))
-    bStart --> open
-    emptyView --> bEmpty
-    disabled --> pick
-    play --> heart
-    heart -->|нет| bDone
-    heart -->|да| sendLike
-    askAuth --> bNoAuth
-  end
-
-  subgraph api["Пул: API"]
-    direction TB
-    hasRows{"XOR каталог пуст"}
-    listEnd(((Список отдан)))
-    ready{"XOR трек ready"}
-    redir[Ответить 302]
-    errPlay[Ответить 404 или 409]
-    playEnd(((Стрим выдан)))
-    playDeny(((Стрим отказан)))
-    session{"XOR есть JWT"}
-    still{"XOR трек всё ещё ready"}
-    toggle[Записать или снять лайк]
-    errLike[Ответить 409]
-    likeEnd(((Лайк записан)))
-    likeDeny(((Лайк отказан)))
-    hasRows -->|пусто| listEnd
-    hasRows -->|есть| listEnd
-    ready -->|да| redir
-    redir --> playEnd
-    ready -->|нет| errPlay
-    errPlay --> playDeny
-    session -->|нет| likeDeny
-    session -->|да| still
-    still -->|нет| errLike
-    errLike --> likeDeny
-    still -->|да| toggle
-    toggle --> likeEnd
-  end
-
-  subgraph store["Пул: Object storage"]
-    direction TB
-    bytes[Отдать байты аудио]
-  end
-
-  open -.->|GET /v1/tracks| hasRows
-  hasRows -.->|пусто| emptyView
-  hasRows -.->|страница| pick
-  pick -.->|GET /stream| ready
-  errPlay -.->|ошибка| disabled
-  redir -.->|Location| play
-  play -.->|GET объекта| bytes
-  sendLike -.->|POST или DELETE like| session
-  session -.->|401| askAuth
-  errLike -.->|409| play
-  toggle -.->|204| play
-```
-
-Список, стрим и лайк — три отдельных захода в пул API, каждый со своим конечным событием. Поток управления ленты не перескакивает в стрим: браузер сам шлёт следующее сообщение. Неготовый трек возвращает на выбор, не начиная плеер.
 
 ## 5. Пользовательские сценарии
+
+
 
 ### Сценарий 1. Гость слушает ленту
 
@@ -370,6 +75,8 @@ flowchart TB
 4. Нижняя панель показывает название, артистa, паузу и перемотку.
 5. Если лента пуста, остаётся текст «Пока пусто». Сердечко гостю не показывается.
 
+
+
 ### Сценарий 2. Автор публикует трек
 
 1. Автор открывает `/upload`. Без сессии клиент уводит на `/auth`.
@@ -377,6 +84,8 @@ flowchart TB
 3. API создаёт трек `pending` и возвращает `upload_url`. Браузер делает `PUT` файла по этой ссылке, минуя API.
 4. Клиент вызывает `POST /v1/tracks/{id}/upload-complete`. API сверяет владельца и размер объекта, переводит трек в `ready`.
 5. Автор попадает в `/library` и видит загрузку. Пока статус не `ready`, играть её нельзя; в общей ленте её нет.
+
+
 
 ### Сценарий 3. Пользователь собирает любимое
 
@@ -386,6 +95,8 @@ flowchart TB
 4. Экран `/likes` читает `GET /v1/me/likes` и показывает только готовые лайкнутые треки.
 5. Если трек ещё не `ready`, и лайк, и play на клиенте недоступны; API лайк такого трека отвергает.
 
+
+
 ### Сценарий 4. Поиск каталога артиста
 
 1. В шапке пользователь вводит имя артиста и отправляет форму.
@@ -393,11 +104,15 @@ flowchart TB
 3. Совпадение точное, регистр и краевые пробелы не важны. Частичное совпадение не ищется.
 4. Клик по имени артиста в строке трека ведёт на тот же экран. Пустой результат — «Готовых треков с таким артистом нет».
 
+
+
 ## 6. ER-диаграмма
 
 Концептуальная модель. `USER`, `TRACK` и `LIKE` уже есть в PostgreSQL (раздел 8). `PLAYLIST`, `PLAYLIST_TRACK`, `PICK`, `PICK_TRACK` и `FOLLOW` — целевые сущности: в `schema.sql` их ещё нет.
 
-`PICK` — подборка рекомендуемых треков: именованный список с порядком и короткой пометкой, почему трек в него попал. Подборку собирает пользователь-редактор. `PLAYLIST` — личный или публичный список владельца. `FOLLOW` — подписка слушателя на автора.
+[draw.io](../schemas/er.drawio)
+
+`PICK` — подборка, которую система собирает для одного пользователя по его интересам. Интересы не хранятся отдельно: это его `LIKE`, `FOLLOW` и артисты этих треков. `PICK_TRACK.note` — почему система положила трек, не описание файла. `PLAYLIST` — личный или публичный список, который пользователь собирает сам. `FOLLOW` — подписка слушателя на автора.
 
 ```mermaid
 erDiagram
@@ -407,7 +122,7 @@ erDiagram
   USER ||--o{ PLAYLIST : "владеет"
   PLAYLIST ||--o{ PLAYLIST_TRACK : "содержит"
   TRACK ||--o{ PLAYLIST_TRACK : "входит"
-  USER ||--o{ PICK : "собирает"
+  USER ||--o{ PICK : "получает"
   PICK ||--o{ PICK_TRACK : "рекомендует"
   TRACK ||--o{ PICK_TRACK : "входит"
   USER ||--o{ FOLLOW : "подписывается"
@@ -443,9 +158,9 @@ erDiagram
 
   PICK {
     uuid id
+    uuid user_id
     string title
-    string slug
-    datetime published_at
+    datetime generated_at
   }
 
   PICK_TRACK {
@@ -458,6 +173,8 @@ erDiagram
   }
 ```
 
+
+
 Правила:
 
 - email пользователя уникален;
@@ -467,7 +184,8 @@ erDiagram
 - в ленте, чужом каталоге, публичном плейлисте и подборке виден трек только со статусом `ready`;
 - у плейлиста один владелец; пара «плейлист — трек» уникальна, `position` задаёт порядок;
 - публичный плейлист (`is_public`) читается без входа, правит его только владелец;
-- у подборки один составитель; `slug` уникален; `note` — причина рекомендации, не описание файла;
+- подборку собирает система для одного пользователя; новая генерация — новая строка `PICK` с `generated_at`, старые не затираются;
+- `note` в `PICK_TRACK` объясняет выбор системы (лайк, подписка или артист), это не описание файла;
 - подписка — пара пользователей «кто подписан — на кого», на самого себя не ставится;
 - удаление трека убирает его из плейлистов и подборок, сами списки остаются.
 
@@ -475,18 +193,20 @@ erDiagram
 
 ## 7. Технологический стек
 
-| Слой | Выбор |
-| --- | --- |
-| Язык и HTTP бэкенда | Go 1.26, `net/http`, роутер chi v5 |
-| Контракт API | REST `/v1`, JSON, Swagger (`swaggo`) на `/swagger/` |
-| Аутентификация | JWT HS256 (`golang-jwt`), пароли bcrypt (`golang.org/x/crypto`) |
-| Доступ к данным | `pgx` v5, общий `pgxpool.Pool` |
-| Объектное хранилище | MinIO, клиент `minio-go` v7, presigned PUT/GET |
-| Логи | `log/slog` |
-| Язык и UI фронтенда | TypeScript, React 19, React Router 7 |
-| Сборка фронтенда | Vite 8 |
-| База данных | PostgreSQL 17 |
-| Доставка | Docker Compose: многоступенчатый образ API (`golang:1.26-alpine` → `alpine`, пользователь `chimera`), образ web (`node:22-alpine` → `nginx:1.27-alpine`). Nginx отдаёт SPA и проксирует `/v1`, `/swagger`, `/live`, `/ready` на API |
+
+| Слой                | Выбор                                                                                                                                                                                                                               |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Язык и HTTP бэкенда | Go 1.26, `net/http`, роутер chi v5                                                                                                                                                                                                  |
+| Контракт API        | REST `/v1`, JSON, Swagger (`swaggo`) на `/swagger/`                                                                                                                                                                                 |
+| Аутентификация      | JWT HS256 (`golang-jwt`), пароли bcrypt (`golang.org/x/crypto`)                                                                                                                                                                     |
+| Доступ к данным     | `pgx` v5, общий `pgxpool.Pool`                                                                                                                                                                                                      |
+| Объектное хранилище | MinIO, клиент `minio-go` v7, presigned PUT/GET                                                                                                                                                                                      |
+| Логи                | `log/slog`                                                                                                                                                                                                                          |
+| Язык и UI фронтенда | TypeScript, React 19, React Router 7                                                                                                                                                                                                |
+| Сборка фронтенда    | Vite 8                                                                                                                                                                                                                              |
+| База данных         | PostgreSQL 17                                                                                                                                                                                                                       |
+| Доставка            | Docker Compose: многоступенчатый образ API (`golang:1.26-alpine` → `alpine`, пользователь `chimera`), образ web (`node:22-alpine` → `nginx:1.27-alpine`). Nginx отдаёт SPA и проксирует `/v1`, `/swagger`, `/live`, `/ready` на API |
+
 
 Секреты, порты и лимиты читаются из окружения (`internal/config`). Обязательные переменные без значения останавливают процесс на старте. Локальный шаблон — `.env.example`.
 
@@ -498,241 +218,228 @@ erDiagram
 
 ## 8. Диаграмма базы данных
 
-Физическая схема того, что уже создаёт `schema.sql`. Плейлисты, подборки и подписки из раздела 6 в базе ещё не заведены.
+Физическая модель один к одному с ER из раздела 6. Импорт на [dbdiagram.io](https://dbdiagram.io): File → Import.
 
-```mermaid
-erDiagram
-  users {
-    uuid id PK
-    text email UK
-    text name
-    text password_hash
-    timestamptz created_at
-  }
+[DBML](../schemas/db/chimera.dbml)
 
-  tracks {
-    uuid id PK
-    uuid user_id FK
-    text title
-    text artist
-    text object_key
-    bigint size_bytes
-    text status
-    timestamptz created_at
-  }
+`users`, `tracks` и `track_likes` уже создаёт `schema.sql`. `playlists`, `playlist_tracks`, `picks`, `pick_tracks` и `follows` в миграции ещё нет: в DBML они в группе `planned`.
 
-  track_likes {
-    uuid user_id PK_FK
-    uuid track_id PK_FK
-    timestamptz created_at
-  }
+```dbml
+Table users {
+  id uuid [pk]
+  email text [not null, unique]
+  name text [not null]
+  password_hash text [not null]
+  created_at timestamptz [not null]
+}
 
-  users ||--o{ tracks : user_id
-  users ||--o{ track_likes : user_id
-  tracks ||--o{ track_likes : track_id
+Table tracks {
+  id uuid [pk]
+  user_id uuid [not null]
+  title text [not null]
+  artist text [not null]
+  object_key text [not null]
+  size_bytes bigint [not null]
+  status text [not null]
+  created_at timestamptz [not null]
+}
+
+Table track_likes {
+  user_id uuid [pk]
+  track_id uuid [pk]
+  created_at timestamptz [not null]
+}
+
+Table playlists {
+  id uuid [pk]
+  owner_id uuid [not null]
+  title text [not null]
+  is_public boolean [not null]
+  created_at timestamptz [not null]
+}
+
+Table playlist_tracks {
+  playlist_id uuid [pk]
+  track_id uuid [pk]
+  position int [not null]
+  added_at timestamptz [not null]
+}
+
+Table picks {
+  id uuid [pk]
+  user_id uuid [not null]
+  title text [not null]
+  generated_at timestamptz [not null]
+}
+
+Table pick_tracks {
+  pick_id uuid [pk]
+  track_id uuid [pk]
+  position int [not null]
+  note text [not null]
+}
+
+Table follows {
+  follower_id uuid [pk]
+  followee_id uuid [pk]
+  created_at timestamptz [not null]
+}
+
+Ref: tracks.user_id > users.id
+Ref: track_likes.user_id > users.id [delete: cascade]
+Ref: track_likes.track_id > tracks.id [delete: cascade]
+Ref: playlists.owner_id > users.id [delete: cascade]
+Ref: playlist_tracks.playlist_id > playlists.id [delete: cascade]
+Ref: playlist_tracks.track_id > tracks.id [delete: cascade]
+Ref: picks.user_id > users.id [delete: cascade]
+Ref: pick_tracks.pick_id > picks.id [delete: cascade]
+Ref: pick_tracks.track_id > tracks.id [delete: cascade]
+Ref: follows.follower_id > users.id [delete: cascade]
+Ref: follows.followee_id > users.id [delete: cascade]
 ```
 
-Индексы из `schema.sql`:
+Индексы, которые уже есть в `schema.sql`:
 
 - `tracks_user_id_idx` на `tracks(user_id)` — каталог автора и «мои треки»;
 - `tracks_status_created_at_idx` на `tracks(status, created_at)` — лента готовых треков;
 - `track_likes_user_created_idx` на `track_likes(user_id, created_at DESC)` — любимое.
 
-`track_likes` имеет составной первичный ключ `(user_id, track_id)` и `ON DELETE CASCADE` с обеих сторон. `object_key` пустой по умолчанию: ключ объекта тогда выводится как `{id}.mp3`. Статус по умолчанию — `pending`.
+`track_likes` имеет составной первичный ключ `(user_id, track_id)` и `ON DELETE CASCADE` с обеих сторон. `object_key` пустой по умолчанию: ключ объекта тогда выводится как `{id}.mp3`. Статус по умолчанию — `pending`. Удаление трека в целевой схеме убирает строки `playlist_tracks` и `pick_tracks`, сами списки остаются. Подписка на самого себя запрещена (`follower_id <> followee_id`).
 
 Страница списка сейчас собирается в памяти: репозиторий возвращает весь отфильтрованный набор, `PageQuery.Page` отрезает срез по курсору-смещению. Курсор — десятичный индекс конца страницы.
 
 ## 9. C4
 
+C4 — четыре масштаба одной системы. Следующий уровень раскрывает один блок предыдущего, формат элемента один и тот же: имя, технология, одна фраза о роли.
+
+
+| Уровень       | Вопрос                                   | На диаграмме Chimera               |
+| ------------- | ---------------------------------------- | ---------------------------------- |
+| 1. Контекст   | Кто снаружи и зачем им система?          | Гость и пользователь, одна система |
+| 2. Контейнеры | Из каких запускаемых частей она собрана? | Web, API, PostgreSQL, MinIO        |
+| 3. Компоненты | Из каких частей собран один контейнер?   | Пакеты внутри API                  |
+| 4. Код        | Из каких типов собран один компонент?    | Структуры `TrackService`           |
+
+
+В [mermaid.live](https://mermaid.live) вставляй один блок. Уровни 1–3 — синтаксис C4. Уровня «код» в Mermaid нет, поэтому четвёртый уровень — `classDiagram`.
+
 ### 9.1. Контекст
+
+Снаружи системы только люди. База и хранилище сюда не входят: это части самой Chimera.
 
 ```mermaid
 C4Context
-  title Контекст Chimera
-  Person(guest, "Гость", "Слушает ленту и каталоги без аккаунта")
-  Person(member, "Пользователь", "Публикует треки и собирает любимое")
-  System(chimera, "Sound Chimera", "Каталог, загрузка и воспроизведение музыки")
-  Rel(guest, chimera, "Смотрит ленту и слушает", "HTTPS")
-  Rel(member, chimera, "Входит, загружает, лайкает", "HTTPS")
+  title 1. Контекст
+  Person(guest, "Гость", "Слушает без аккаунта")
+  Person(member, "Пользователь", "Публикует и лайкает")
+  System(chimera, "Sound Chimera", "Каталог музыки")
+  Rel(guest, chimera, "Слушает", "HTTPS")
+  Rel(member, chimera, "Публикует", "HTTPS")
+  UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
 ```
 
-Внешних систем за периметром Compose нет: почта, платежи и CDN не подключены. PostgreSQL и MinIO — контейнеры самой системы, они на контекстной диаграмме не вынесены.
+
+
+Почты, платежей и CDN нет.
 
 ### 9.2. Контейнеры
 
+Контейнер — то, что запускается отдельно. Файл в API не заходит: браузер пишет и читает объект по временной ссылке.
+
 ```mermaid
 C4Container
-  title Контейнеры Chimera
-  Person(user, "Гость или пользователь", "Браузер")
-  Container(web, "Web", "React, TypeScript, nginx", "SPA: лента, библиотека, загрузка, плеер")
-  Container(api, "API", "Go, chi", "REST /v1, JWT, оркестрация публикации")
-  ContainerDb(pg, "PostgreSQL", "PostgreSQL 17", "Пользователи, треки, лайки")
-  ContainerDb(s3, "Object storage", "MinIO", "Аудиофайлы, бакет music-raw")
-  Rel(user, web, "Открывает UI", "HTTPS")
-  Rel(web, api, "JSON /v1", "HTTP, прокси nginx")
-  Rel(web, s3, "PUT файла по presigned URL", "HTTP")
-  Rel(user, s3, "GET аудио после 302", "HTTP")
-  Rel(api, pg, "Читает и пишет", "pgx")
-  Rel(api, s3, "Presign, Stat, бакет", "S3 API")
+  title 2. Контейнеры
+  Person(user, "Браузер", "Гость или пользователь")
+  System_Boundary(sys, "Sound Chimera") {
+    Container(web, "Web", "React, nginx", "Лента и плеер")
+    Container(api, "API", "Go, chi", "REST /v1 и JWT")
+    ContainerDb(pg, "PostgreSQL", "17", "Пользователи и треки")
+    ContainerDb(s3, "MinIO", "S3", "Аудио, music-raw")
+  }
+  Rel(user, web, "Открывает", "HTTPS")
+  Rel(web, api, "JSON", "HTTP")
+  Rel(api, pg, "SQL", "pgx")
+  Rel(api, s3, "Presign, Stat", "S3")
+  Rel(web, s3, "PUT", "HTTP")
+  Rel(user, s3, "GET после 302", "HTTP")
+  UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
 ```
 
-Браузер не шлёт байты трека через API. API выдаёт временную ссылку, клиент пишет объект сам, затем подтверждает загрузку. Стрим устроен так же: API отвечает `302`, плеер читает объект напрямую.
 
-### 9.3. Компоненты контейнера API
+
+
+
+### 9.3. Компоненты API
+
+Компонент — папка с одной ролью внутри контейнера API. Все записаны одинаково: `Component(код, "Имя", "технология", "роль")`. Границы — слои, сверху вниз.
 
 ```mermaid
 C4Component
-  title Компоненты API
-  Container(web, "Web", "React", "Клиент")
-  Component(router, "Router", "chi", "CORS, лог запроса, /live, /ready, /swagger, группа /v1")
-  Component(authn, "RequireAuth", "middleware", "Разбор Bearer JWT, user id в контексте")
-  Component(httpv1, "Контроллеры v1", "auth, user, track", "DTO, коды ответов, вызов use case")
-  Component(ucAuth, "AuthService", "usecase", "Регистрация и вход")
-  Component(ucUser, "UserService", "usecase", "Профиль и справочник пользователей")
-  Component(ucTrack, "TrackService", "usecase", "Лента, загрузка, стрим, лайки")
-  Component(domain, "Domain", "Go", "Сущности, статусы, валидация, коды ошибок")
-  Component(pgRepo, "Postgres repositories", "pgx", "users, tracks, track_likes")
-  Component(s3ad, "S3 Store", "minio-go", "PresignPut, PresignGet, Stat")
-  Component(tokens, "JWT + bcrypt", "infra/auth", "Выпуск и проверка токена, хеш пароля")
-  Component(health, "Health monitor", "infra/health", "Ping PostgreSQL и S3, флаг /ready")
-  ContainerDb(pg, "PostgreSQL", "PostgreSQL", "Данные")
-  ContainerDb(s3, "MinIO", "S3", "Объекты")
+  title 3. Компоненты API
+  UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
 
-  Rel(web, router, "HTTP")
-  Rel(router, authn, "Только protected")
-  Rel(router, httpv1, "Public и protected")
-  Rel(authn, httpv1, "Контекст с user id")
-  Rel(httpv1, ucAuth, "Вызов")
-  Rel(httpv1, ucUser, "Вызов")
-  Rel(httpv1, ucTrack, "Вызов")
-  Rel(ucAuth, domain, "Validate, ошибки")
-  Rel(ucUser, domain, "Validate, ошибки")
-  Rel(ucTrack, domain, "Статусы и проверки")
-  Rel(ucAuth, pgRepo, "AuthUserRepository")
-  Rel(ucUser, pgRepo, "UserRepository")
-  Rel(ucTrack, pgRepo, "TrackRepository, TrackLikeRepository")
-  Rel(ucAuth, tokens, "Hash, Issue")
-  Rel(ucUser, tokens, "Hash")
-  Rel(authn, tokens, "Parse")
-  Rel(ucTrack, s3ad, "ObjectStorage")
-  Rel(pgRepo, pg, "SQL")
-  Rel(s3ad, s3, "S3 API")
-  Rel(health, pg, "Ping")
-  Rel(health, s3, "Ping")
+  Container_Boundary(edge, "Вход") {
+    Component(authn, "RequireAuth", "middleware", "JWT в контекст")
+    Component(httpv1, "Контроллеры v1", "HTTP", "DTO и коды ответов")
+  }
+
+  Container_Boundary(app, "Сценарии") {
+    Component(ucAuth, "AuthService", "usecase", "Регистрация и вход")
+    Component(ucUser, "UserService", "usecase", "Профиль")
+    Component(ucTrack, "TrackService", "usecase", "Лента, загрузка, лайки")
+    Component(domain, "Domain", "Go", "Сущности и валидация")
+  }
+
+  Container_Boundary(out, "Адаптеры") {
+    Component(tokens, "Сессия", "JWT, bcrypt", "Токен и хеш пароля")
+    Component(pgRepo, "Postgres", "pgx", "users, tracks, likes")
+    Component(s3ad, "S3 Store", "minio-go", "Presign и Stat")
+    Component(health, "Health", "infra/health", "Ping, флаг /ready")
+  }
+
+  Container_Boundary(infra, "Хранилища данных") {
+    ContainerDb(pg, "PostgreSQL", "17", "Данные")
+    ContainerDb(s3, "MinIO", "S3", "Объекты")
+  }
+
+
+
+  %% Слой 1 -> Слой 2: Вызовы сценариев (строго вниз)
+  Rel_D(httpv1, ucAuth, "вызов")
+  Rel_D(httpv1, ucUser, "вызов")
+  Rel_D(httpv1, ucTrack, "вызов")
+
+  %% Слой 2: Внутри сценариев (доменная валидация)
+  Rel_R(ucAuth, domain, "validate")
+  Rel_R(ucUser, domain, "validate")
+  Rel_R(ucTrack, domain, "статусы")
+
+  %% Слой 2 -> Слой 3: Адаптеры (строго параллельно вниз)
+  Rel_D(authn, tokens, "разбор JWT")
+  Rel_D(ucAuth, tokens, "токен")
+  Rel_D(ucUser, tokens, "хеш")
+
+  Rel_D(ucAuth, pgRepo, "пользователи")
+  Rel_D(ucUser, pgRepo, "профиль")
+  Rel_D(ucTrack, pgRepo, "треки и лайки")
+  Rel_D(ucTrack, s3ad, "файл")
+
+  %% Слой 3 -> Слой 4: В базы данных (строго вниз)
+  Rel_D(pgRepo, pg, "SQL")
+  Rel_D(s3ad, s3, "S3")
+  Rel_D(health, pg, "ping")
+  Rel_D(health, s3, "ping")
 ```
 
-Порты объявлены на стороне потребителя (`usecase/ports.go`): репозитории, `ObjectStorage`, `PasswordHasher`, `TokenIssuer`. Контроллеры зависят от узких интерфейсов в `transport/http/v1/ports.go`, а не от конкретных сервисов.
+
+
+Порты объявлены на стороне потребителя (`usecase/ports.go`): репозитории, `ObjectStorage`, `PasswordHasher`, `TokenIssuer`. Контроллеры зависят от узких интерфейсов в `transport/http/v1/ports.go`, а не от конкретных сервисов. Регистрация и профиль пишут в тот же Postgres (`AuthUserRepository`, `UserRepository`). `RequireAuth` разбирает токен тем же JWT-адаптером, что и `AuthService`.
 
 Пул воркеров (`WORKER_POOL_SIZE`, по умолчанию 4) поднимается в `main` и передаётся в health-monitor. Бизнес-задач (транскодинг, обложки) он пока не выполняет: публикация трека синхронная, внутри `CompleteUpload`.
 
-## 10. Эскизы экранов
+## 10. Архитектурные решения
 
-Эскизы повторяют уже собранный клиент. Они фиксируют, какие данные нужны API, а не визуальный стиль.
 
-Общая оболочка для всех экранов кроме входа: левая колонка (лента, мои треки, любимое, загрузить, вход или имя и выход), поле «Артист» сверху, контент, плеер снизу.
-
-```text
-+------------------------------------------------------------------+
-| Sound Chimera    |  [ Артист________________ ]                   |
-| Лента            |                                               |
-| Мои треки        |   <контент страницы>                          |
-| Любимое          |                                               |
-| Загрузить        |                                               |
-|                  |                                               |
-| имя / Войти      |                                               |
-+------------------------------------------------------------------+
-| обложка  Название          ▶    0:12  ————●————  3:41           |
-|          Артист                                                   |
-+------------------------------------------------------------------+
-```
-
-### Вход и регистрация — `/auth`
-
-Без оболочки. Две вкладки, одна форма.
-
-```text
-+----------------------------------+
-|          Sound Chimera           |
-|       Слушает в темноте.         |
-|  [ Вход ]  [ Регистрация ]       |
-|  Имя          (только регистрация)|
-|  Email                           |
-|  Пароль                          |
-|  [ Войти / Создать аккаунт ]     |
-|  сообщение об ошибке             |
-+----------------------------------+
-```
-
-API: `POST /v1/auth/login` или `POST /v1/auth/register` → `{ token, user }`. После успеха — редирект на `/`.
-
-### Лента — `/`
-
-```text
-| Эфир                                         |
-| Лента                                        |
-| +------------------------------------------+ |
-| | ▶  Название                          ♡  | |
-| |    Артист (ссылка)                       | |
-| +------------------------------------------+ |
-| | ▶  Название                          ♡  | |
-| |    Артист                                | |
-| +------------------------------------------+ |
-| пусто: «Пока пусто. Первый трек разбудит её.»|
-```
-
-API: `GET /v1/tracks`. Клик по артисту → `/artist?q=`. Play → `GET /v1/tracks/{id}/stream`. Сердечко только у вошедшего → `POST` или `DELETE /v1/tracks/{id}/like`.
-
-### Мои треки — `/library`
-
-Тот же список, плюс статус, если трек ещё не `ready`. Без сессии — уход на `/auth`.
-
-```text
-| Архив                                        |
-| Мои треки                                    |
-| ▶  Название                              ♡  |
-|    Артист · pending                          |
-| ▶  Название                              ♡  |
-|    Артист                                    |
-```
-
-API: `GET /v1/me/tracks`. Статусы `pending` и `processing` видны владельцу и не играют.
-
-### Любимое — `/likes`
-
-```text
-| Избранное                                    |
-| Любимое                                      |
-| ▶  Название                              ♥  |
-|    Артист                                    |
-| пусто: сердечко ещё не нажато                |
-```
-
-API: `GET /v1/me/likes`.
-
-### Загрузка — `/upload`
-
-```text
-| Сигнал                                       |
-| Загрузить трек                               |
-| Название  [________________]                 |
-| Артист    [________________]                 |
-| Аудиофайл [ выберите mp3 ]                   |
-| имя файла · размер                           |
-| [ Опубликовать ]                             |
-| ошибка, если PUT или complete не удались     |
-```
-
-API: `POST /v1/tracks/upload-init` → `{ track, upload_url }`, затем `PUT upload_url`, затем `POST /v1/tracks/{id}/upload-complete`. Успех ведёт в библиотеку.
-
-### Артист и каталог автора — `/artist`, `/u/:id`
-
-Тот же список, что лента. Заголовок — имя артиста или «Загрузки».
-
-API: `GET /v1/tracks?artist=` и `GET /v1/users/{id}/tracks`.
-
-Для последующего API из этих экранов следуют поля карточки трека: `id`, `title`, `artist`, `status`, `user_id` (переход в каталог автора). Плееру достаточно `id` и редиректа стрима. Пагинация (`next_cursor`) в текущих экранах не долистывается: клиент берёт одну страницу.
-
-## 11. Архитектурные решения
 
 ### ADR-1. Прямая загрузка и стрим через presigned URL
 
@@ -764,39 +471,3 @@ API: `GET /v1/tracks?artist=` и `GET /v1/users/{id}/tracks`.
 
 **Почему так.** Статусы трека и проверки владельца, размера и пароля остаются чистыми и покрываются unit-тестами. Подмена Postgres и MinIO — это другие реализации тех же портов, тестовые двойники живут в `*_test.go`.
 
-### ADR-3. JWT в заголовке вместо серверной сессии
-
-**Статус:** принято.
-
-**Контекст.** Клиент — SPA, API без общего с браузером серверного состояния. Нужно отличать гостевое чтение от мутаций.
-
-**Решение.** После регистрации и входа API отдаёт JWT HS256 с `sub` = id пользователя, сроком 24 ч. Защищённая группа chi требует `Authorization`. Идентификатор актёра берётся из токена, не из тела запроса. Отдельной таблицы сессий нет.
-
-**Альтернативы.**
-
-- Серверная сессия и cookie. Удобный отзыв и ротация, но появляется хранилище сессий и связка cookie с CORS и SPA.
-- Access + refresh. Короче окно украденного access-токена, но нужна вторая ручка и хранение refresh.
-
-**Почему так.** Объём мутаций небольшой, горизонтально масштабировать API можно без общего кэша сессий. Срок 24 ч и отсутствие отзыва — осознанный долг: украденный токен действует до `exp`.
-
-## 12. Варианты развития бизнес-логики
-
-Ниже — продолжения уже существующих правил, а не новый продукт.
-
-1. **Настоящая обработка после загрузки.** Статус `processing` сейчас почти мгновенно сменяется на `ready` в том же запросе. Пул воркеров уже поднят и при остановке дожидается задач. Имеет смысл отдать ему проверку формата, длительность, нормализацию громкости и только потом вызывать `MarkReady`. Лента по-прежнему фильтрует `ready`, библиотека уже умеет показывать промежуточный статус.
-
-2. **Ключевая пагинация в SQL.** `PageQuery` режет уже загруженный слайс, курсор — смещение. На целевых 10 000 треков это перестаёт укладываться в 300 мс. Курсор по `(created_at, id)` использует индекс `tracks_status_created_at_idx` и не ломает контракт `next_cursor` для клиента.
-
-3. **Владение при правке и удалении.** `CompleteUpload` проверяет `OwnedBy`. `Update` и `Delete` трека проверяют только наличие JWT и id. Следующий шаг — та же проверка владельца и удаление объекта из бакета вместе со строкой и лайками.
-
-4. **Альбомы и плейлисты поверх трека.** Трек уже принадлежит пользователю и имеет артиста строкой. Альбом — новая сущность автора (название, порядок треков, публикация пачкой). Плейлист — упорядоченный набор чужих `ready`-треков, по той же модели, что `track_likes`, но со своей позицией.
-
-5. **Подписки на автора.** Каталог `/v1/users/{id}/tracks` уже есть. Подписка даёт ленту «только те, на кого подписан» рядом с общим эфиром, без нового хранилища файлов.
-
-6. **Поиск шире точного артиста.** Сейчас фильтр — равенство `lower(btrim(artist))`. Полнотекст по `title` и `artist` и подсказки в поле «Артист» опираются на те же экраны ленты и артиста.
-
-7. **История прослушивания и простые рекомендации.** Стрим уже знает id трека. Запись факта `play` (пользователь, трек, момент) позволяет собрать «недавно слушали» и ленту «похоже на любимое», не меняя хранение файла. Лайки для этого сигнала уже есть.
-
-8. **Карточка трека для плеера.** Экранам не хватает длительности, обложки и явной ссылки на автора. Их можно добавить в ответ трека, когда обработка из пункта 1 начнёт их считать. Контракт стрима (`302`) при этом не меняется.
-
-9. **Отзыв сессии.** Пока JWT живёт 24 ч без отзыва. Короткий access и refresh в таблице (или смена пароля, инвалидирующая `iat`) закрывает ADR-3, когда появится экран «выйти на всех устройствах». Текущий выход только стирает токен в браузере.
