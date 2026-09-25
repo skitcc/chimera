@@ -1,0 +1,8 @@
+extends:
+  - spectral:oas
+rules:
+  oas3-valid-media-example: error
+  oas3-valid-schema-example: error
+  info-contact: off
+  info-description: off
+  oas3-api-servers: off

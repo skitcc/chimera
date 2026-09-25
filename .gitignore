@@ -1,5 +1,6 @@
 .env
 frontend/node_modules
+docs/node_modules
 frontend/dist
 backend/tmp
 backend/allure-report.html
