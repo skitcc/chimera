@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"chimera/internal/domain"
 )
@@ -13,11 +12,11 @@ import (
 const trackCols = `id::text, user_id::text, title, artist, object_key, size_bytes, status`
 
 type TrackRepository struct {
-	pool *pgxpool.Pool
+	db db
 }
 
-func NewTrackRepository(pool *pgxpool.Pool) *TrackRepository {
-	return &TrackRepository{pool: pool}
+func NewTrackRepository(db db) *TrackRepository {
+	return &TrackRepository{db: db}
 }
 
 type scanner interface {
@@ -63,7 +62,7 @@ func (r *TrackRepository) List(ctx context.Context, filter domain.TrackFilter) (
 		artist = filter.Artist
 	}
 
-	rows, err := r.pool.Query(ctx,
+	rows, err := r.db.Query(ctx,
 		`SELECT `+trackCols+`
 		 FROM tracks
 		 WHERE ($1::text IS NULL OR status = $1)
@@ -79,7 +78,7 @@ func (r *TrackRepository) List(ctx context.Context, filter domain.TrackFilter) (
 }
 
 func (r *TrackRepository) GetByID(ctx context.Context, id string) (domain.Track, error) {
-	t, err := scanTrack(r.pool.QueryRow(ctx, `SELECT `+trackCols+` FROM tracks WHERE id = $1::uuid`, id))
+	t, err := scanTrack(r.db.QueryRow(ctx, `SELECT `+trackCols+` FROM tracks WHERE id = $1::uuid`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Track{}, domain.NotFound("track not found")
 	}
@@ -90,7 +89,7 @@ func (r *TrackRepository) GetByID(ctx context.Context, id string) (domain.Track,
 }
 
 func (r *TrackRepository) Create(ctx context.Context, t domain.Track) (domain.Track, error) {
-	t, err := scanTrack(r.pool.QueryRow(ctx,
+	t, err := scanTrack(r.db.QueryRow(ctx,
 		`INSERT INTO tracks (id, user_id, title, artist, object_key, size_bytes, status)
 		 SELECT i, $1::uuid, $2, $3, i::text || '.mp3', $4, $5
 		 FROM (SELECT gen_random_uuid() AS i) s
@@ -104,7 +103,7 @@ func (r *TrackRepository) Create(ctx context.Context, t domain.Track) (domain.Tr
 }
 
 func (r *TrackRepository) Update(ctx context.Context, t domain.Track) (domain.Track, error) {
-	t, err := scanTrack(r.pool.QueryRow(ctx,
+	t, err := scanTrack(r.db.QueryRow(ctx,
 		`UPDATE tracks SET user_id = $2::uuid, title = $3, artist = $4, object_key = $5, size_bytes = $6, status = $7
 		 WHERE id = $1::uuid
 		 RETURNING `+trackCols,
@@ -120,7 +119,7 @@ func (r *TrackRepository) Update(ctx context.Context, t domain.Track) (domain.Tr
 }
 
 func (r *TrackRepository) Delete(ctx context.Context, id string) error {
-	tag, err := r.pool.Exec(ctx, `DELETE FROM tracks WHERE id = $1::uuid`, id)
+	tag, err := r.db.Exec(ctx, `DELETE FROM tracks WHERE id = $1::uuid`, id)
 	if err != nil {
 		return mapError(err, "delete track")
 	}

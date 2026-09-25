@@ -1,0 +1,32 @@
+services:
+  postgres-test:
+    image: ${POSTGRES_TEST_IMAGE:-postgres:17-alpine}
+    environment:
+      POSTGRES_USER: ${POSTGRES_TEST_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_TEST_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_TEST_DB}
+    tmpfs:
+      - /var/lib/postgresql/data:rw,noexec,nosuid,size=${POSTGRES_TEST_TMPFS_SIZE:-512m}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: ${POSTGRES_TEST_HEALTH_INTERVAL:-1s}
+      timeout: ${POSTGRES_TEST_HEALTH_TIMEOUT:-5s}
+      retries: ${POSTGRES_TEST_HEALTH_RETRIES:-30}
+
+  test-runner:
+    image: ${TEST_IMAGE:-chimera-backend-test:local}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.test
+      args:
+        GOBCO_VERSION: ${GOBCO_VERSION:-v1.3.4}
+    user: ${TEST_UID:-1000}:${TEST_GID:-1000}
+    environment:
+      HOME: /tmp
+      ALLURE_RESULTS_DIR: /artifacts/allure-results
+      TEST_DATABASE_URL: postgres://${POSTGRES_TEST_USER}:${POSTGRES_TEST_PASSWORD}@postgres-test:5432/${POSTGRES_TEST_DB}?sslmode=disable
+    volumes:
+      - ./backend:/artifacts
+    depends_on:
+      postgres-test:
+        condition: service_healthy

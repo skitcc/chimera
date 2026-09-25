@@ -2,3 +2,11 @@
 frontend/node_modules
 frontend/dist
 backend/tmp
+backend/test-results/
+backend/allure-results/
+backend/allure-report/
+backend/allure-report.html
+backend/coverage.out
+backend/coverage.html
+backend/condition-coverage.txt
+backend/branch-coverage.txt
