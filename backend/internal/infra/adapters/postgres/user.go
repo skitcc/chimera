@@ -5,21 +5,20 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"chimera/internal/domain"
 )
 
 type UserRepository struct {
-	pool *pgxpool.Pool
+	db db
 }
 
-func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
-	return &UserRepository{pool: pool}
+func NewUserRepository(db db) *UserRepository {
+	return &UserRepository{db: db}
 }
 
 func (r *UserRepository) List(ctx context.Context) ([]domain.User, error) {
-	rows, err := r.pool.Query(ctx, `SELECT id::text, email, name FROM users ORDER BY created_at`)
+	rows, err := r.db.Query(ctx, `SELECT id::text, email, name FROM users ORDER BY created_at`)
 	if err != nil {
 		return nil, mapError(err, "list users")
 	}
@@ -41,7 +40,7 @@ func (r *UserRepository) List(ctx context.Context) ([]domain.User, error) {
 
 func (r *UserRepository) GetByID(ctx context.Context, id string) (domain.User, error) {
 	var u domain.User
-	err := r.pool.QueryRow(ctx, `SELECT id::text, email, name FROM users WHERE id = $1::uuid`, id).
+	err := r.db.QueryRow(ctx, `SELECT id::text, email, name FROM users WHERE id = $1::uuid`, id).
 		Scan(&u.ID, &u.Email, &u.Name)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.User{}, domain.NotFound("user not found")
@@ -54,7 +53,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (domain.User, e
 
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (domain.AuthUser, error) {
 	var acc domain.AuthUser
-	err := r.pool.QueryRow(ctx,
+	err := r.db.QueryRow(ctx,
 		`SELECT id::text, email, name, password_hash FROM users WHERE email = $1`, email,
 	).Scan(&acc.User.ID, &acc.User.Email, &acc.User.Name, &acc.PasswordHash)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -67,7 +66,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (domain.A
 }
 
 func (r *UserRepository) Create(ctx context.Context, u domain.User, passwordHash string) (domain.User, error) {
-	err := r.pool.QueryRow(ctx,
+	err := r.db.QueryRow(ctx,
 		`INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3)
 		 RETURNING id::text, email, name`,
 		u.Email, u.Name, passwordHash,
@@ -79,7 +78,7 @@ func (r *UserRepository) Create(ctx context.Context, u domain.User, passwordHash
 }
 
 func (r *UserRepository) Update(ctx context.Context, u domain.User) (domain.User, error) {
-	err := r.pool.QueryRow(ctx,
+	err := r.db.QueryRow(ctx,
 		`UPDATE users SET email = $2, name = $3 WHERE id = $1::uuid
 		 RETURNING id::text, email, name`,
 		u.ID, u.Email, u.Name,
@@ -94,7 +93,7 @@ func (r *UserRepository) Update(ctx context.Context, u domain.User) (domain.User
 }
 
 func (r *UserRepository) Delete(ctx context.Context, id string) error {
-	tag, err := r.pool.Exec(ctx, `DELETE FROM users WHERE id = $1::uuid`, id)
+	tag, err := r.db.Exec(ctx, `DELETE FROM users WHERE id = $1::uuid`, id)
 	if err != nil {
 		return mapError(err, "delete user")
 	}

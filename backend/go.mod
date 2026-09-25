@@ -12,6 +12,14 @@ require (
 	golang.org/x/crypto v0.57.0
 )
 
+// Test-only dependencies: imported solely from *_test.go and internal/testkit.
+// The production Dockerfile strips those files before `go build`, so these
+// modules are neither downloaded nor linked into cmd/api; the build asserts it.
+require (
+	github.com/allure-framework/allure-go/commons v1.3.1
+	github.com/pashagolub/pgxmock/v5 v5.2.0
+)
+
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
