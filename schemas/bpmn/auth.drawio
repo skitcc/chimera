@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" agent="Composer" version="22.0.0" type="device">
+  <diagram name="4.1 Регистрация и вход" id="auth">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2600" pageHeight="1300" math="0" shadow="0">
+      <root>
+      <mxCell id="0" />
+      <mxCell id="1" parent="0" />
+      <mxCell id="auth-1" value="Клиент" style="swimlane;html=1;startSize=40;horizontal=0;collapsible=0;fontStyle=1;fillColor=none;swimlaneFillColor=none;strokeColor=#000000;strokeWidth=2;whiteSpace=wrap;fontSize=13;fontColor=#000000;" parent="1" vertex="1">
+        <mxGeometry x="40" y="40" width="2400" height="220" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-2" value="Старт" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=standard;symbol=general;fontSize=11;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-1" vertex="1">
+        <mxGeometry x="40" y="90" width="42" height="42" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-3" value="Заполнить форму
+входа или регистрации" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-1" vertex="1">
+        <mxGeometry x="140" y="80" width="180" height="64" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-4" value="Показать
+слишком часто" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-1" vertex="1">
+        <mxGeometry x="200" y="40" width="150" height="56" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-5" value="Отказ" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate2;fontSize=11;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-1" vertex="1">
+        <mxGeometry x="380" y="50" width="42" height="42" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-6" value="Показать ошибку" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-1" vertex="1">
+        <mxGeometry x="780" y="30" width="140" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-7" value="Отказ" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate2;fontSize=11;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-1" vertex="1">
+        <mxGeometry x="950" y="35" width="42" height="42" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-8" value="Показать ошибку" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-1" vertex="1">
+        <mxGeometry x="1180" y="30" width="140" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-9" value="Отказ" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate2;fontSize=11;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-1" vertex="1">
+        <mxGeometry x="1350" y="35" width="42" height="42" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-10" value="Показать ошибку" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-1" vertex="1">
+        <mxGeometry x="780" y="130" width="140" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-11" value="Отказ" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate2;fontSize=11;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-1" vertex="1">
+        <mxGeometry x="950" y="135" width="42" height="42" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-12" value="Показать ошибку" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-1" vertex="1">
+        <mxGeometry x="1180" y="130" width="140" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-13" value="Отказ" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate2;fontSize=11;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-1" vertex="1">
+        <mxGeometry x="1350" y="135" width="42" height="42" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-14" value="Открыть ленту" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-1" vertex="1">
+        <mxGeometry x="1750" y="80" width="140" height="56" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-15" value="В системе" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate2;fontSize=11;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-1" vertex="1">
+        <mxGeometry x="1940" y="90" width="42" height="42" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-1" edge="1" source="auth-2" target="auth-3">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-17" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-1" edge="1" source="auth-4" target="auth-5">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-18" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-1" edge="1" source="auth-6" target="auth-7">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-1" edge="1" source="auth-8" target="auth-9">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-20" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-1" edge="1" source="auth-10" target="auth-11">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-21" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-1" edge="1" source="auth-12" target="auth-13">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-22" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-1" edge="1" source="auth-14" target="auth-15">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-23" value="API" style="swimlane;html=1;startSize=40;horizontal=0;collapsible=0;fontStyle=1;fillColor=none;swimlaneFillColor=none;strokeColor=#000000;strokeWidth=2;whiteSpace=wrap;fontSize=13;fontColor=#000000;" parent="1" vertex="1">
+        <mxGeometry x="40" y="340" width="2400" height="820" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-24" value="лимит
+IP/email?" style="points=[[0.25,0.25,0],[0.5,0,0],[0.75,0.25,0],[1,0.5,0],[0.75,0.75,0],[0.5,1,0],[0.25,0.75,0],[0,0.5,0]];shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=rhombusPerimeter;outlineConnect=0;outline=none;symbol=exclusiveGw;gwType=exclusive;fontSize=10;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="50" y="280" width="50" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-25" value="Ответить 429
+и Retry-After" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="200" y="40" width="160" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-26" value="Отказ" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate2;fontSize=11;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="420" y="50" width="42" height="42" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-27" value="режим?" style="points=[[0.25,0.25,0],[0.5,0,0],[0.75,0.25,0],[1,0.5,0],[0.75,0.75,0],[0.5,1,0],[0.25,0.75,0],[0,0.5,0]];shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=rhombusPerimeter;outlineConnect=0;outline=none;symbol=exclusiveGw;gwType=exclusive;fontSize=10;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="220" y="280" width="50" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-28" value="Проверить email
+и пароль ≥ 8" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="400" y="160" width="170" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-29" value="данные
+валидны?" style="points=[[0.25,0.25,0],[0.5,0,0],[0.75,0.25,0],[1,0.5,0],[0.75,0.75,0],[0.5,1,0],[0.25,0.75,0],[0,0.5,0]];shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=rhombusPerimeter;outlineConnect=0;outline=none;symbol=exclusiveGw;gwType=exclusive;fontSize=10;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="640" y="165" width="50" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-30" value="Ответить 400" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="800" y="40" width="140" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-31" value="Отказ" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate2;fontSize=11;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="980" y="45" width="42" height="42" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-32" value="bcrypt + создать
+пользователя" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="800" y="170" width="170" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-33" value="email
+свободен?" style="points=[[0.25,0.25,0],[0.5,0,0],[0.75,0.25,0],[1,0.5,0],[0.75,0.75,0],[0.5,1,0],[0.25,0.75,0],[0,0.5,0]];shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=rhombusPerimeter;outlineConnect=0;outline=none;symbol=exclusiveGw;gwType=exclusive;fontSize=10;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="1050" y="175" width="50" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-34" value="Ответить 409" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="1220" y="40" width="140" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-35" value="Отказ" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate2;fontSize=11;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="1400" y="45" width="42" height="42" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-36" value="Проверить поля
+не пустые" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="400" y="460" width="170" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-37" value="данные
+валидны?" style="points=[[0.25,0.25,0],[0.5,0,0],[0.75,0.25,0],[1,0.5,0],[0.75,0.75,0],[0.5,1,0],[0.25,0.75,0],[0,0.5,0]];shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=rhombusPerimeter;outlineConnect=0;outline=none;symbol=exclusiveGw;gwType=exclusive;fontSize=10;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="640" y="465" width="50" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-38" value="Ответить 400" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="800" y="380" width="140" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-39" value="Отказ" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate2;fontSize=11;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="980" y="385" width="42" height="42" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-40" value="Найти user
+и сверить bcrypt" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="800" y="480" width="170" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-41" value="совпало?" style="points=[[0.25,0.25,0],[0.5,0,0],[0.75,0.25,0],[1,0.5,0],[0.75,0.75,0],[0.5,1,0],[0.25,0.75,0],[0,0.5,0]];shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=rhombusPerimeter;outlineConnect=0;outline=none;symbol=exclusiveGw;gwType=exclusive;fontSize=10;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="1050" y="485" width="50" height="50" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-42" value="Ответить 401
+invalid credentials" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="1220" y="380" width="170" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-43" value="Отказ" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate2;fontSize=11;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="1440" y="390" width="42" height="42" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-44" value="Выдать JWT
+на 24 часа" style="shape=mxgraph.bpmn.task2;whiteSpace=wrap;rectStyle=rounded;size=10;html=1;container=0;expand=0;collapsible=0;taskMarker=abstract;fontSize=11;verticalAlign=middle;align=center;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="1700" y="320" width="170" height="60" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-45" value="Токен выдан" style="points=[[0.145,0.145,0],[0.5,0,0],[0.855,0.145,0],[1,0.5,0],[0.855,0.855,0],[0.5,1,0],[0.145,0.855,0],[0,0.5,0]];shape=mxgraph.bpmn.event;html=1;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;verticalAlign=top;align=center;perimeter=ellipsePerimeter;outlineConnect=0;aspect=fixed;outline=end;symbol=terminate2;fontSize=11;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" parent="auth-23" vertex="1">
+        <mxGeometry x="1950" y="330" width="42" height="42" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-46" value="исчерпан" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-24" target="auth-25">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="115" y="460" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-47" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-25" target="auth-26">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-48" value="свободно" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-24" target="auth-27">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-49" value="регистрация" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-27" target="auth-28">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="285" y="530" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-50" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-28" target="auth-29">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-51" value="нет" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-29" target="auth-30">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="705" y="410" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-52" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-30" target="auth-31">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-53" value="да" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-29" target="auth-32">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-54" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-32" target="auth-33">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-55" value="нет" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-33" target="auth-34">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="1115" y="410" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-56" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-34" target="auth-35">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-57" value="да" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-33" target="auth-44">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="1640" y="540" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-58" value="вход" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-27" target="auth-36">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="285" y="830" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-59" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-36" target="auth-37">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-60" value="нет" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-37" target="auth-38">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="705" y="750" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-61" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-38" target="auth-39">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-62" value="да" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-37" target="auth-40">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-63" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-40" target="auth-41">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-64" value="нет" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-41" target="auth-42">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="1115" y="750" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-65" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-42" target="auth-43">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-66" value="да" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-41" target="auth-44">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="1640" y="850" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-67" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;endArrow=block;endFill=1;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="auth-23" edge="1" source="auth-44" target="auth-45">
+        <mxGeometry relative="1" as="geometry" />
+      </mxCell>
+      <mxCell id="auth-68" value="POST /v1/auth" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;dashed=1;dashPattern=8 4;endArrow=blockThin;endFill=1;startArrow=oval;startFill=0;endSize=6;startSize=4;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" edge="1" source="auth-3" target="auth-24">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="270" y="300" />
+            <mxPoint x="115" y="300" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-69" value="429" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;dashed=1;dashPattern=8 4;endArrow=blockThin;endFill=1;startArrow=oval;startFill=0;endSize=6;startSize=4;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" edge="1" source="auth-25" target="auth-4">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="320" y="300" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-70" value="400" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;dashed=1;dashPattern=8 4;endArrow=blockThin;endFill=1;startArrow=oval;startFill=0;endSize=6;startSize=4;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" edge="1" source="auth-30" target="auth-6">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="910" y="300" />
+            <mxPoint x="890" y="300" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-71" value="409" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;dashed=1;dashPattern=8 4;endArrow=blockThin;endFill=1;startArrow=oval;startFill=0;endSize=6;startSize=4;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" edge="1" source="auth-34" target="auth-8">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="1330" y="300" />
+            <mxPoint x="1290" y="300" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-72" value="400" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;dashed=1;dashPattern=8 4;endArrow=blockThin;endFill=1;startArrow=oval;startFill=0;endSize=6;startSize=4;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" edge="1" source="auth-38" target="auth-10">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="910" y="320" />
+            <mxPoint x="890" y="320" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-73" value="401" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;dashed=1;dashPattern=8 4;endArrow=blockThin;endFill=1;startArrow=oval;startFill=0;endSize=6;startSize=4;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" edge="1" source="auth-42" target="auth-12">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="1345" y="320" />
+            <mxPoint x="1290" y="320" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      <mxCell id="auth-74" value="200 token" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=30;html=1;dashed=1;dashPattern=8 4;endArrow=blockThin;endFill=1;startArrow=oval;startFill=0;endSize=6;startSize=4;strokeWidth=1.5;fontSize=11;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" edge="1" source="auth-44" target="auth-14">
+        <mxGeometry relative="1" as="geometry">
+          <Array as="points">
+            <mxPoint x="1825" y="300" />
+            <mxPoint x="1860" y="300" />
+          </Array>
+        </mxGeometry>
+      </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

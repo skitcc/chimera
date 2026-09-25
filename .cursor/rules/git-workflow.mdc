@@ -53,3 +53,4 @@ All commit messages must follow the Conventional Commits specification:
 - Always pull latest changes from `develop` into your feature branch before opening a PR (`git rebase develop` or `git merge develop`).
 - Delete feature branches immediately after successful merge to keep the repository clean.
 - Never force-push (`git push --force`) to `develop` or `main`.
+- Never merge branches without user accept
