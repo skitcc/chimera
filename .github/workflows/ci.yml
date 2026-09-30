@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  system:
+    name: System under test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare environment
+        run: cp .env.example .env
+
+      - name: Start system under test
+        run: docker compose up --build --detach --wait --wait-timeout 300
+
+      - name: Probe system under test
+        run: |
+          set -eu
+          set -a
+          . ./.env
+          set +a
+
+          api="http://127.0.0.1:${API_PORT}"
+          web="http://127.0.0.1:${FRONTEND_PORT}"
+
+          wait_http() {
+            url="$1"
+            i=0
+            while [ "$i" -lt 30 ]; do
+              if curl -fsS -o /dev/null "$url"; then
+                return 0
+              fi
+              i=$((i + 1))
+              sleep 2
+            done
+            printf 'timed out waiting for %s\n' "$url" >&2
+            return 1
+          }
+
+          wait_http "${api}/live"
+          wait_http "${api}/ready"
+          wait_http "${api}/v1/tracks"
+          wait_http "${web}/"
+          wait_http "${web}/live"
+          wait_http "${web}/v1/tracks"
+
+          code=$(curl -sS -o /tmp/register.json -w '%{http_code}' \
+            -X POST "${api}/v1/auth/register" \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"ci-smoke@example.com","name":"CI","password":"password1"}')
+          printf 'register status %s\n' "$code"
+          test "$code" = "201"
+          grep -q '"token"' /tmp/register.json
+
+      - name: Collect logs
+        if: failure()
+        run: |
+          if [ -f docker-compose.yml ]; then
+            docker compose logs --no-color
+          fi
+
+      - name: Stop system under test
+        if: always()
+        run: |
+          if [ -f docker-compose.yml ]; then
+            docker compose down --volumes --remove-orphans
+          fi
+
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare environment
+        run: cp .env.example .env
+
+      - name: Run unit tests
+        working-directory: backend
+        run: make test
+
+      - name: Run integration tests
+        working-directory: backend
+        run: make test-integration
+
+      - name: Upload Allure results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: backend/allure-results
+          if-no-files-found: ignore
