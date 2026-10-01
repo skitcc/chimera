@@ -283,10 +283,9 @@ JSON, чтобы склеивать прогоны или копить исто�
 | --- | --- |
 | `curl.log` | строка на шаг: метод, путь, статус |
 | `responses/` | заголовки и тела ответов |
-| `client.pcap` | трафик клиента к API и к RustFS, снятый на интерфейсах этих контейнеров |
-| `api-internal.pcap` | исходящие соединения API к PostgreSQL и RustFS |
-| `client-http.txt` | разобранные HTTP-поля из `client.pcap` |
-| `api-internal.txt` | разбор `http` и `pgsql` из внутреннего захвата |
+| `demo.pcap` | все запросы демо: HTTP клиента, загрузка файла и SQL |
+| `http.txt` | разобранные HTTP-поля из `demo.pcap` |
+| `demo.txt` | разбор `http` и `pgsql` из `demo.pcap`, затем тексты SQL |
 
 В pcap видны JWT и пароли из `.env`. Это тестовые значения из `.env.example`,
 не боевые секреты.
@@ -295,13 +294,12 @@ tcpdump не подключается к приложению. Он копиру
 интерфейса в pcap. tshark и Wireshark потом только читают этот файл: это один
 и тот же разборщик. Окно Wireshark на петле хоста или на Wi-Fi запросы к
 PostgreSQL не покажет: они идут по мосту Docker с `eth0` контейнера API на
-`eth0` контейнера PostgreSQL и на хост не выходят. Поэтому в логе стенда видны
-шаги curl, а SQL появляется отдельным блоком `--- SQL ---` и в
-`api-internal.pcap`.
+`eth0` контейнера PostgreSQL и на хост не выходят. Скрипт поэтому слушает два
+интерфейса и склеивает их в один `demo.pcap`: с API берёт порты 8080 и 5432,
+с RustFS — порт 9000. В логе стенда SQL печатается блоком `--- SQL ---`.
 
-Открыть `client.pcap` в Wireshark: фильтр `http`, затем Follow → HTTP Stream
-на запросе `POST /v1/auth/register`. Внутри контейнеров API слушает 8080, а
-RustFS — 9000, поэтому в `client-http.txt` tshark заранее вызван с decode-as
-для этих портов. В Wireshark то же самое: Analyze → Decode As → TCP 8080 и
-TCP 9000 как HTTP. `api-internal.pcap`: фильтр `pgsql` — запросы к
-PostgreSQL, фильтр `http` — обращения API к RustFS по порту 9000.
+Открыть `demo.pcap` в Wireshark. Фильтр `http`, затем Follow → HTTP Stream на
+запросе `POST /v1/auth/register`. Фильтр `pgsql` показывает запросы к
+PostgreSQL. API слушает 8080, RustFS — 9000, поэтому в `http.txt` tshark
+заранее вызван с decode-as для этих портов. В Wireshark то же самое:
+Analyze → Decode As → TCP 8080 и TCP 9000 как HTTP.

@@ -27,8 +27,8 @@ fi
 mkdir -p "$out"
 
 cleanup() {
-	docker stop chimera-e2e-dump-api-edge chimera-e2e-dump-objects chimera-e2e-dump-api >/dev/null 2>&1 || true
-	docker rm chimera-e2e-dump-api-edge chimera-e2e-dump-objects chimera-e2e-dump-api >/dev/null 2>&1 || true
+	docker stop chimera-e2e-dump-api chimera-e2e-dump-objects >/dev/null 2>&1 || true
+	docker rm chimera-e2e-dump-api chimera-e2e-dump-objects >/dev/null 2>&1 || true
 	if [ "${E2E_KEEP_STACK:-}" != 1 ]; then
 		$compose down --volumes --remove-orphans >/dev/null 2>&1 || true
 	fi
@@ -66,12 +66,13 @@ wait_dump() {
 	exit 1
 }
 
-start_dump chimera-e2e-dump-api-edge "container:${project}-api" api-edge.pcap 'tcp port 8080'
+# One tcpdump sees only the NIC it is attached to. Client HTTP and SQL leave
+# through the API container; the file upload goes straight to RustFS. The two
+# captures are merged into demo.pcap below.
+start_dump chimera-e2e-dump-api "container:${project}-api" api.pcap 'tcp port 8080 or tcp port 5432'
 start_dump chimera-e2e-dump-objects "container:${project}-minio" objects.pcap 'tcp port 9000'
-start_dump chimera-e2e-dump-api "container:${project}-api" api-internal.pcap 'tcp port 5432 or tcp port 9000'
-wait_dump chimera-e2e-dump-api-edge
-wait_dump chimera-e2e-dump-objects
 wait_dump chimera-e2e-dump-api
+wait_dump chimera-e2e-dump-objects
 sleep 1
 
 docker run --rm --network host \
@@ -81,37 +82,38 @@ docker run --rm --network host \
 	-v "$backend/scripts/demo-requests.sh:/demo-requests.sh:ro" \
 	"$image" sh /demo-requests.sh
 
-docker stop chimera-e2e-dump-api-edge chimera-e2e-dump-objects chimera-e2e-dump-api >/dev/null
+docker stop chimera-e2e-dump-api chimera-e2e-dump-objects >/dev/null
 
-for dump in chimera-e2e-dump-api-edge chimera-e2e-dump-objects chimera-e2e-dump-api; do
+for dump in chimera-e2e-dump-api chimera-e2e-dump-objects; do
 	printf '%s\n' "--- $dump ---"
 	docker logs "$dump" 2>&1 || true
 done
 
 docker run --rm -v "$out:/out" "$image" \
-	mergecap -w /out/client.pcap /out/api-edge.pcap /out/objects.pcap
+	mergecap -w /out/demo.pcap /out/api.pcap /out/objects.pcap
 
 docker run --rm -v "$out:/out" "$image" \
-	tshark -r /out/client.pcap \
+	tshark -r /out/demo.pcap \
 	-d tcp.port==8080,http -d tcp.port==9000,http \
 	-Y http -T fields -E header=y -E separator='|' \
 	-e frame.number -e ip.src -e tcp.dstport \
 	-e http.request.method -e http.request.uri -e http.response.code \
-	> "$out/client-http.txt"
+	> "$out/http.txt"
 
 docker run --rm -v "$out:/out" "$image" \
-	tshark -r /out/api-internal.pcap \
+	tshark -r /out/demo.pcap \
 	-d tcp.port==9000,http \
 	-Y 'http or pgsql' \
-	> "$out/api-internal.txt"
-printf '\n# SQL\n' >> "$out/api-internal.txt"
+	> "$out/demo.txt"
+printf '\n# SQL\n' >> "$out/demo.txt"
 docker run --rm -v "$out:/out" "$image" \
-	tshark -r /out/api-internal.pcap \
+	tshark -r /out/demo.pcap \
 	-Y 'pgsql.query' -T fields -e pgsql.query \
-	>> "$out/api-internal.txt"
+	>> "$out/demo.txt"
 
-docker run --rm -v "$out:/out" "$image" chown -R "$(id -u):$(id -g)" /out
+docker run --rm -v "$out:/out" "$image" \
+	sh -c "chown -R $(id -u):$(id -g) /out && rm -f /out/api.pcap /out/objects.pcap"
 
 printf '\n--- SQL ---\n'
-awk 'seen { print } /^# SQL$/ { seen=1 }' "$out/api-internal.txt"
+awk 'seen { print } /^# SQL$/ { seen=1 }' "$out/demo.txt"
 printf 'capture written to %s\n' "$out"
