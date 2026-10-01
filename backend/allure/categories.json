@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Skipped: integration database not configured",
+    "matchedStatuses": ["skipped"],
+    "messageRegex": ".*TEST_DATABASE_URL.*"
+  },
+  {
+    "name": "Test or infrastructure defect: fixture setup failed",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": "(?s).*(open test database|ping test database|migrate test database|reset test database|seed |insert |create user|spec id|spec \").*"
+  },
+  {
+    "name": "Product defect: domain error code or message differs",
+    "matchedStatuses": ["failed"],
+    "messageRegex": "(?s).*(got domain error|want domain error|expected \".*\" error).*"
+  },
+  {
+    "name": "Product defect: returned value or persisted state differs",
+    "matchedStatuses": ["failed"],
+    "messageRegex": "(?s).*(got .*want|want .*got).*"
+  },
+  {
+    "name": "Product defect: other assertion",
+    "matchedStatuses": ["failed"]
+  },
+  {
+    "name": "Test or infrastructure defect: panic or unexpected call",
+    "matchedStatuses": ["broken"]
+  }
+]

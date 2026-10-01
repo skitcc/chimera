@@ -94,13 +94,28 @@ jobs:
         run: make test
 
       - name: Run integration tests
+        if: ${{ !cancelled() }}
         working-directory: backend
         run: make test-integration
 
+      - name: Render Allure report
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        working-directory: backend
+        run: make allure-render
+
       - name: Upload Allure results
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: allure-results
           path: backend/allure-results
+          if-no-files-found: ignore
+
+      - name: Upload Allure report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: allure-report
+          path: backend/allure-report
           if-no-files-found: ignore

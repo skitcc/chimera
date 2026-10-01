@@ -13,6 +13,8 @@ COMPOSE := docker compose --project-name $(COMPOSE_PROJECT_NAME) --project-direc
 TEST_PACKAGES ?= ./...
 INTEGRATION_PACKAGES ?= ./...
 INTEGRATION_TAGS ?= integration
+INTEGRATION_RUN ?= Integration
+POSTGRES_TEST_IMAGE ?= postgres:17-alpine
 COVERAGE_PACKAGES ?= ./internal/domain ./internal/usecase ./internal/infra/adapters/postgres
 GOBCO_PACKAGES ?= ./internal/domain ./internal/usecase ./internal/infra/adapters/postgres
 GO_TEST_P ?= 1
@@ -24,7 +26,7 @@ TEST_GID := $(shell id -g)
 RUN_TEST_IMAGE = docker run --rm --user $(TEST_UID):$(TEST_GID) -e HOME=/tmp -e ALLURE_RESULTS_DIR=/artifacts/allure-results -v "$(ARTIFACTS_DIR):/artifacts" "$(TEST_IMAGE)"
 GO_TEST_FLAGS = -count=1 -p=$(GO_TEST_P) -parallel=$(GO_TEST_PARALLEL)
 
-.PHONY: help test-image test test-shuffle test-offline test-integration test-all coverage gobco-condition gobco-branch allure-results allure-report allure-open clean-test-results
+.PHONY: help test-image test test-shuffle test-offline test-integration test-all coverage gobco-condition gobco-branch allure-results allure-meta allure-render allure-report allure-open spec-matrix spec-check clean-test-results
 .NOTPARALLEL: test-all
 
 help:
@@ -38,8 +40,11 @@ help:
 		'coverage         Write statement profile and HTML coverage' \
 		'gobco-condition  Write gobco condition coverage output' \
 		'gobco-branch     Write gobco branch coverage output' \
-		'allure-results   Run tests configured to emit Allure result files' \
-		'allure-report    Generate an Allure HTML report in Docker' \
+		'allure-results   Run unit and integration tests into allure-results' \
+		'allure-render    Render allure-report from existing results (no test run)' \
+		'allure-report    Run allure-results, then allure-render' \
+		'spec-matrix      Rewrite the TEST_SPEC.md matrix from allure-results' \
+		'spec-check       Fail when the TEST_SPEC.md matrix differs from allure-results' \
 		'allure-open      Serve the report at http://127.0.0.1:$(ALLURE_PORT)'
 
 test-image:
@@ -63,7 +68,7 @@ test-integration: test-image | $(ARTIFACTS_DIR)
 		TEST_IMAGE="$(TEST_IMAGE)" TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" $(COMPOSE) up --detach --wait postgres-test; \
 		trap 'TEST_IMAGE="$(TEST_IMAGE)" TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" $(COMPOSE) down --volumes --remove-orphans' EXIT INT TERM; \
 		TEST_IMAGE="$(TEST_IMAGE)" TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" $(COMPOSE) run --rm --no-deps test-runner \
-			go test $(GO_TEST_FLAGS) -tags="$(INTEGRATION_TAGS)" $(INTEGRATION_PACKAGES)
+			go test $(GO_TEST_FLAGS) -tags="$(INTEGRATION_TAGS)" -run '$(INTEGRATION_RUN)' $(INTEGRATION_PACKAGES)
 
 coverage: test-image | $(ARTIFACTS_DIR)
 	$(RUN_TEST_IMAGE) sh -ec 'go test $(GO_TEST_FLAGS) -covermode=atomic -coverprofile=/artifacts/coverage.out $(COVERAGE_PACKAGES); go tool cover -func=/artifacts/coverage.out; go tool cover -html=/artifacts/coverage.out -o=/artifacts/coverage.html'
@@ -81,13 +86,36 @@ allure-results: test-image | $(ARTIFACTS_DIR)
 		-e ALLURE_RESULTS_DIR=/artifacts/allure-results \
 		-v "$(ARTIFACTS_DIR):/artifacts" "$(TEST_IMAGE)" \
 		go test $(GO_TEST_FLAGS) $(TEST_PACKAGES)
+	$(MAKE) test-integration
 
-allure-report: allure-results
+allure-meta: | $(ARTIFACTS_DIR)
+	mkdir -p "$(ARTIFACTS_DIR)/allure-results"
+	cp allure/categories.json "$(ARTIFACTS_DIR)/allure-results/categories.json"
+	@{ \
+		printf 'Go=%s\n' "$$(docker run --rm "$(TEST_IMAGE)" go version 2>/dev/null | cut -d' ' -f3)"; \
+		printf 'PostgreSQL.image=%s\n' "$(POSTGRES_TEST_IMAGE)"; \
+		printf 'Commit=%s\n' "$$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"; \
+		printf 'Branch=%s\n' "$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"; \
+		if [ -n "$${GITHUB_RUN_ID:-}" ]; then printf 'Run=GitHub Actions run %s\n' "$$GITHUB_RUN_ID"; else printf 'Run=local\n'; fi; \
+		printf 'Suites=unit (domain, usecase, postgres stub and pgxmock), integration (PostgreSQL)\n'; \
+		printf 'Specification=backend/TEST_SPEC.md\n'; \
+	} > "$(ARTIFACTS_DIR)/allure-results/environment.properties"
+
+allure-render: allure-meta
 	rm -rf "$(ARTIFACTS_DIR)/allure-report"
 	mkdir -p "$(ARTIFACTS_DIR)/allure-report"
 	docker run --rm --user $(TEST_UID):$(TEST_GID) -e HOME=/tmp \
 		-v "$(ARTIFACTS_DIR):/work" "$(ALLURE_IMAGE)" \
 		generate /work/allure-results --clean -o /work/allure-report
+
+allure-report: allure-results
+	$(MAKE) allure-render
+
+spec-matrix:
+	sh scripts/spec-matrix.sh "$(ARTIFACTS_DIR)/allure-results" --write TEST_SPEC.md
+
+spec-check:
+	sh scripts/spec-matrix.sh "$(ARTIFACTS_DIR)/allure-results" --check TEST_SPEC.md
 
 allure-open:
 	@test -f "$(ARTIFACTS_DIR)/allure-report/index.html" || { printf '%s\n' 'report is missing; run make allure-report first' >&2; exit 1; }
