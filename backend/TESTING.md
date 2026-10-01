@@ -283,7 +283,7 @@ JSON, чтобы склеивать прогоны или копить исто�
 | --- | --- |
 | `curl.log` | строка на шаг: метод, путь, статус |
 | `responses/` | заголовки и тела ответов |
-| `client.pcap` | трафик клиента к API и к RustFS на петлевом интерфейсе |
+| `client.pcap` | трафик клиента к API и к RustFS, снятый на интерфейсах этих контейнеров |
 | `api-internal.pcap` | исходящие соединения API к PostgreSQL и RustFS |
 | `client-http.txt` | разобранные HTTP-поля из `client.pcap` |
 | `api-internal.txt` | разбор `http` и `pgsql` из внутреннего захвата |
@@ -292,9 +292,10 @@ JSON, чтобы склеивать прогоны или копить исто�
 не боевые секреты.
 
 Открыть захват клиента в Wireshark: фильтр `http`, затем Follow → HTTP Stream
-на запросе `POST /v1/auth/register`. Порты API и RustFS не 80, поэтому в
-`client-http.txt` tshark заранее вызван с decode-as для этих портов. В
-Wireshark то же самое: Analyze → Decode As → TCP-порт API и порт RustFS как HTTP.
+на запросе `POST /v1/auth/register`. Внутри контейнеров API слушает 8080, а
+RustFS — 9000, поэтому в `client-http.txt` tshark заранее вызван с decode-as
+для этих портов. В Wireshark то же самое: Analyze → Decode As → TCP 8080 и
+TCP 9000 как HTTP.
 
 Внутренний захват: фильтр `pgsql` показывает запросы к PostgreSQL, фильтр
 `http` — обращения API к RustFS по порту 9000 (его тоже нужно декодировать как

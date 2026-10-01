@@ -19,15 +19,16 @@ set -a
 set +a
 
 api_port=${API_PORT:-8080}
-minio_port=${MINIO_API_PORT:-9000}
 project=${PROJECT_NAME:-chimera}
 
-rm -rf "$out"
+if [ -d "$out" ]; then
+	docker run --rm -v "$backend:/work" "$image" rm -rf /work/e2e-out
+fi
 mkdir -p "$out"
 
 cleanup() {
-	docker stop chimera-e2e-dump-client chimera-e2e-dump-api >/dev/null 2>&1 || true
-	docker rm chimera-e2e-dump-client chimera-e2e-dump-api >/dev/null 2>&1 || true
+	docker stop chimera-e2e-dump-api-edge chimera-e2e-dump-objects chimera-e2e-dump-api >/dev/null 2>&1 || true
+	docker rm chimera-e2e-dump-api-edge chimera-e2e-dump-objects chimera-e2e-dump-api >/dev/null 2>&1 || true
 	if [ "${E2E_KEEP_STACK:-}" != 1 ]; then
 		$compose down --volumes --remove-orphans >/dev/null 2>&1 || true
 	fi
@@ -36,17 +37,40 @@ trap cleanup EXIT INT TERM
 
 $compose up --build --detach --wait --wait-timeout 300
 
-docker run -d --name chimera-e2e-dump-client --network host \
-	--cap-add NET_RAW --cap-add NET_ADMIN \
-	-v "$out:/out" "$image" \
-	tcpdump -i lo -U -w /out/client.pcap "tcp port ${api_port} or tcp port ${minio_port}"
+# Published host ports are DNATed off the loopback interface on GitHub-hosted
+# runners, so a capture on lo misses the HTTP that the services actually got.
+start_dump() {
+	name=$1
+	network=$2
+	file=$3
+	filter=$4
+	docker run -d --name "$name" --network "$network" \
+		--cap-add NET_RAW --cap-add NET_ADMIN \
+		-v "$out:/out" "$image" \
+		tcpdump -i any -n -U -w "/out/$file" "$filter" >/dev/null
+}
 
-docker run -d --name chimera-e2e-dump-api \
-	--network "container:${project}-api" \
-	--cap-add NET_RAW --cap-add NET_ADMIN \
-	-v "$out:/out" "$image" \
-	tcpdump -i any -U -w /out/api-internal.pcap 'tcp port 5432 or tcp port 9000'
+wait_dump() {
+	name=$1
+	i=0
+	while [ "$i" -lt 50 ]; do
+		if docker top "$name" 2>/dev/null | grep -q tcpdump; then
+			return 0
+		fi
+		i=$((i + 1))
+		sleep 0.1
+	done
+	echo "$name: tcpdump is not running" >&2
+	docker logs "$name" >&2 || true
+	exit 1
+}
 
+start_dump chimera-e2e-dump-api-edge "container:${project}-api" api-edge.pcap 'tcp port 8080'
+start_dump chimera-e2e-dump-objects "container:${project}-minio" objects.pcap 'tcp port 9000'
+start_dump chimera-e2e-dump-api "container:${project}-api" api-internal.pcap 'tcp port 5432 or tcp port 9000'
+wait_dump chimera-e2e-dump-api-edge
+wait_dump chimera-e2e-dump-objects
+wait_dump chimera-e2e-dump-api
 sleep 1
 
 docker run --rm --network host \
@@ -56,11 +80,14 @@ docker run --rm --network host \
 	-v "$backend/scripts/demo-requests.sh:/demo-requests.sh:ro" \
 	"$image" sh /demo-requests.sh
 
-docker stop chimera-e2e-dump-client chimera-e2e-dump-api >/dev/null
+docker stop chimera-e2e-dump-api-edge chimera-e2e-dump-objects chimera-e2e-dump-api >/dev/null
+
+docker run --rm -v "$out:/out" "$image" \
+	mergecap -w /out/client.pcap /out/api-edge.pcap /out/objects.pcap
 
 docker run --rm -v "$out:/out" "$image" \
 	tshark -r /out/client.pcap \
-	-d "tcp.port==${api_port},http" -d "tcp.port==${minio_port},http" \
+	-d tcp.port==8080,http -d tcp.port==9000,http \
 	-Y http -T fields -E header=y -E separator='|' \
 	-e frame.number -e ip.src -e tcp.dstport \
 	-e http.request.method -e http.request.uri -e http.response.code \
@@ -77,10 +104,11 @@ docker run --rm -v "$out:/out" "$image" \
 	-Y 'pgsql.query' -T fields -e pgsql.query \
 	>> "$out/api-internal.txt"
 
-docker run --rm -v "$out:/out" "$image" chmod -R a+rX /out
+docker run --rm -v "$out:/out" "$image" chown -R "$(id -u):$(id -g)" /out
 
 if ! grep -q '|POST|/v1/auth/register|' "$out/client-http.txt"; then
 	echo 'client capture is missing the register request' >&2
+	cat "$out/client-http.txt" >&2 || true
 	exit 1
 fi
 if ! grep -qi 'pgsql' "$out/api-internal.txt"; then
