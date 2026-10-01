@@ -1,9 +1,13 @@
-# Backend testing
+# Тестирование бэкенда
 
-Backend tests run in Docker. The host needs Docker with Compose and `make`; it
-does not need Go, gobco, Allure, PostgreSQL, or any test package installed.
+Тесты бэкенда запускаются в Docker. На хосте нужны Docker с Compose и `make`.
+Go, gobco, Allure, PostgreSQL и тестовые пакеты на хост ставить не нужно.
 
-From `backend/`:
+Что именно проверяет каждый тест, какие за этим лимиты и инварианты и полный
+список spec ID, лежит в [TEST_SPEC.md](TEST_SPEC.md). Этот файл объясняет,
+как запускать наборы и как писать новые кейсы.
+
+Из каталога `backend/`:
 
 ```bash
 make test-image
@@ -15,56 +19,80 @@ make coverage
 make gobco-condition
 make gobco-branch
 make allure-report
+make spec-matrix
+make test-e2e
+make demo-capture
 make test-all
 ```
 
-Copy `.env.example` to the repository-root `.env` before integration tests.
-Test PostgreSQL credentials are test-only values from that file. The database
-runs as `postgres-test`, stores its data on `tmpfs`, is exposed only to the
-Compose network, and is removed after the command.
+Перед интеграционными тестами скопируйте `.env.example` в `.env` в корне
+репозитория. Учётные данные тестового PostgreSQL — это тестовые значения из
+того файла. База называется `postgres-test`, данные держит на `tmpfs`, наружу
+из сети Compose не торчит и удаляется после команды.
 
-## Targets and options
+## Наборы
 
-- `test-image` builds `Dockerfile.test`. All modules from `go.mod`, including
-  test-only libraries (allure-go, pgxmock), and gobco are baked into the image.
-  The production `Dockerfile` is separate: it drops `*_test.go` and
-  `internal/testkit` before `go build`, so test libraries are neither
-  downloaded nor linked into the API binary.
+| Набор | Build tag | Пакеты | Двойники | Префикс spec ID |
+| --- | --- | --- | --- | --- |
+| Модульные тесты домена | нет | `internal/domain` | нет | `DOM-` |
+| Модульные тесты бизнес-логики | нет | `internal/usecase` | фейки с состоянием (classic), моки и шпионы (london) | `UC-` |
+| Модульные тесты доступа к данным | нет | `internal/infra/adapters/postgres` | строки `stubDB`, pgxmock | `DA-`, `DA-PGX-` |
+| Интеграция бизнес-логики | `integration` | `internal/usecase` | настоящий PostgreSQL, фейковое хранилище объектов | `IT-UC-` |
+| Интеграция доступа к данным | `integration` | `internal/infra/adapters/postgres` | настоящий PostgreSQL | `IT-DA-` |
+| Сквозной демо-сценарий | `e2e` | `e2e` | поднятый docker compose, настоящие PostgreSQL и RustFS | `E2E-` |
 
-## Test-only dependencies
+Интеграционные тесты пропускают себя, если не задан `TEST_DATABASE_URL`.
+Поэтому обычный `go test ./...` с этим тегом не падает из-за отсутствия базы.
 
-Go has no `devDependencies`: a single `go.mod` lists every module the module's
-packages *and their tests* import. The split is kept explicit instead:
+### `DA-` и `DA-PGX-`
 
-- `go.mod` has a dedicated `require` block for test-only modules
-  (`go mod tidy` preserves it). Add new test libraries there.
-- The production `Dockerfile` never runs `go mod download`; it deletes
-  `*_test.go` and `internal/testkit`, builds `./cmd/api`, and then fails the
-  build if `go version -m /api` reports a test-only module. Importing a test
-  library from production code therefore breaks `docker compose build`.
+Оба префикса — модульные тесты репозиториев, без настоящего PostgreSQL. Отличается
+двойник, который подставлен вместо `pgxpool.Pool`.
 
-| Module | Used from | Purpose |
-| --- | --- | --- |
-| `github.com/allure-framework/allure-go/commons` | `internal/testkit/report.go` | Allure adapter: wraps `t.Run`, emits result JSON with suites, AAA step, and test-technique labels |
-| `github.com/pashagolub/pgxmock/v5` | `internal/infra/adapters/postgres/*_test.go` | In-memory stand-in for `pgxpool.Pool`: expected SQL, canned rows/errors, `ExpectationsWereMet` |
+- `DA-` использует `stubDB`. Это ручная заглушка в `repository_test.go`: тест
+  сам задаёт, что вернут `Exec`, `Query` и `QueryRow`, и сам проверяет
+  переданные аргументы. Текст SQL заглушка не разбирает и не сверяет. Так
+  покрыты ветки репозитория: разбор строк, перевод SQLSTATE, ноль затронутых
+  строк, ошибка драйвера. Таких кейсов 51.
+- `DA-PGX-` использует [pgxmock](https://github.com/pashagolub/pgxmock). Тест
+  заранее объявляет точный SQL, аргументы и ответ, а в конце вызывает
+  `ExpectationsWereMet`: лишний или пропущенный запрос роняет тест. Так
+  проверяется, что репозиторий отправил драйверу именно этот запрос. Таких
+  кейсов 4: выборка пользователя, создание трека, лайк и ошибка недоступной базы.
 
-`gobco` is a binary installed in `Dockerfile.test`, not a `go.mod` dependency.
-- `test` runs `go test` against `TEST_PACKAGES` (default `./...`).
-- `test-shuffle` uses `-shuffle`. Its default `SHUFFLE_SEED=on` prints a random
-  seed. Reproduce a failure with, for example,
+Поведение ограничений, каскадов и реального SQL проверяют интеграционные
+кейсы `IT-DA-` на PostgreSQL.
+
+## Цели и параметры
+
+- `test-image` собирает `Dockerfile.test`. В образ запекаются все модули из
+  `go.mod`, включая тестовые библиотеки (allure-go, pgxmock), и gobco.
+- `test` запускает `go test` по `TEST_PACKAGES` (по умолчанию `./...`).
+- `test-shuffle` включает `-shuffle`. При `SHUFFLE_SEED=on` печатается случайное
+  зерно. Повторить падение можно так:
   `make test-shuffle SHUFFLE_SEED=1700000000000000000`.
-- `test-offline` requires an existing image from `make test-image`, forbids
-  pulls, and runs that exact image with `--network none`. A test failure
-  usually means a dependency or runtime network assumption was not captured
-  by the image.
-- `test-integration` starts only the ephemeral database and runs tests with
-  the `integration` build tag. Override `INTEGRATION_TAGS` or
-  `INTEGRATION_PACKAGES` if the suite adopts another convention.
-- `test-all` runs the normal, shuffled, and offline suites, both coverage
-  mechanisms, and integration tests. It does not build the Allure HTML site,
-  because report rendering should not decide whether the suite passes.
+- `test-offline` требует уже собранный `make test-image`, запрещает pull и
+  запускает ровно этот образ с `--network none`. Падение обычно значит, что
+  зависимость или обращение к сети во время теста не попали в образ.
+- `test-integration` поднимает только эфемерную базу и запускает тесты с build
+  tag `integration`, чьи имена совпадают с `INTEGRATION_RUN` (по умолчанию
+  `Integration`). Модульные тесты второй раз не бегут. При необходимости
+  переопределите `INTEGRATION_TAGS`, `INTEGRATION_RUN` или
+  `INTEGRATION_PACKAGES`, например
+  `make test-integration INTEGRATION_RUN=TrackServiceIntegration`.
+- `test-e2e` поднимает корневой `docker-compose.yml` (`postgres`, RustFS, `api`,
+  `web`) и гоняет `go test -tags=e2e ./e2e/...` в сети хоста, потому что
+  подписанный URL указывает на `127.0.0.1`. Без `E2E_API_URL` тест
+  пропускается. После прогона стек гасится вместе с томами. `E2E_KEEP_STACK=1`
+  оставляет его работать. Нужен файл `.env` в корне репозитория.
+- `demo-capture` поднимает тот же стек, повторяет сценарий через
+  `scripts/demo-requests.sh` (curl и jq в контейнере `nicolaka/netshoot`) и
+  пишет захват трафика в `e2e-out/`. На хост tcpdump и tshark не ставятся.
+- `test-all` гоняет обычный набор, набор с перемешиванием, офлайн-набор, оба
+  вида покрытия и интеграционные тесты. Сквозной сценарий и HTML-отчёт Allure
+  он не собирает: отрисовка отчёта не должна решать, прошёл ли набор.
 
-Useful overrides:
+Полезные переопределения:
 
 ```bash
 make test TEST_PACKAGES=./internal/usecase/...
@@ -72,89 +100,202 @@ make test GO_TEST_P=2 GO_TEST_PARALLEL=8
 make test-image TEST_IMAGE=registry.example/chimera-test:dev
 ```
 
-`GO_TEST_P` controls how many package test binaries Go may build/run
-concurrently (`go test -p`). `GO_TEST_PARALLEL` controls the maximum number of
-tests within each test binary that may execute after calling `t.Parallel`
-(`go test -parallel`). Each package normally runs in a separate process, so
-package globals are not shared across packages. Keep database fixtures
-independent before increasing either value.
+`GO_TEST_P` задаёт, сколько тестовых бинарников пакетов Go может собирать и
+запускать одновременно (`go test -p`). `GO_TEST_PARALLEL` задаёт, сколько
+тестов внутри одного бинарника могут идти после `t.Parallel`
+(`go test -parallel`). Обычно пакет выполняется в отдельном процессе, поэтому
+глобальные переменные пакета между пакетами не общие. Прежде чем увеличивать
+любое из этих значений, фикстуры базы должны быть независимы.
 
-## Test design
+## Зависимости только для тестов
 
-Use Arrange, Act, Assert (AAA) so setup, the single behavior under test, and
-observations remain distinct. Prefer assertions against observable behavior
-instead of implementation details.
+В Go нет `devDependencies`: один `go.mod` перечисляет каждый модуль, который
+импортируют пакеты модуля и их тесты. Разделение держат явно:
 
-Use the classic testing style by default: instantiate real value objects and
-small collaborators, replacing only slow or nondeterministic boundaries such
-as databases, clocks, object storage, or token generators. A London-style
-interaction test, where every collaborator is mocked, is appropriate when the
-interaction itself is the contract, but it tends to couple tests to call
-order and internal orchestration. Interfaces are mocked on the consumer side.
+- В `go.mod` есть отдельный блок `require` для модулей только тестов
+  (`go mod tidy` его сохраняет). Новые тестовые библиотеки добавляйте туда.
+- Боевой `Dockerfile` не запускает `go mod download`. Он удаляет `*_test.go` и
+  `internal/testkit`, собирает `./cmd/api` и роняет сборку, если
+  `go version -m /api` видит тестовый модуль. Импорт тестовой библиотеки из
+  боевого кода поэтому ломает `docker compose build`.
 
-`TrackService.Like` is intentionally duplicated:
+| Модуль | Откуда используется | Зачем |
+| --- | --- | --- |
+| `github.com/allure-framework/allure-go/commons` | `internal/testkit/report.go` | Адаптер Allure: оборачивает `t.Run`, пишет JSON результата с наборами, behaviors, шагами AAA и метками техник |
+| `github.com/pashagolub/pgxmock/v5` | `internal/infra/adapters/postgres/*_test.go` | Замена `pgxpool.Pool` в памяти: ожидаемый SQL, заготовленные строки и ошибки, `ExpectationsWereMet` |
 
-- `TestTrackServiceLikeClassic` uses stateful fakes and asserts that the like
-  exists after the operation. It remains stable if internal calls are
-  reordered.
-- `TestTrackServiceLikeLondon` uses a repository mock and a like-repository
-  spy. It asserts exact IDs and verifies that invalid or not-ready tracks do
-  not reach `Add`.
+`gobco` — это бинарник, установленный в `Dockerfile.test`, а не зависимость
+`go.mod`.
 
-Keep fixed fixtures small and explicit. Use:
+## Как писать кейс
 
-- a **Builder** when a test needs readable per-field variation from valid
-  defaults;
-- an **Object Mother** for a few named, stable business scenarios;
-- helper functions only when they improve intent and still surface important
-  values at the call site.
+Каждый кейс объявляется через `testkit.RunSpec` (хелпер пакета `runSpec` или
+`runIntegration` / `runService` в интеграционных файлах). Поля `Title`,
+`Given`, `When` и `Then` пишите по-английски: они попадают в Allure как есть.
 
-Do not share mutable fixtures between tests. Integration tests should create
-their own rows and clean them transactionally or with unique identifiers.
+```go
+runSpec(t, "RegisterInput", testkit.Spec{
+	ID:        "DOM-AUTH-REG-03",
+	Method:    "Validate",
+	Title:     "rejects password of length 7",
+	Given:     "a valid email and a password one byte below the minimum",
+	When:      "Validate is called",
+	Then:      "invalid: password must be at least 8 characters",
+	Technique: testkit.TechniqueBoundary,
+	Params:    map[string]string{"password length": "7"},
+}, func(t *testing.T, r testkit.Report) {
+	var err error
+	in := domain.RegisterInput{Email: "listener@example.com", Password: "1234567"}
+	r.Act(func(t *testing.T) { err = in.Validate() })
+	r.Assert(func(t *testing.T) {
+		assertDomainError(t, domain.CodeInvalid, "password must be at least 8 characters", err)
+	})
+})
+```
 
-Choose test data systematically:
+Правила:
 
-- equivalence partitions for representative valid and invalid classes;
-- boundary values immediately below, at, and above a limit;
-- decision tables for combinations of business rules;
-- pairwise combinations when exhaustive combinations are too large;
-- malformed, empty, duplicate, unauthorized, and dependency-failure cases;
-- deterministic values for ordinary tests and seeded generation/fuzzing for
-  broader exploration.
+- `ID` имеет вид `<префикс>-<КОМПОНЕНТ>-<МЕТОД>-NN` и уникален в пакете.
+  `RunSpec` роняет тест при повторе или пустом поле.
+- `Title` — короткое предложение о поведении, а не о реализации.
+- `Then` называет ожидаемый результат, включая код и текст ошибки.
+- `Technique` — одна из констант `testkit.Technique*`. `Severity` по умолчанию
+  `normal`; для безопасности, целостности данных и денежных путей ставьте
+  `critical`, для помощников форматирования — `minor`.
+- `Params` перечисляет входы, которые отличают кейс. В Allure они становятся
+  параметрами.
+- Подготовку кладите в `r.Arrange`, единственный проверяемый вызов — в
+  `r.Act`, проверки — в `r.Assert`. Переменные, общие для шагов, объявляйте
+  до них.
+- Добавьте или обновите соответствующий раздел `TEST_SPEC.md`, затем выполните
+  `make allure-results spec-matrix`, чтобы обновить матрицу трассируемости.
 
-## Coverage
+## Проектирование тестов
 
-`make coverage` writes Go statement coverage to:
+Arrange, Act, Assert (AAA) разделяют подготовку, единственное проверяемое
+поведение и наблюдения. Проверяйте наблюдаемое поведение, а не детали
+реализации.
+
+По умолчанию используйте классический стиль: настоящие объекты-значения и
+небольших соседей, подменяйте только медленные или недетерминированные границы
+вроде базы, часов, хранилища объектов и выпуска токенов. Лондонский тест
+взаимодействия, где каждый сосед заменён моком, уместен, когда контрактом
+является само взаимодействие. Он привязывает тест к порядку вызовов и
+внутренней оркестровке. Интерфейсы мокайте на стороне потребителя.
+
+`TrackService.Like` продублирован намеренно:
+
+- `TestTrackServiceLikeClassic` использует фейки с состоянием и проверяет, что
+  после операции лайк существует. Тест остаётся зелёным, если внутренние вызовы
+  переставить.
+- `TestTrackServiceLikeLondon` использует мок репозитория и шпион репозитория
+  лайков. Он проверяет точные идентификаторы и то, что невалидный или неготовый
+  трек до `Add` не доходит.
+
+Фиксированные фикстуры держите маленькими и явными. Используйте:
+
+- **Builder**, когда тесту нужна читаемая вариация отдельных полей от
+  допустимых значений по умолчанию;
+- **Object Mother** для нескольких именованных устойчивых бизнес-сценариев;
+- функции-хелперы только когда они проясняют намерение и важные значения всё
+  равно видны в месте вызова.
+
+Не делите изменяемые фикстуры между тестами. Интеграционные тесты очищают
+таблицы до и после каждого кейса, поэтому внутри пакета их нельзя запускать
+параллельно.
+
+Данные для тестов выбирайте систематически:
+
+- классы эквивалентности для типичных допустимых и недопустимых групп;
+- граничные значения сразу ниже предела, на пределе и сразу выше;
+- таблицы решений для сочетаний бизнес-правил;
+- попарные сочетания, когда полный перебор слишком велик;
+- некорректные, пустые, повторные, неавторизованные случаи и сбои зависимостей;
+- детерминированные значения в обычных тестах и генерацию с зерном или фаззинг
+  для более широкого поиска.
+
+## Покрытие
+
+`make coverage` пишет покрытие операторов Go в:
 
 - `coverage.out`
 - `coverage.html`
 
-Go's built-in coverage measures instrumented statements, not branch or
-condition coverage. A high percentage does not prove that both outcomes of a
-decision or each operand of a compound boolean expression were exercised.
+Встроенное покрытие Go считает инструментированные операторы, а не ветки и не
+условия. Высокий процент не доказывает, что пройдены оба исхода решения или
+каждый операнд составного логического выражения.
 
-`make gobco-condition` and `make gobco-branch` write
-`condition-coverage.txt` and `branch-coverage.txt`. Gobco complements rather
-than replaces `go test -cover`: it detects syntactically recognizable boolean conditions and
-branches, but does not report completely unused functions that contain no
-condition, does not cover `select` statements, and cannot infer semantic
-input partitions. Review both reports and the tests themselves.
+`make gobco-condition` и `make gobco-branch` пишут `condition-coverage.txt` и
+`branch-coverage.txt`. Gobco дополняет `go test -cover`, а не заменяет его: он
+видит синтаксически узнаваемые логические условия и ветки, но не сообщает о
+совсем неиспользуемых функциях без условий, не покрывает `select` и не выводит
+смысловые классы входов. Смотрите оба отчёта и сами тесты.
 
 ## Allure
 
-`make allure-results` clears `allure-results` and runs all scenarios through
-the official `allure-framework/allure-go` adapter. Every reported case has an
-AAA description and a test-technique label selected from boundary values,
-equivalence classes, state transitions, decision tables, and error guessing.
-`make allure-report` then uses a containerized Allure CLI to generate
-`allure-report/`. Do not open `index.html` as a local file: the UI loads JSON
-over HTTP, so the browser or a file preview often shows a blank page or HTTP
-500. Serve it instead:
+- `make allure-results` очищает `allure-results`, гоняет модульные наборы, затем
+  интеграционный набор в тот же каталог.
+- `make allure-render` добавляет к результатам `environment.properties` (версия
+  Go, образ PostgreSQL, коммит, ветка, запуск) и `categories.json` (из
+  `allure/`) и собирает `allure-report/` без прогона тестов. CI вызывает его
+  после шагов с тестами, даже если те упали.
+- `make allure-report` делает и то и другое.
+- `make spec-matrix` переписывает матрицу в `TEST_SPEC.md` по текущим
+  результатам. `make spec-check` падает, если матрица устарела.
+
+Как читать отчёт. Тексты кейсов в нём английские.
+
+- **Behaviors**: слой, затем компонент, затем метод. По ней видно, какие правила
+  одного метода покрыты.
+- **Suites**: та же иерархия как родительский набор, набор и поднабор.
+- **Categories**: падения разделены на дефекты продукта (неверный код или текст
+  ошибки, неверное значение или сохранённое состояние, прочая проверка) и
+  дефекты теста или окружения (подготовка фикстуры, паника). Пропущенные
+  интеграционные кейсы без `TEST_DATABASE_URL` лежат в своей категории.
+- **Страница кейса**: заголовок начинается со spec ID. В описании есть
+  Given / When / Then, техника, стиль двойника, имя Go-теста для `-run`, файл
+  и строка исходника. Шаги — Arrange, Act и Assert, падение крепится к шагу,
+  на котором случилось. Теги показывают стиль двойника. Severity и параметры
+  стоят сверху.
+
+Не открывайте `index.html` как локальный файл: интерфейс грузит JSON по HTTP,
+поэтому браузер или предпросмотр часто показывает пустую страницу или HTTP 500.
+Раздавайте его так:
 
 ```bash
 make allure-open
 ```
 
-That pulls `nginx:1.27-alpine` on the first run if needed and serves
-`http://127.0.0.1:5252`. Override the port with `ALLURE_PORT`. Neither Java
-nor Allure is installed on the host.
+При первом запуске при необходимости скачивается `nginx:1.27-alpine`, и отчёт
+доступен на `http://127.0.0.1:5252`. Порт меняется через `ALLURE_PORT`. Ни Java,
+ни Allure на хост не ставятся.
+
+В CI job `Backend tests` выкладывает два артефакта: `allure-results` (сырой
+JSON, чтобы склеивать прогоны или копить историю) и `allure-report` (скачать,
+распаковать и раздавать любым сервером статики). Job `e2e` отдельно выкладывает
+`e2e-traffic` и `e2e-allure-results`.
+
+## Захват трафика демо-сценария
+
+`make demo-capture` пишет в `backend/e2e-out/`:
+
+| Файл | Что внутри |
+| --- | --- |
+| `curl.log` | строка на шаг: метод, путь, статус |
+| `responses/` | заголовки и тела ответов |
+| `client.pcap` | трафик клиента к API и к RustFS на петлевом интерфейсе |
+| `api-internal.pcap` | исходящие соединения API к PostgreSQL и RustFS |
+| `client-http.txt` | разобранные HTTP-поля из `client.pcap` |
+| `api-internal.txt` | разбор `http` и `pgsql` из внутреннего захвата |
+
+В pcap видны JWT и пароли из `.env`. Это тестовые значения из `.env.example`,
+не боевые секреты.
+
+Открыть захват клиента в Wireshark: фильтр `http`, затем Follow → HTTP Stream
+на запросе `POST /v1/auth/register`. Порты API и RustFS не 80, поэтому в
+`client-http.txt` tshark заранее вызван с decode-as для этих портов. В
+Wireshark то же самое: Analyze → Decode As → TCP-порт API и порт RustFS как HTTP.
+
+Внутренний захват: фильтр `pgsql` показывает запросы к PostgreSQL, фильтр
+`http` — обращения API к RustFS по порту 9000 (его тоже нужно декодировать как
+HTTP).
