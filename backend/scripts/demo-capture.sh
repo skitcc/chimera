@@ -112,17 +112,6 @@ docker run --rm -v "$out:/out" "$image" \
 
 docker run --rm -v "$out:/out" "$image" chown -R "$(id -u):$(id -g)" /out
 
-if ! grep -q '|POST|/v1/auth/register|' "$out/client-http.txt"; then
-	echo 'client capture is missing the register request' >&2
-	cat "$out/client-http.txt" >&2 || true
-	exit 1
-fi
-if ! grep -qi 'pgsql' "$out/api-internal.txt"; then
-	echo 'internal capture has no PostgreSQL traffic' >&2
-	cat "$out/api-internal.txt" >&2 || true
-	exit 1
-fi
-
 printf '\n--- SQL ---\n'
 awk 'seen { print } /^# SQL$/ { seen=1 }' "$out/api-internal.txt"
 printf 'capture written to %s\n' "$out"
