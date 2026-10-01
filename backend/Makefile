@@ -9,6 +9,9 @@ ALLURE_PORT ?= 5252
 NGINX_IMAGE ?= nginx:1.27-alpine
 COMPOSE_PROJECT_NAME ?= chimera-tests
 COMPOSE := docker compose --project-name $(COMPOSE_PROJECT_NAME) --project-directory $(ROOT_DIR) -f $(ROOT_DIR)/docker-compose.test.yml
+APP_COMPOSE := docker compose --project-directory $(ROOT_DIR) -f $(ROOT_DIR)/docker-compose.yml
+NETSHOOT_IMAGE ?= nicolaka/netshoot:v0.13
+E2E_OUT ?= $(ARTIFACTS_DIR)/e2e-out
 
 TEST_PACKAGES ?= ./...
 INTEGRATION_PACKAGES ?= ./...
@@ -26,7 +29,7 @@ TEST_GID := $(shell id -g)
 RUN_TEST_IMAGE = docker run --rm --user $(TEST_UID):$(TEST_GID) -e HOME=/tmp -e ALLURE_RESULTS_DIR=/artifacts/allure-results -v "$(ARTIFACTS_DIR):/artifacts" "$(TEST_IMAGE)"
 GO_TEST_FLAGS = -count=1 -p=$(GO_TEST_P) -parallel=$(GO_TEST_PARALLEL)
 
-.PHONY: help test-image test test-shuffle test-offline test-integration test-all coverage gobco-condition gobco-branch allure-results allure-meta allure-render allure-report allure-open spec-matrix spec-check clean-test-results
+.PHONY: help test-image test test-shuffle test-offline test-integration test-e2e demo-capture test-all coverage gobco-condition gobco-branch allure-results allure-meta allure-render allure-report allure-open spec-matrix spec-check clean-test-results
 .NOTPARALLEL: test-all
 
 help:
@@ -36,6 +39,8 @@ help:
 		'test-shuffle     Run tests with a recorded/random shuffle seed' \
 		'test-offline     Run the prebuilt image without network access' \
 		'test-integration Run integration-tagged tests with ephemeral PostgreSQL' \
+		'test-e2e         Run the MVP demo against docker compose' \
+		'demo-capture     Replay the demo with curl and write pcap captures' \
 		'test-all         Run tests, coverage, gobco, and integration tests' \
 		'coverage         Write statement profile and HTML coverage' \
 		'gobco-condition  Write gobco condition coverage output' \
@@ -70,6 +75,26 @@ test-integration: test-image | $(ARTIFACTS_DIR)
 		TEST_IMAGE="$(TEST_IMAGE)" TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" $(COMPOSE) run --rm --no-deps test-runner \
 			go test $(GO_TEST_FLAGS) -tags="$(INTEGRATION_TAGS)" -run '$(INTEGRATION_RUN)' $(INTEGRATION_PACKAGES)
 
+test-e2e: test-image | $(ARTIFACTS_DIR)
+	@test -f "$(ROOT_DIR)/.env" || { printf '%s\n' 'missing ../.env; copy .env.example to .env' >&2; exit 1; }
+	@set -eu; \
+		set -a; . "$(ROOT_DIR)/.env"; set +a; \
+		$(APP_COMPOSE) up --build --detach --wait --wait-timeout 300; \
+		if [ "$${E2E_KEEP_STACK:-}" != 1 ]; then \
+			trap '$(APP_COMPOSE) down --volumes --remove-orphans' EXIT INT TERM; \
+		fi; \
+		mkdir -p "$(ARTIFACTS_DIR)/allure-results"; \
+		docker run --rm --network host --user $(TEST_UID):$(TEST_GID) \
+			-e HOME=/tmp \
+			-e ALLURE_RESULTS_DIR=/artifacts/allure-results \
+			-e E2E_API_URL="http://127.0.0.1:$${API_PORT:-8080}" \
+			-v "$(ARTIFACTS_DIR):/artifacts" \
+			"$(TEST_IMAGE)" \
+			go test $(GO_TEST_FLAGS) -tags=e2e ./e2e/...
+
+demo-capture:
+	NETSHOOT_IMAGE="$(NETSHOOT_IMAGE)" sh scripts/demo-capture.sh
+
 coverage: test-image | $(ARTIFACTS_DIR)
 	$(RUN_TEST_IMAGE) sh -ec 'go test $(GO_TEST_FLAGS) -covermode=atomic -coverprofile=/artifacts/coverage.out $(COVERAGE_PACKAGES); go tool cover -func=/artifacts/coverage.out; go tool cover -html=/artifacts/coverage.out -o=/artifacts/coverage.html'
 
@@ -87,6 +112,7 @@ allure-results: test-image | $(ARTIFACTS_DIR)
 		-v "$(ARTIFACTS_DIR):/artifacts" "$(TEST_IMAGE)" \
 		go test $(GO_TEST_FLAGS) $(TEST_PACKAGES)
 	$(MAKE) test-integration
+	$(MAKE) test-e2e
 
 allure-meta: | $(ARTIFACTS_DIR)
 	mkdir -p "$(ARTIFACTS_DIR)/allure-results"
@@ -97,7 +123,7 @@ allure-meta: | $(ARTIFACTS_DIR)
 		printf 'Commit=%s\n' "$$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"; \
 		printf 'Branch=%s\n' "$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"; \
 		if [ -n "$${GITHUB_RUN_ID:-}" ]; then printf 'Run=GitHub Actions run %s\n' "$$GITHUB_RUN_ID"; else printf 'Run=local\n'; fi; \
-		printf 'Suites=unit (domain, usecase, postgres stub and pgxmock), integration (PostgreSQL)\n'; \
+		printf 'Suites=unit (domain, usecase, postgres stub and pgxmock), integration (PostgreSQL), e2e (docker compose)\n'; \
 		printf 'Specification=backend/TEST_SPEC.md\n'; \
 	} > "$(ARTIFACTS_DIR)/allure-results/environment.properties"
 
@@ -128,7 +154,7 @@ allure-open:
 test-all: test test-shuffle test-offline coverage gobco-condition gobco-branch test-integration
 
 clean-test-results:
-	rm -rf "$(ARTIFACTS_DIR)/allure-results" "$(ARTIFACTS_DIR)/allure-report"
+	rm -rf "$(ARTIFACTS_DIR)/allure-results" "$(ARTIFACTS_DIR)/allure-report" "$(ARTIFACTS_DIR)/e2e-out"
 	rm -f "$(ARTIFACTS_DIR)/allure-report.html"
 	rm -f "$(ARTIFACTS_DIR)/coverage.out" "$(ARTIFACTS_DIR)/coverage.html"
 	rm -f "$(ARTIFACTS_DIR)/condition-coverage.txt" "$(ARTIFACTS_DIR)/branch-coverage.txt"
