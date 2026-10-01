@@ -291,12 +291,17 @@ JSON, чтобы склеивать прогоны или копить исто�
 В pcap видны JWT и пароли из `.env`. Это тестовые значения из `.env.example`,
 не боевые секреты.
 
-Открыть захват клиента в Wireshark: фильтр `http`, затем Follow → HTTP Stream
+tcpdump не подключается к приложению. Он копирует кадры с одного сетевого
+интерфейса в pcap. tshark и Wireshark потом только читают этот файл: это один
+и тот же разборщик. Окно Wireshark на петле хоста или на Wi-Fi запросы к
+PostgreSQL не покажет: они идут по мосту Docker с `eth0` контейнера API на
+`eth0` контейнера PostgreSQL и на хост не выходят. Поэтому в логе стенда видны
+шаги curl, а SQL появляется отдельным блоком `--- SQL ---` и в
+`api-internal.pcap`.
+
+Открыть `client.pcap` в Wireshark: фильтр `http`, затем Follow → HTTP Stream
 на запросе `POST /v1/auth/register`. Внутри контейнеров API слушает 8080, а
 RustFS — 9000, поэтому в `client-http.txt` tshark заранее вызван с decode-as
 для этих портов. В Wireshark то же самое: Analyze → Decode As → TCP 8080 и
-TCP 9000 как HTTP.
-
-Внутренний захват: фильтр `pgsql` показывает запросы к PostgreSQL, фильтр
-`http` — обращения API к RustFS по порту 9000 (его тоже нужно декодировать как
-HTTP).
+TCP 9000 как HTTP. `api-internal.pcap`: фильтр `pgsql` — запросы к
+PostgreSQL, фильтр `http` — обращения API к RustFS по порту 9000.

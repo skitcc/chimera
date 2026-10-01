@@ -37,8 +37,9 @@ trap cleanup EXIT INT TERM
 
 $compose up --build --detach --wait --wait-timeout 300
 
-# Published host ports are DNATed off the loopback interface on GitHub-hosted
-# runners, so a capture on lo misses the HTTP that the services actually got.
+# tcpdump copies frames from one interface. `any` on a current kernel is a
+# cooked socket, and a port filter there often matches nothing. eth0 is the
+# container's real Ethernet NIC, where the bridge actually delivers packets.
 start_dump() {
 	name=$1
 	network=$2
@@ -47,7 +48,7 @@ start_dump() {
 	docker run -d --name "$name" --network "$network" \
 		--cap-add NET_RAW --cap-add NET_ADMIN \
 		-v "$out:/out" "$image" \
-		tcpdump -i any -n -U -w "/out/$file" "$filter" >/dev/null
+		tcpdump -i eth0 -n -U -w "/out/$file" "$filter" >/dev/null
 }
 
 wait_dump() {
@@ -82,6 +83,11 @@ docker run --rm --network host \
 
 docker stop chimera-e2e-dump-api-edge chimera-e2e-dump-objects chimera-e2e-dump-api >/dev/null
 
+for dump in chimera-e2e-dump-api-edge chimera-e2e-dump-objects chimera-e2e-dump-api; do
+	printf '%s\n' "--- $dump ---"
+	docker logs "$dump" 2>&1 || true
+done
+
 docker run --rm -v "$out:/out" "$image" \
 	mergecap -w /out/client.pcap /out/api-edge.pcap /out/objects.pcap
 
@@ -113,7 +119,10 @@ if ! grep -q '|POST|/v1/auth/register|' "$out/client-http.txt"; then
 fi
 if ! grep -qi 'pgsql' "$out/api-internal.txt"; then
 	echo 'internal capture has no PostgreSQL traffic' >&2
+	cat "$out/api-internal.txt" >&2 || true
 	exit 1
 fi
 
+printf '\n--- SQL ---\n'
+awk 'seen { print } /^# SQL$/ { seen=1 }' "$out/api-internal.txt"
 printf 'capture written to %s\n' "$out"
