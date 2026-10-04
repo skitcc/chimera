@@ -66,20 +66,27 @@ func httpStatus(code domain.Code) int {
 		return http.StatusBadRequest
 	case domain.CodeUnauthorized:
 		return http.StatusUnauthorized
+	case domain.CodeForbidden:
+		return http.StatusForbidden
 	case domain.CodeConflict:
 		return http.StatusConflict
+	case domain.CodeTooManyRequests:
+		return http.StatusTooManyRequests
 	default:
 		return http.StatusInternalServerError
 	}
 }
 
 func ParsePageQuery(r *http.Request) domain.PageQuery {
-	q := domain.PageQuery{Cursor: r.URL.Query().Get("cursor")}
+	limit := 0
+	invalidLimit := false
 	if raw := r.URL.Query().Get("limit"); raw != "" {
 		n, err := strconv.Atoi(raw)
-		if err == nil {
-			q.Limit = n
+		if err == nil && n > 0 {
+			limit = n
+		} else {
+			invalidLimit = true
 		}
 	}
-	return q
+	return domain.NewPageQuery(limit, r.URL.Query().Get("cursor"), invalidLimit)
 }
