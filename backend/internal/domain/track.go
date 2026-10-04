@@ -37,6 +37,20 @@ func (t Track) OwnedBy(userID string) error {
 	return nil
 }
 
+func (t Track) RequireOwner(userID string) error {
+	if t.UserID != userID {
+		return Forbidden("not allowed")
+	}
+	return nil
+}
+
+func (t Track) VisibleTo(userID string) error {
+	if t.Status == TrackReady || userID != "" && t.UserID == userID {
+		return nil
+	}
+	return NotFound("track not found")
+}
+
 func (t Track) ConfirmUpload(size int64) error {
 	if size <= 0 {
 		return Invalid("upload not found")
@@ -90,6 +104,33 @@ type TrackWrite struct {
 
 func (w TrackWrite) Validate() error {
 	if w.Title == "" {
+		return Invalid("title is required")
+	}
+	return nil
+}
+
+type TrackReplace struct {
+	Title  string
+	Artist string
+}
+
+func (in TrackReplace) Validate() error {
+	if in.Title == "" {
+		return Invalid("title is required")
+	}
+	return nil
+}
+
+type TrackPatch struct {
+	Title  *string
+	Artist *string
+}
+
+func (in TrackPatch) Validate() error {
+	if in.Title == nil && in.Artist == nil {
+		return Invalid("at least one field is required")
+	}
+	if in.Title != nil && *in.Title == "" {
 		return Invalid("title is required")
 	}
 	return nil

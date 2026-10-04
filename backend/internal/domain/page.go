@@ -8,12 +8,20 @@ const (
 )
 
 type PageQuery struct {
-	Limit  int
-	Cursor string
-	start  int
+	Limit        int
+	Cursor       string
+	start        int
+	invalidLimit bool
+}
+
+func NewPageQuery(limit int, cursor string, invalidLimit bool) PageQuery {
+	return PageQuery{Limit: limit, Cursor: cursor, invalidLimit: invalidLimit}
 }
 
 func (q *PageQuery) Validate() error {
+	if q.invalidLimit {
+		return Invalid("invalid limit")
+	}
 	if q.Limit <= 0 {
 		q.Limit = defaultPageLimit
 	}
@@ -33,15 +41,12 @@ func (q *PageQuery) Validate() error {
 }
 
 func (q PageQuery) Page(tracks []Track) TrackPage {
-	start := min(q.start, len(tracks))
-	end := min(len(tracks), start+q.Limit)
+	items, next := pageItems(q, tracks)
 	page := TrackPage{
-		Items: tracks[start:end],
+		Items: items,
 		Limit: q.Limit,
 	}
-	if end < len(tracks) {
-		page.NextCursor = strconv.Itoa(end)
-	}
+	page.NextCursor = next
 	return page
 }
 
@@ -49,4 +54,58 @@ type TrackPage struct {
 	Items      []Track
 	NextCursor string
 	Limit      int
+}
+
+type UserPage struct {
+	Items      []User
+	NextCursor string
+	Limit      int
+}
+
+func (q PageQuery) PageUsers(users []User) UserPage {
+	items, next := pageItems(q, users)
+	return UserPage{Items: items, NextCursor: next, Limit: q.Limit}
+}
+
+type PlaylistPage struct {
+	Items      []Playlist
+	NextCursor string
+	Limit      int
+}
+
+func (q PageQuery) PagePlaylists(playlists []Playlist) PlaylistPage {
+	items, next := pageItems(q, playlists)
+	return PlaylistPage{Items: items, NextCursor: next, Limit: q.Limit}
+}
+
+type PlaylistTrackPage struct {
+	Items      []PlaylistTrack
+	NextCursor string
+	Limit      int
+}
+
+func (q PageQuery) PagePlaylistTracks(tracks []PlaylistTrack) PlaylistTrackPage {
+	items, next := pageItems(q, tracks)
+	return PlaylistTrackPage{Items: items, NextCursor: next, Limit: q.Limit}
+}
+
+type PickPage struct {
+	Items      []Pick
+	NextCursor string
+	Limit      int
+}
+
+func (q PageQuery) PagePicks(picks []Pick) PickPage {
+	items, next := pageItems(q, picks)
+	return PickPage{Items: items, NextCursor: next, Limit: q.Limit}
+}
+
+func pageItems[T any](q PageQuery, all []T) ([]T, string) {
+	start := min(q.start, len(all))
+	end := min(len(all), start+q.Limit)
+	next := ""
+	if end < len(all) {
+		next = strconv.Itoa(end)
+	}
+	return all[start:end], next
 }

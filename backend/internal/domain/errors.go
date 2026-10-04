@@ -8,11 +8,13 @@ import (
 type Code string
 
 const (
-	CodeNotFound     Code = "not_found"
-	CodeInvalid      Code = "invalid"
-	CodeUnauthorized Code = "unauthorized"
-	CodeConflict     Code = "conflict"
-	CodeInternal     Code = "internal"
+	CodeNotFound        Code = "not_found"
+	CodeInvalid         Code = "invalid"
+	CodeUnauthorized    Code = "unauthorized"
+	CodeForbidden       Code = "forbidden"
+	CodeConflict        Code = "conflict"
+	CodeTooManyRequests Code = "too_many_requests"
+	CodeInternal        Code = "internal"
 )
 
 type Error struct {
@@ -38,11 +40,13 @@ func Wrap(code Code, message string, err error) *Error {
 	return &Error{Code: code, Message: message, err: err}
 }
 
-func NotFound(message string) *Error     { return NewError(CodeNotFound, message) }
-func Invalid(message string) *Error      { return NewError(CodeInvalid, message) }
-func Unauthorized(message string) *Error { return NewError(CodeUnauthorized, message) }
-func Conflict(message string) *Error     { return NewError(CodeConflict, message) }
-func Internal(message string) *Error     { return NewError(CodeInternal, message) }
+func NotFound(message string) *Error        { return NewError(CodeNotFound, message) }
+func Invalid(message string) *Error         { return NewError(CodeInvalid, message) }
+func Unauthorized(message string) *Error    { return NewError(CodeUnauthorized, message) }
+func Forbidden(message string) *Error       { return NewError(CodeForbidden, message) }
+func Conflict(message string) *Error        { return NewError(CodeConflict, message) }
+func TooManyRequests(message string) *Error { return NewError(CodeTooManyRequests, message) }
+func Internal(message string) *Error        { return NewError(CodeInternal, message) }
 
 func As(err error) (*Error, bool) {
 	var app *Error
