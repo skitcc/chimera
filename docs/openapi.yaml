@@ -221,6 +221,8 @@ paths:
       summary: Подписаться
       description: Идемпотентно. Повтор той же пары снова 204. На себя подписаться нельзя.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/userId'
       responses:
@@ -240,6 +242,8 @@ paths:
       summary: Отписаться
       description: Идемпотентно. Повторное снятие снова 204.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/userId'
       responses:
@@ -316,6 +320,8 @@ paths:
       operationId: getCurrentUser
       summary: Текущий профиль
       description: Профиль владельца токена. Пароль в ответ не входит.
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: Профиль владельца токена
@@ -339,6 +345,8 @@ paths:
       summary: Заменить свой профиль
       description: Нужны и имя, и email. Пароль этой операцией не меняется.
       x-implemented: false
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -375,6 +383,8 @@ paths:
         Меняются только переданные поля. Пустое тело не принимается.
         Пароль меняется только здесь.
       x-implemented: false
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -408,6 +418,8 @@ paths:
       summary: Удалить свой аккаунт
       description: Удаляется только аккаунт владельца токена. Повтор по уже удалённому аккаунту — 401, сессии больше нет.
       x-implemented: false
+      security:
+        - bearerAuth: []
       responses:
         '204':
           description: Аккаунт удалён
@@ -422,6 +434,8 @@ paths:
       operationId: listMyTracks
       summary: Свои загрузки
       description: Все статусы, включая ещё не опубликованные.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/limit'
         - $ref: '#/components/parameters/cursor'
@@ -454,6 +468,8 @@ paths:
       operationId: listMyLikes
       summary: Любимое
       description: Только готовые треки.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/limit'
         - $ref: '#/components/parameters/cursor'
@@ -487,6 +503,8 @@ paths:
       summary: Свои плейлисты
       description: Включая скрытые.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/limit'
         - $ref: '#/components/parameters/cursor'
@@ -518,6 +536,8 @@ paths:
       summary: Мои подписки
       description: На кого подписан текущий пользователь. Страница профилей.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/limit'
         - $ref: '#/components/parameters/cursor'
@@ -542,6 +562,8 @@ paths:
       summary: Свои подборки
       description: Новые генерации не затирают старые.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/limit'
         - $ref: '#/components/parameters/cursor'
@@ -573,6 +595,8 @@ paths:
         Система создаёт новую подборку по лайкам, подпискам и артистам этих треков.
         Состав клиент не передаёт.
       x-implemented: false
+      security:
+        - bearerAuth: []
       responses:
         '201':
           description: Подборка создана
@@ -607,6 +631,8 @@ paths:
       summary: Подборка с треками
       description: Подборка текущего пользователя и состав с `position` и `note`. Чужая подборка — 403.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/pickId'
       responses:
@@ -632,6 +658,8 @@ paths:
       summary: Переименовать подборку
       description: Меняется только название. Состав остаётся за системой.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/pickId'
       requestBody:
@@ -665,6 +693,8 @@ paths:
       summary: Удалить подборку
       description: Только своя подборка. Повтор по уже удалённой — 404.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/pickId'
       responses:
@@ -721,6 +751,8 @@ paths:
       description: |
         Создаёт трек `pending` и временную ссылку на запись объекта.
         Байты файла в этот запрос не входят.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -794,6 +826,8 @@ paths:
       operationId: replaceTrack
       summary: Заменить название и артиста
       description: Оба поля обязательны. Статус, размер и файл не меняются. Только владелец.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/trackId'
       requestBody:
@@ -828,6 +862,8 @@ paths:
       summary: Частично изменить название или артиста
       description: Меняется только переданное поле. Пустое тело не принимается. Только владелец.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/trackId'
       requestBody:
@@ -860,6 +896,8 @@ paths:
       operationId: deleteTrack
       summary: Удалить трек
       description: Только владелец. Строки плейлистов и подборок с этим треком уходят, сами списки остаются.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/trackId'
       responses:
@@ -910,6 +948,8 @@ paths:
       operationId: completeTrackUpload
       summary: Подтвердить загрузку
       description: Сверяет владельца и размер объекта, затем публикует трек. Только владелец.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/trackId'
       responses:
@@ -945,6 +985,8 @@ paths:
       operationId: likeTrack
       summary: Отметить любимым
       description: Только готовый трек. Повтор той же пары — конфликт.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/trackId'
       responses:
@@ -965,6 +1007,8 @@ paths:
       operationId: unlikeTrack
       summary: Снять отметку
       description: Повторное снятие тоже 204. 404 только если нет самого трека.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/trackId'
       responses:
@@ -986,6 +1030,8 @@ paths:
       summary: Создать плейлист
       description: Нужны название и флаг публичности. Повтор запроса создаёт ещё один плейлист.
       x-implemented: false
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -1055,6 +1101,8 @@ paths:
       summary: Заменить название и видимость
       description: Оба поля обязательны. Повтор с тем же телом не меняет результат. Только владелец.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/playlistId'
       requestBody:
@@ -1089,6 +1137,8 @@ paths:
       summary: Частично изменить плейлист
       description: Меняется только переданное поле. Пустое тело не принимается. Только владелец.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/playlistId'
       requestBody:
@@ -1122,6 +1172,8 @@ paths:
       summary: Удалить плейлист
       description: Только владелец. Повтор по уже удалённому плейлисту — 404.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/playlistId'
       responses:
@@ -1182,6 +1234,8 @@ paths:
       summary: Добавить трек в плейлист
       description: Только готовый трек. Повтор пары — конфликт. Только владелец плейлиста.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/playlistId'
       requestBody:
@@ -1220,6 +1274,8 @@ paths:
       summary: Сменить позицию трека
       description: Меняется только `position`. Повтор с тем же значением снова 200. Только владелец плейлиста.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/playlistId'
         - $ref: '#/components/parameters/trackId'
@@ -1254,6 +1310,8 @@ paths:
       summary: Убрать трек из плейлиста
       description: Сам плейлист остаётся.
       x-implemented: false
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/playlistId'
         - $ref: '#/components/parameters/trackId'
