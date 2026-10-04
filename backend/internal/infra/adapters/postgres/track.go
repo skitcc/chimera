@@ -68,11 +68,26 @@ func (r *TrackRepository) List(ctx context.Context, filter domain.TrackFilter) (
 		 WHERE ($1::text IS NULL OR status = $1)
 		   AND ($2::uuid IS NULL OR user_id = $2)
 		   AND ($3::text IS NULL OR lower(btrim(artist)) = lower(btrim($3)))
-		 ORDER BY created_at`,
+		 ORDER BY created_at, id`,
 		status, userID, artist,
 	)
 	if err != nil {
 		return nil, mapError(err, "list tracks")
+	}
+	return collectTracks(rows)
+}
+
+func (r *TrackRepository) ListRandomReady(ctx context.Context, limit int) ([]domain.Track, error) {
+	rows, err := r.db.Query(ctx,
+		`SELECT `+trackCols+`
+		 FROM tracks
+		 WHERE status = $1
+		 ORDER BY random()
+		 LIMIT $2`,
+		string(domain.TrackReady), limit,
+	)
+	if err != nil {
+		return nil, mapError(err, "list random tracks")
 	}
 	return collectTracks(rows)
 }
