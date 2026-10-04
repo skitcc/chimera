@@ -29,6 +29,9 @@
 | FR-6 | Лайк, снятие лайка, список любимого      | `POST/DELETE /v1/tracks/{id}/like`, `GET /v1/me/likes`                                    |
 | FR-7 | Свои загрузки и публичный каталог автора | `GET /v1/me/tracks`, `GET /v1/users/{id}/tracks`                                          |
 | FR-8 | Профиль и справочник пользователей       | `GET /v1/me`, `GET /v1/users`, `GET /v1/users/{id}`                                       |
+| FR-9 | Подписки и списки подписчиков            | `PUT/DELETE /v1/users/{id}/follow`, списки `followers` и `following`                       |
+| FR-10 | Публичные и скрытые плейлисты           | CRUD плейлистов и управление позициями готовых треков                                     |
+| FR-11 | История подборок                         | CRUD в `/v1/me/picks`; генератор временно выбирает случайные готовые треки                 |
 
 
 Загрузка, лайки и остальные изменения каталога требуют токен. Лента, карточка трека, стрим и каталог автора открыты без входа.
@@ -41,11 +44,11 @@
 
 **Файлы.** Аудио пишется и читается по короткой временной ссылке, не через API. Слишком большой файл не принимается.
 
-**Вход.** Регистрация и вход ограничиваются по частоте до проверки пароля. Отказ не сообщает, какая квота сработала. Такого ограничения в коде ещё нет.
+**Вход.** Регистрация и вход ограничиваются по IP до проверки пароля. Отказ не сообщает, какая квота сработала, и возвращает `Retry-After`.
 
 ## 3. Диаграмма вариантов использования
 
-**Пользователь** обобщает **Гостя**: ему доступны гостевые варианты и свои. Подборки, плейлисты и подписки на диаграмме — цель, в API их ещё нет (раздел 6).
+**Пользователь** обобщает **Гостя**: ему доступны гостевые варианты и свои. Подписки, плейлисты и история подборок доступны через API; персональный алгоритм подборки пока заменён случайным выбором готовых треков.
 
 ![alt-text](../schemas/img/usecase.drawio.png)
 
@@ -119,7 +122,7 @@
 
 ![alt-text](../schemas/db/dbml.png)
 
-`users`, `tracks` и `track_likes` уже создаёт миграция. Плейлисты, подборки и подписки в ней ещё нет.
+Миграция создаёт `users`, `tracks`, `track_likes`, `user_follows`, `playlists`, `playlist_tracks`, `picks` и `pick_tracks`. Связи пользователя и трека удаляются каскадно.
 
 Уже есть индексы каталога автора, ленты готовых треков и любимого. Лайк удаляется вместе с пользователем и треком. Пустой ключ объекта выводится из идентификатора трека. Новый трек создаётся как `pending`. Страница списка отрезается в памяти от уже отфильтрованного набора.
 
@@ -187,12 +190,13 @@ C4Component
     Component(ucAuth, "AuthService", "usecase", "Регистрация и вход")
     Component(ucUser, "UserService", "usecase", "Профиль")
     Component(ucTrack, "TrackService", "usecase", "Лента, загрузка, лайки")
+    Component(ucSocial, "Follow/Playlist/Pick services", "usecase", "Подписки, списки и подборки")
     Component(domain, "Domain", "Go", "Сущности и валидация")
   }
 
   Container_Boundary(out, "Адаптеры") {
     Component(tokens, "Сессия", "JWT, bcrypt", "Токен и хеш пароля")
-    Component(pgRepo, "Postgres", "pgx", "users, tracks, likes")
+    Component(pgRepo, "Postgres", "pgx", "users, tracks, likes, follows, playlists, picks")
     Component(s3ad, "S3 Store", "minio-go", "Ссылка и проверка")
     Component(health, "Health", "infra/health", "Проверка готовности")
   }
@@ -205,10 +209,12 @@ C4Component
   Rel_D(httpv1, ucAuth, "вызов")
   Rel_D(httpv1, ucUser, "вызов")
   Rel_D(httpv1, ucTrack, "вызов")
+  Rel_D(httpv1, ucSocial, "вызов")
 
   Rel_R(ucAuth, domain, "validate")
   Rel_R(ucUser, domain, "validate")
   Rel_R(ucTrack, domain, "статусы")
+  Rel_R(ucSocial, domain, "владение и видимость")
 
   Rel_D(authn, tokens, "разбор JWT")
   Rel_D(ucAuth, tokens, "токен")
@@ -217,6 +223,7 @@ C4Component
   Rel_D(ucAuth, pgRepo, "пользователи")
   Rel_D(ucUser, pgRepo, "профиль")
   Rel_D(ucTrack, pgRepo, "треки и лайки")
+  Rel_D(ucSocial, pgRepo, "подписки, плейлисты и подборки")
   Rel_D(ucTrack, s3ad, "файл")
 
   Rel_D(pgRepo, pg, "SQL")

@@ -187,7 +187,6 @@ paths:
       operationId: listUserPlaylists
       summary: Публичные плейлисты автора
       description: Только плейлисты с `is_public`. Скрытые сюда не попадают.
-      x-implemented: false
       security: []
       parameters:
         - $ref: '#/components/parameters/userId'
@@ -220,7 +219,6 @@ paths:
       operationId: followUser
       summary: Подписаться
       description: Идемпотентно. Повтор той же пары снова 204. На себя подписаться нельзя.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -241,7 +239,6 @@ paths:
       operationId: unfollowUser
       summary: Отписаться
       description: Идемпотентно. Повторное снятие снова 204.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -262,7 +259,6 @@ paths:
       operationId: listFollowers
       summary: Подписчики
       description: Кто подписан на этого пользователя. Страница профилей.
-      x-implemented: false
       security: []
       parameters:
         - $ref: '#/components/parameters/userId'
@@ -294,7 +290,6 @@ paths:
       operationId: listUserFollowing
       summary: Подписки пользователя
       description: На кого подписан этот пользователь. Страница профилей.
-      x-implemented: false
       security: []
       parameters:
         - $ref: '#/components/parameters/userId'
@@ -344,7 +339,6 @@ paths:
       operationId: replaceCurrentUser
       summary: Заменить свой профиль
       description: Нужны и имя, и email. Пароль этой операцией не меняется.
-      x-implemented: false
       security:
         - bearerAuth: []
       requestBody:
@@ -382,7 +376,6 @@ paths:
       description: |
         Меняются только переданные поля. Пустое тело не принимается.
         Пароль меняется только здесь.
-      x-implemented: false
       security:
         - bearerAuth: []
       requestBody:
@@ -417,7 +410,6 @@ paths:
       operationId: deleteCurrentUser
       summary: Удалить свой аккаунт
       description: Удаляется только аккаунт владельца токена. Повтор по уже удалённому аккаунту — 401, сессии больше нет.
-      x-implemented: false
       security:
         - bearerAuth: []
       responses:
@@ -502,7 +494,6 @@ paths:
       operationId: listMyPlaylists
       summary: Свои плейлисты
       description: Включая скрытые.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -535,7 +526,6 @@ paths:
       operationId: listMyFollowing
       summary: Мои подписки
       description: На кого подписан текущий пользователь. Страница профилей.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -561,7 +551,6 @@ paths:
       operationId: listMyPicks
       summary: Свои подборки
       description: Новые генерации не затирают старые.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -630,7 +619,6 @@ paths:
       operationId: getMyPick
       summary: Подборка с треками
       description: Подборка текущего пользователя и состав с `position` и `note`. Чужая подборка — 403.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -657,7 +645,6 @@ paths:
       operationId: renamePick
       summary: Переименовать подборку
       description: Меняется только название. Состав остаётся за системой.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -692,7 +679,6 @@ paths:
       operationId: deletePick
       summary: Удалить подборку
       description: Только своя подборка. Повтор по уже удалённой — 404.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -861,7 +847,6 @@ paths:
       operationId: updateTrack
       summary: Частично изменить название или артиста
       description: Меняется только переданное поле. Пустое тело не принимается. Только владелец.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -1029,7 +1014,6 @@ paths:
       operationId: createPlaylist
       summary: Создать плейлист
       description: Нужны название и флаг публичности. Повтор запроса создаёт ещё один плейлист.
-      x-implemented: false
       security:
         - bearerAuth: []
       requestBody:
@@ -1069,7 +1053,6 @@ paths:
         Публичный читается без токена. Скрытый виден только владельцу.
         Чужому скрытому списку отвечаем как отсутствующему.
         Если Authorization передан, токен должен быть верным.
-      x-implemented: false
       security:
         - {}
         - bearerAuth: []
@@ -1100,7 +1083,6 @@ paths:
       operationId: replacePlaylist
       summary: Заменить название и видимость
       description: Оба поля обязательны. Повтор с тем же телом не меняет результат. Только владелец.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -1136,7 +1118,6 @@ paths:
       operationId: updatePlaylist
       summary: Частично изменить плейлист
       description: Меняется только переданное поле. Пустое тело не принимается. Только владелец.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -1171,7 +1152,6 @@ paths:
       operationId: deletePlaylist
       summary: Удалить плейлист
       description: Только владелец. Повтор по уже удалённому плейлисту — 404.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -1194,7 +1174,6 @@ paths:
       operationId: listPlaylistTracks
       summary: Треки плейлиста
       description: Только готовые треки, в порядке `position`. Доступ как у самого плейлиста.
-      x-implemented: false
       security:
         - {}
         - bearerAuth: []
@@ -1233,7 +1212,6 @@ paths:
       operationId: addPlaylistTrack
       summary: Добавить трек в плейлист
       description: Только готовый трек. Повтор пары — конфликт. Только владелец плейлиста.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -1273,7 +1251,6 @@ paths:
       operationId: movePlaylistTrack
       summary: Сменить позицию трека
       description: Меняется только `position`. Повтор с тем же значением снова 200. Только владелец плейлиста.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -1309,7 +1286,6 @@ paths:
       operationId: removePlaylistTrack
       summary: Убрать трек из плейлиста
       description: Сам плейлист остаётся.
-      x-implemented: false
       security:
         - bearerAuth: []
       parameters:
@@ -1440,7 +1416,6 @@ components:
             message: track is not ready
     TooManyRequests:
       description: Слишком частые регистрация или вход. Ответ не говорит, какая квота сработала.
-      x-implemented: false
       headers:
         Retry-After:
           description: Секунды до конца окна
