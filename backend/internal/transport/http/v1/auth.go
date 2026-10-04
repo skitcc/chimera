@@ -17,6 +17,7 @@ func NewAuthController(auth AuthService, log Logger) *AuthController {
 
 // Register godoc
 // @Summary Register user
+// @ID register
 // @Tags auth
 // @Accept json
 // @Produce json
@@ -24,6 +25,7 @@ func NewAuthController(auth AuthService, log Logger) *AuthController {
 // @Success 201 {object} AuthResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 409 {object} ErrorResponse
+// @Failure 429 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /v1/auth/register [post]
 func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
@@ -43,6 +45,7 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 
 // Login godoc
 // @Summary Login
+// @ID login
 // @Tags auth
 // @Accept json
 // @Produce json
@@ -50,6 +53,7 @@ func (c *AuthController) Register(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} AuthResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 401 {object} ErrorResponse
+// @Failure 429 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /v1/auth/login [post]
 func (c *AuthController) Login(w http.ResponseWriter, r *http.Request) {

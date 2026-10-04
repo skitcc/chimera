@@ -21,6 +21,123 @@ definitions:
       password:
         type: string
     type: object
+  v1.PickDetailResponse:
+    properties:
+      generated_at:
+        type: string
+      id:
+        type: string
+      title:
+        type: string
+      tracks:
+        items:
+          $ref: '#/definitions/v1.PickTrackResponse'
+        type: array
+      user_id:
+        type: string
+    type: object
+  v1.PickPageResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/v1.PickResponse'
+        type: array
+      limit:
+        type: integer
+      next_cursor:
+        type: string
+    type: object
+  v1.PickPatchRequest:
+    properties:
+      title:
+        type: string
+    type: object
+  v1.PickResponse:
+    properties:
+      generated_at:
+        type: string
+      id:
+        type: string
+      title:
+        type: string
+      user_id:
+        type: string
+    type: object
+  v1.PickTrackResponse:
+    properties:
+      note:
+        type: string
+      position:
+        type: integer
+      track:
+        $ref: '#/definitions/v1.TrackResponse'
+    type: object
+  v1.PlaylistPageResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/v1.PlaylistResponse'
+        type: array
+      limit:
+        type: integer
+      next_cursor:
+        type: string
+    type: object
+  v1.PlaylistPatchRequest:
+    properties:
+      is_public:
+        type: boolean
+      title:
+        type: string
+    type: object
+  v1.PlaylistReplaceRequest:
+    properties:
+      is_public:
+        type: boolean
+      title:
+        type: string
+    type: object
+  v1.PlaylistResponse:
+    properties:
+      id:
+        type: string
+      is_public:
+        type: boolean
+      owner_id:
+        type: string
+      title:
+        type: string
+    type: object
+  v1.PlaylistTrackAddRequest:
+    properties:
+      position:
+        type: integer
+      track_id:
+        type: string
+    type: object
+  v1.PlaylistTrackMoveRequest:
+    properties:
+      position:
+        type: integer
+    type: object
+  v1.PlaylistTrackPageResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/v1.PlaylistTrackResponse'
+        type: array
+      limit:
+        type: integer
+      next_cursor:
+        type: string
+    type: object
+  v1.PlaylistTrackResponse:
+    properties:
+      position:
+        type: integer
+      track:
+        $ref: '#/definitions/v1.TrackResponse'
+    type: object
   v1.RegisterRequest:
     properties:
       email:
@@ -39,6 +156,13 @@ definitions:
       limit:
         type: integer
       next_cursor:
+        type: string
+    type: object
+  v1.TrackPatchRequest:
+    properties:
+      artist:
+        type: string
+      title:
         type: string
     type: object
   v1.TrackResponse:
@@ -79,6 +203,33 @@ definitions:
       title:
         type: string
     type: object
+  v1.UserPageResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/v1.UserResponse'
+        type: array
+      limit:
+        type: integer
+      next_cursor:
+        type: string
+    type: object
+  v1.UserPatchRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+    type: object
+  v1.UserReplaceRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+    type: object
   v1.UserResponse:
     properties:
       email:
@@ -107,6 +258,7 @@ paths:
     post:
       consumes:
       - application/json
+      operationId: login
       parameters:
       - description: Login
         in: body
@@ -129,6 +281,10 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -140,6 +296,7 @@ paths:
     post:
       consumes:
       - application/json
+      operationId: register
       parameters:
       - description: Register
         in: body
@@ -162,6 +319,10 @@ paths:
           description: Conflict
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -170,7 +331,24 @@ paths:
       tags:
       - auth
   /v1/me:
+    delete:
+      operationId: deleteCurrentUser
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete current account
+      tags:
+      - users
     get:
+      operationId: getCurrentUser
       produces:
       - application/json
       responses:
@@ -191,8 +369,111 @@ paths:
       summary: Current user
       tags:
       - auth
+    patch:
+      consumes:
+      - application/json
+      operationId: updateCurrentUser
+      parameters:
+      - description: Profile fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.UserPatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update current profile
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      operationId: replaceCurrentUser
+      parameters:
+      - description: Profile
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.UserReplaceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Replace current profile
+      tags:
+      - users
+  /v1/me/following:
+    get:
+      operationId: listMyFollowing
+      parameters:
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.UserPageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List users followed by the current user
+      tags:
+      - follows
   /v1/me/likes:
     get:
+      operationId: listMyLikes
       parameters:
       - default: 20
         description: Page size
@@ -227,9 +508,206 @@ paths:
       summary: My liked tracks
       tags:
       - tracks
+  /v1/me/picks:
+    get:
+      operationId: listMyPicks
+      parameters:
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.PickPageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List current user's generated picks
+      tags:
+      - picks
+    post:
+      description: Persists up to 20 randomly selected ready tracks.
+      operationId: generatePick
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/v1.PickDetailResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Generate a temporary random pick
+      tags:
+      - picks
+  /v1/me/picks/{pickId}:
+    delete:
+      operationId: deletePick
+      parameters:
+      - description: Pick ID
+        in: path
+        name: pickId
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a generated pick
+      tags:
+      - picks
+    get:
+      operationId: getMyPick
+      parameters:
+      - description: Pick ID
+        in: path
+        name: pickId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.PickDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get one generated pick
+      tags:
+      - picks
+    patch:
+      consumes:
+      - application/json
+      operationId: renamePick
+      parameters:
+      - description: Pick ID
+        in: path
+        name: pickId
+        required: true
+        type: string
+      - description: Pick fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.PickPatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.PickResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Rename a generated pick
+      tags:
+      - picks
+  /v1/me/playlists:
+    get:
+      operationId: listMyPlaylists
+      parameters:
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.PlaylistPageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List current user's playlists
+      tags:
+      - playlists
   /v1/me/tracks:
     get:
       description: All tracks uploaded by the current user, including drafts.
+      operationId: listMyTracks
       parameters:
       - default: 20
         description: Page size
@@ -264,9 +742,359 @@ paths:
       summary: My uploaded tracks
       tags:
       - tracks
+  /v1/playlists:
+    post:
+      consumes:
+      - application/json
+      operationId: createPlaylist
+      parameters:
+      - description: Playlist
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.PlaylistReplaceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/v1.PlaylistResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a playlist
+      tags:
+      - playlists
+  /v1/playlists/{playlistId}:
+    delete:
+      operationId: deletePlaylist
+      parameters:
+      - description: Playlist ID
+        in: path
+        name: playlistId
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a playlist
+      tags:
+      - playlists
+    get:
+      operationId: getPlaylist
+      parameters:
+      - description: Playlist ID
+        in: path
+        name: playlistId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.PlaylistResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      summary: Get a visible playlist
+      tags:
+      - playlists
+    patch:
+      consumes:
+      - application/json
+      operationId: updatePlaylist
+      parameters:
+      - description: Playlist ID
+        in: path
+        name: playlistId
+        required: true
+        type: string
+      - description: Playlist fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.PlaylistPatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.PlaylistResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update playlist fields
+      tags:
+      - playlists
+    put:
+      consumes:
+      - application/json
+      operationId: replacePlaylist
+      parameters:
+      - description: Playlist ID
+        in: path
+        name: playlistId
+        required: true
+        type: string
+      - description: Playlist
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.PlaylistReplaceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.PlaylistResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Replace a playlist
+      tags:
+      - playlists
+  /v1/playlists/{playlistId}/tracks:
+    get:
+      operationId: listPlaylistTracks
+      parameters:
+      - description: Playlist ID
+        in: path
+        name: playlistId
+        required: true
+        type: string
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.PlaylistTrackPageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      summary: List tracks in a visible playlist
+      tags:
+      - playlists
+    post:
+      consumes:
+      - application/json
+      operationId: addPlaylistTrack
+      parameters:
+      - description: Playlist ID
+        in: path
+        name: playlistId
+        required: true
+        type: string
+      - description: Track and position
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.PlaylistTrackAddRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/v1.PlaylistTrackResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Add a track to a playlist
+      tags:
+      - playlists
+  /v1/playlists/{playlistId}/tracks/{trackId}:
+    delete:
+      operationId: removePlaylistTrack
+      parameters:
+      - description: Playlist ID
+        in: path
+        name: playlistId
+        required: true
+        type: string
+      - description: Track ID
+        in: path
+        name: trackId
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remove a track from a playlist
+      tags:
+      - playlists
+    patch:
+      consumes:
+      - application/json
+      operationId: movePlaylistTrack
+      parameters:
+      - description: Playlist ID
+        in: path
+        name: playlistId
+        required: true
+        type: string
+      - description: Track ID
+        in: path
+        name: trackId
+        required: true
+        type: string
+      - description: New position
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.PlaylistTrackMoveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.PlaylistTrackResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Move a track within a playlist
+      tags:
+      - playlists
   /v1/tracks:
     get:
       description: Lists ready tracks only.
+      operationId: listTracks
       parameters:
       - description: Exact artist credit (case-insensitive)
         in: query
@@ -299,12 +1127,13 @@ paths:
       summary: Track feed
       tags:
       - tracks
-  /v1/tracks/{id}:
+  /v1/tracks/{trackId}:
     delete:
+      operationId: deleteTrack
       parameters:
       - description: Track ID
         in: path
-        name: id
+        name: trackId
         required: true
         type: string
       responses:
@@ -314,6 +1143,14 @@ paths:
             type: string
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
         "404":
@@ -330,10 +1167,11 @@ paths:
       tags:
       - tracks
     get:
+      operationId: getTrack
       parameters:
       - description: Track ID
         in: path
-        name: id
+        name: trackId
         required: true
         type: string
       produces:
@@ -358,13 +1196,58 @@ paths:
       summary: Get track by id
       tags:
       - tracks
-    put:
+    patch:
       consumes:
       - application/json
+      operationId: updateTrack
       parameters:
       - description: Track ID
         in: path
-        name: id
+        name: trackId
+        required: true
+        type: string
+      - description: Track fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.TrackPatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.TrackResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update track fields
+      tags:
+      - tracks
+    put:
+      consumes:
+      - application/json
+      operationId: replaceTrack
+      parameters:
+      - description: Track ID
+        in: path
+        name: trackId
         required: true
         type: string
       - description: Track
@@ -384,6 +1267,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -397,12 +1288,13 @@ paths:
       summary: Update track
       tags:
       - tracks
-  /v1/tracks/{id}/like:
+  /v1/tracks/{trackId}/like:
     delete:
+      operationId: unlikeTrack
       parameters:
       - description: Track ID
         in: path
-        name: id
+        name: trackId
         required: true
         type: string
       responses:
@@ -432,10 +1324,11 @@ paths:
       tags:
       - tracks
     post:
+      operationId: likeTrack
       parameters:
       - description: Track ID
         in: path
-        name: id
+        name: trackId
         required: true
         type: string
       responses:
@@ -468,12 +1361,13 @@ paths:
       summary: Like a ready track
       tags:
       - tracks
-  /v1/tracks/{id}/stream:
+  /v1/tracks/{trackId}/stream:
     get:
+      operationId: streamTrack
       parameters:
       - description: Track ID
         in: path
-        name: id
+        name: trackId
         required: true
         type: string
       responses:
@@ -500,13 +1394,14 @@ paths:
       summary: Stream a ready track
       tags:
       - tracks
-  /v1/tracks/{id}/upload-complete:
+  /v1/tracks/{trackId}/upload-complete:
     post:
       description: Checks the object in MinIO and publishes the track as ready.
+      operationId: completeTrackUpload
       parameters:
       - description: Track ID
         in: path
-        name: id
+        name: trackId
         required: true
         type: string
       produces:
@@ -522,6 +1417,10 @@ paths:
             $ref: '#/definitions/v1.ErrorResponse'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
         "404":
@@ -545,6 +1444,7 @@ paths:
     post:
       consumes:
       - application/json
+      operationId: initTrackUpload
       parameters:
       - description: Track metadata
         in: body
@@ -578,6 +1478,7 @@ paths:
       - tracks
   /v1/users:
     get:
+      operationId: listUsers
       produces:
       - application/json
       responses:
@@ -594,71 +1495,13 @@ paths:
       summary: List users
       tags:
       - users
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: User
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/v1.UserWriteRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/v1.UserResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Create user
-      tags:
-      - users
-  /v1/users/{id}:
-    delete:
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Delete user
-      tags:
-      - users
+  /v1/users/{userId}:
     get:
+      operationId: getUser
       parameters:
       - description: User ID
         in: path
-        name: id
+        name: userId
         required: true
         type: string
       produces:
@@ -683,28 +1526,83 @@ paths:
       summary: Get user by id
       tags:
       - users
-    put:
-      consumes:
-      - application/json
+  /v1/users/{userId}/follow:
+    delete:
+      operationId: unfollowUser
       parameters:
       - description: User ID
         in: path
-        name: id
+        name: userId
         required: true
         type: string
-      - description: User
-        in: body
-        name: body
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Unfollow a user
+      tags:
+      - follows
+    put:
+      operationId: followUser
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
         required: true
-        schema:
-          $ref: '#/definitions/v1.UserWriteRequest'
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Follow a user
+      tags:
+      - follows
+  /v1/users/{userId}/followers:
+    get:
+      operationId: listFollowers
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/v1.UserResponse'
+            $ref: '#/definitions/v1.UserPageResponse'
         "400":
           description: Bad Request
           schema:
@@ -713,22 +1611,87 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/v1.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Update user
+      summary: List user followers
       tags:
-      - users
-  /v1/users/{id}/tracks:
+      - follows
+  /v1/users/{userId}/following:
     get:
-      description: Ready tracks uploaded by the given user.
+      operationId: listUserFollowing
       parameters:
       - description: User ID
         in: path
-        name: id
+        name: userId
+        required: true
+        type: string
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.UserPageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      summary: List users followed by a user
+      tags:
+      - follows
+  /v1/users/{userId}/playlists:
+    get:
+      operationId: listUserPlaylists
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination cursor
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.PlaylistPageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.ErrorResponse'
+      summary: List a user's public playlists
+      tags:
+      - playlists
+  /v1/users/{userId}/tracks:
+    get:
+      description: Ready tracks uploaded by the given user.
+      operationId: listUserTracks
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
         required: true
         type: string
       - default: 20
