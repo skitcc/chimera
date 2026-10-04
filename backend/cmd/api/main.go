@@ -89,13 +89,15 @@ func main() {
 			usecase.NewTrackService(tracks, likes, objects, cfg.Upload.MaxBytes),
 			tokens,
 			middleware.NewLimiter(cfg.Auth.RateLimit, cfg.Auth.RateWindow),
+			cfg.S3.PresignHost,
 			log,
 		),
 	})
 
 	server := &http.Server{
-		Addr:    cfg.HTTP.Addr,
-		Handler: router,
+		Addr:              cfg.HTTP.Addr,
+		Handler:           router,
+		ReadHeaderTimeout: cfg.HTTP.ReadHeaderTimeout,
 	}
 
 	log.InfoContext(ctx, "listening",

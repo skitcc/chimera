@@ -3,6 +3,7 @@ package config
 import (
 	"bufio"
 	"errors"
+	"math"
 	"net/url"
 	"os"
 	"strconv"
@@ -30,9 +31,10 @@ type Config struct {
 }
 
 type HTTP struct {
-	Addr            string
-	ShutdownTimeout time.Duration
-	CORSOrigins     []string
+	Addr              string
+	ShutdownTimeout   time.Duration
+	ReadHeaderTimeout time.Duration
+	CORSOrigins       []string
 }
 
 type Log struct {
@@ -67,6 +69,7 @@ type Health struct {
 type S3 struct {
 	Endpoint        string
 	PresignEndpoint string
+	PresignHost     string
 	AccessKey       string
 	SecretKey       string
 	Bucket          string
@@ -80,8 +83,8 @@ type Upload struct {
 }
 
 func Load() (Config, error) {
-	loadDotEnv(".env")
-	loadDotEnv("../.env")
+	loadDotEnv(".", ".env")
+	loadDotEnv("..", ".env")
 
 	mode, err := require("APP_MODE")
 	if err != nil {
@@ -115,6 +118,10 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	readHeader, err := requireDuration("HTTP_READ_HEADER_TIMEOUT")
+	if err != nil {
+		return Config{}, err
+	}
 	pg, err := loadPostgres(dsn)
 	if err != nil {
 		return Config{}, err
@@ -143,7 +150,7 @@ func Load() (Config, error) {
 
 	cfg := Config{
 		Mode:     Mode(strings.ToLower(mode)),
-		HTTP:     HTTP{Addr: addr, ShutdownTimeout: shutdown, CORSOrigins: origins},
+		HTTP:     HTTP{Addr: addr, ShutdownTimeout: shutdown, ReadHeaderTimeout: readHeader, CORSOrigins: origins},
 		Log:      Log{Level: os.Getenv("LOG_LEVEL")},
 		Postgres: pg,
 		Auth:     Auth{JWTSecret: secret, JWTTTL: ttl, RateLimit: rateLimit, RateWindow: rateWindow},
@@ -248,13 +255,15 @@ func loadS3() (S3, error) {
 	if presign == "" {
 		presign = endpoint
 	}
-	if _, _, err := parseS3Endpoint(presign); err != nil {
+	presignHost, _, err := parseS3Endpoint(presign)
+	if err != nil {
 		return S3{}, errors.New("S3_PRESIGN_ENDPOINT is invalid")
 	}
 
 	return S3{
 		Endpoint:        host,
 		PresignEndpoint: presign,
+		PresignHost:     presignHost,
 		AccessKey:       access,
 		SecretKey:       secret,
 		Bucket:          bucket,
@@ -329,6 +338,9 @@ func requireInt32(name string) (int32, error) {
 	if err != nil {
 		return 0, err
 	}
+	if n < math.MinInt32 || n > math.MaxInt32 {
+		return 0, errors.New(name + " is invalid")
+	}
 	return int32(n), nil
 }
 
@@ -344,8 +356,13 @@ func requireDuration(name string) (time.Duration, error) {
 	return d, nil
 }
 
-func loadDotEnv(path string) {
-	f, err := os.Open(path)
+func loadDotEnv(dir, name string) {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return
+	}
+	defer root.Close()
+	f, err := root.Open(name)
 	if err != nil {
 		return
 	}

@@ -2,6 +2,7 @@ package v1
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/go-chi/chi/v5"
 
@@ -11,12 +12,13 @@ import (
 )
 
 type TrackController struct {
-	tracks TrackService
-	log    Logger
+	tracks     TrackService
+	log        Logger
+	streamHost string
 }
 
-func NewTrackController(tracks TrackService, log Logger) *TrackController {
-	return &TrackController{tracks: tracks, log: log}
+func NewTrackController(tracks TrackService, streamHost string, log Logger) *TrackController {
+	return &TrackController{tracks: tracks, streamHost: streamHost, log: log}
 }
 
 // ListTracks godoc
@@ -205,12 +207,30 @@ func (c *TrackController) GetTrack(w http.ResponseWriter, r *http.Request) {
 // @Router /v1/tracks/{id}/stream [get]
 func (c *TrackController) StreamTrack(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	url, err := c.tracks.StreamURL(r.Context(), id)
+	raw, err := c.tracks.StreamURL(r.Context(), id)
 	if err != nil {
 		httpapi.WriteAppError(r.Context(), w, c.log, "stream track", err, "track_id", id)
 		return
 	}
-	http.Redirect(w, r, url, http.StatusFound)
+	loc, err := streamLocation(raw, c.streamHost)
+	if err != nil {
+		httpapi.WriteAppError(r.Context(), w, c.log, "stream track", err, "track_id", id)
+		return
+	}
+	w.Header().Set("Location", loc)
+	w.WriteHeader(http.StatusFound)
+}
+
+func streamLocation(raw, allowedHost string) (string, error) {
+	u, err := url.Parse(raw)
+	if err != nil || allowedHost == "" || u.Host != allowedHost || u.User != nil {
+		return "", domain.Internal("stream url is invalid")
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return "", domain.Internal("stream url is invalid")
+	}
+	u.Host = allowedHost
+	return u.String(), nil
 }
 
 // UpdateTrack godoc

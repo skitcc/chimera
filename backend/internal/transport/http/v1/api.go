@@ -19,11 +19,11 @@ type API struct {
 	limit  *middleware.Limiter
 }
 
-func New(users UserService, auth AuthService, tracks TrackService, tokens middleware.TokenParser, limit *middleware.Limiter, log Logger) *API {
+func New(users UserService, auth AuthService, tracks TrackService, tokens middleware.TokenParser, limit *middleware.Limiter, streamHost string, log Logger) *API {
 	return &API{
 		users:  NewUserController(users, log),
 		auth:   NewAuthController(auth, log),
-		tracks: NewTrackController(tracks, log),
+		tracks: NewTrackController(tracks, streamHost, log),
 		log:    log,
 		tokens: tokens,
 		limit:  limit,
