@@ -2,10 +2,6 @@ openapi: 3.0.3
 info:
   title: Sound Chimera API
   version: 1.0.0
-  description: |
-    Целевой REST-контракт каталога. Файл не заменяет `backend/docs/swagger.yaml`.
-    Операция с `x-implemented: false` в коде ещё не сделана.
-    Расхождения и сценарии — в `docs/api.md`.
 servers:
   - url: /
 tags:
