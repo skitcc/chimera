@@ -1,5 +1,9 @@
 ---
 description: Idiomatic Go, Clean Architecture, and SOLID standards for Chimera
+globs: 
+  - **/*.go
+  - **/go.mod 
+  - **/go.sum
 alwaysApply: true
 ---
 
