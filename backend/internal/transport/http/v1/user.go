@@ -101,8 +101,12 @@ func (c *UserController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	actor, ok := actorID(w, r, c.log, "update user")
+	if !ok {
+		return
+	}
 	id := chi.URLParam(r, "id")
-	user, err := c.users.Update(r.Context(), id, req.toDomain())
+	user, err := c.users.Update(r.Context(), actor, id, req.toDomain())
 	if err != nil {
 		httpapi.WriteAppError(r.Context(), w, c.log, "update user", err, "user_id", id)
 		return
@@ -120,8 +124,12 @@ func (c *UserController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} ErrorResponse
 // @Security BearerAuth
 func (c *UserController) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	actor, ok := actorID(w, r, c.log, "delete user")
+	if !ok {
+		return
+	}
 	id := chi.URLParam(r, "id")
-	if err := c.users.Delete(r.Context(), id); err != nil {
+	if err := c.users.Delete(r.Context(), actor, id); err != nil {
 		httpapi.WriteAppError(r.Context(), w, c.log, "delete user", err, "user_id", id)
 		return
 	}

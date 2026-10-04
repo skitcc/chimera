@@ -193,8 +193,8 @@ func (c *TrackController) writeTrackPage(w http.ResponseWriter, r *http.Request,
 // @Router /v1/tracks/{trackId} [get]
 func (c *TrackController) GetTrack(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "trackId")
-	viewer, _ := middleware.UserIDFromCtx(r.Context())
-	track, err := c.tracks.GetVisibleByID(r.Context(), id, viewer)
+	viewerID, _ := middleware.UserIDFromCtx(r.Context())
+	track, err := c.tracks.GetByID(r.Context(), id, viewerID)
 	if err != nil {
 		httpapi.WriteAppError(r.Context(), w, c.log, "get track", err, "track_id", id)
 		return

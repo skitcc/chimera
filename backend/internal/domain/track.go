@@ -32,7 +32,7 @@ func (t Track) AudioObjectKey() string {
 
 func (t Track) OwnedBy(userID string) error {
 	if t.UserID != userID {
-		return Unauthorized("not allowed")
+		return Forbidden("not allowed")
 	}
 	return nil
 }
@@ -45,7 +45,10 @@ func (t Track) RequireOwner(userID string) error {
 }
 
 func (t Track) VisibleTo(userID string) error {
-	if t.Status == TrackReady || userID != "" && t.UserID == userID {
+	if t.Status == TrackReady {
+		return nil
+	}
+	if userID != "" && t.UserID == userID {
 		return nil
 	}
 	return NotFound("track not found")
