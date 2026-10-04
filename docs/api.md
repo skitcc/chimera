@@ -5,7 +5,7 @@
 В контракт не входят методы, которые есть в коде, но не имеют отдельной роли:
 
 - `POST /v1/users` — второй способ создать аккаунт рядом с `register`, токен не выдаёт;
-- `PUT /v1/users/{id}` и `DELETE /v1/users/{id}` — любой вошедший может изменить или удалить чужой профиль;
+- `PUT /v1/users/{id}` и `DELETE /v1/users/{id}` — меняет и удаляет только свой профиль, чужой id отвечает 403; в контракте это `/v1/me`;
 - голый `POST /v1/tracks` — файл не идёт через API, создание трека это `initTrackUpload`.
 
 Профиль меняет только владелец: полная замена `replaceCurrentUser`, частичная `updateCurrentUser`. Пароль меняется только частичным обновлением.
@@ -28,21 +28,18 @@
 
 | operationId | В коде |
 | --- | --- |
-| `register`, `login` | да; ответа 429 ещё нет |
+| `register`, `login` | да; 429 по IP из `AUTH_RATE_LIMIT` и `AUTH_RATE_WINDOW` |
 | `listUsers`, `getUser`, `getCurrentUser` | да |
 | `replaceCurrentUser`, `updateCurrentUser`, `deleteCurrentUser` | нет |
 | `listTracks`, `listUserTracks`, `listMyTracks`, `getTrack` | да |
 | `streamTrack`, `initTrackUpload`, `completeTrackUpload` | да |
-| `replaceTrack`, `deleteTrack` | да, но владелец не проверяется |
+| `replaceTrack`, `deleteTrack` | да, чужой трек отвечает 403 |
 | `updateTrack` | нет |
 | `likeTrack`, `unlikeTrack`, `listMyLikes` | да |
 | плейлисты, подборки, подписки | нет |
 
 Расхождения уже существующих операций с контрактом:
 
-- `getTrack` отдаёт карточку любого статуса всем, а не только владельцу;
-- `replaceTrack` и `deleteTrack` не проверяют владельца и поэтому не отвечают 403;
-- чужой трек на `completeTrackUpload` сейчас приходит как 401, в контракте это 403;
 - `PUT /v1/users/{id}` не записывает пароль, даже если он передан.
 
 ## Сценарий → шаг → operationId

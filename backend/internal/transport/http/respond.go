@@ -66,8 +66,12 @@ func httpStatus(code domain.Code) int {
 		return http.StatusBadRequest
 	case domain.CodeUnauthorized:
 		return http.StatusUnauthorized
+	case domain.CodeForbidden:
+		return http.StatusForbidden
 	case domain.CodeConflict:
 		return http.StatusConflict
+	case domain.CodeTooManyRequests:
+		return http.StatusTooManyRequests
 	default:
 		return http.StatusInternalServerError
 	}

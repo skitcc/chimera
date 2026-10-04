@@ -32,9 +32,19 @@ func (t Track) AudioObjectKey() string {
 
 func (t Track) OwnedBy(userID string) error {
 	if t.UserID != userID {
-		return Unauthorized("not allowed")
+		return Forbidden("not allowed")
 	}
 	return nil
+}
+
+func (t Track) VisibleTo(userID string) error {
+	if t.Status == TrackReady {
+		return nil
+	}
+	if userID != "" && t.UserID == userID {
+		return nil
+	}
+	return NotFound("track not found")
 }
 
 func (t Track) ConfirmUpload(size int64) error {

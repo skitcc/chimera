@@ -7,6 +7,7 @@ import (
 
 	"chimera/internal/domain"
 	httpapi "chimera/internal/transport/http"
+	"chimera/internal/transport/http/middleware"
 )
 
 type TrackController struct {
@@ -183,7 +184,8 @@ func (c *TrackController) writeTrackPage(w http.ResponseWriter, r *http.Request,
 // @Router /v1/tracks/{id} [get]
 func (c *TrackController) GetTrack(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	track, err := c.tracks.GetByID(r.Context(), id)
+	viewerID, _ := middleware.UserIDFromCtx(r.Context())
+	track, err := c.tracks.GetByID(r.Context(), id, viewerID)
 	if err != nil {
 		httpapi.WriteAppError(r.Context(), w, c.log, "get track", err, "track_id", id)
 		return
@@ -231,8 +233,12 @@ func (c *TrackController) UpdateTrack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	actor, ok := actorID(w, r, c.log, "update track")
+	if !ok {
+		return
+	}
 	id := chi.URLParam(r, "id")
-	track, err := c.tracks.Update(r.Context(), id, req.toDomain())
+	track, err := c.tracks.Update(r.Context(), actor, id, req.toDomain())
 	if err != nil {
 		httpapi.WriteAppError(r.Context(), w, c.log, "update track", err, "track_id", id)
 		return
@@ -251,8 +257,12 @@ func (c *TrackController) UpdateTrack(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Router /v1/tracks/{id} [delete]
 func (c *TrackController) DeleteTrack(w http.ResponseWriter, r *http.Request) {
+	actor, ok := actorID(w, r, c.log, "delete track")
+	if !ok {
+		return
+	}
 	id := chi.URLParam(r, "id")
-	if err := c.tracks.Delete(r.Context(), id); err != nil {
+	if err := c.tracks.Delete(r.Context(), actor, id); err != nil {
 		httpapi.WriteAppError(r.Context(), w, c.log, "delete track", err, "track_id", id)
 		return
 	}

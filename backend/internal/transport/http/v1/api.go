@@ -14,25 +14,32 @@ type API struct {
 	users  *UserController
 	auth   *AuthController
 	tracks *TrackController
+	log    Logger
+	tokens middleware.TokenParser
+	limit  *middleware.Limiter
 }
 
-func New(users UserService, auth AuthService, tracks TrackService, log Logger) *API {
+func New(users UserService, auth AuthService, tracks TrackService, tokens middleware.TokenParser, limit *middleware.Limiter, log Logger) *API {
 	return &API{
 		users:  NewUserController(users, log),
 		auth:   NewAuthController(auth, log),
 		tracks: NewTrackController(tracks, log),
+		log:    log,
+		tokens: tokens,
+		limit:  limit,
 	}
 }
 
 func (a *API) Public(r chi.Router) {
-	r.Post("/auth/register", a.auth.Register)
-	r.Post("/auth/login", a.auth.Login)
+	limited := r.With(middleware.RateLimit(a.limit, a.log, httpapi.WriteAppError))
+	limited.Post("/auth/register", a.auth.Register)
+	limited.Post("/auth/login", a.auth.Login)
 	r.Get("/users", a.users.ListUsers)
 	r.Get("/users/{id}/tracks", a.tracks.ListUploaderTracks)
 	r.Get("/users/{id}", a.users.GetUser)
 	r.Get("/tracks", a.tracks.ListTracks)
 	r.Get("/tracks/{id}/stream", a.tracks.StreamTrack)
-	r.Get("/tracks/{id}", a.tracks.GetTrack)
+	r.With(middleware.OptionalAuth(a.log, a.tokens, httpapi.WriteAppError)).Get("/tracks/{id}", a.tracks.GetTrack)
 }
 
 func (a *API) Protected(r chi.Router) {

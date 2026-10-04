@@ -27,6 +27,7 @@ import (
 	"chimera/internal/infra/logger"
 	"chimera/internal/infra/worker"
 	httpapi "chimera/internal/transport/http"
+	"chimera/internal/transport/http/middleware"
 	v1 "chimera/internal/transport/http/v1"
 	"chimera/internal/usecase"
 
@@ -86,6 +87,8 @@ func main() {
 			usecase.NewUserService(users, hasher),
 			usecase.NewAuthService(users, hasher, tokens),
 			usecase.NewTrackService(tracks, likes, objects, cfg.Upload.MaxBytes),
+			tokens,
+			middleware.NewLimiter(cfg.Auth.RateLimit, cfg.Auth.RateWindow),
 			log,
 		),
 	})

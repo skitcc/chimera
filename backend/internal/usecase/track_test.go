@@ -366,7 +366,7 @@ func TestTrackServiceGetByID(t *testing.T) {
 		tracks.seed(want)
 
 		// Act
-		got, err := service.GetByID(context.Background(), testTrackID)
+		got, err := service.GetByID(context.Background(), testTrackID, "")
 
 		// Assert
 		if err != nil {
@@ -380,7 +380,7 @@ func TestTrackServiceGetByID(t *testing.T) {
 		service, _, _, _ := newTrackFixture()
 
 		// Act
-		_, err := service.GetByID(context.Background(), "")
+		_, err := service.GetByID(context.Background(), "", "")
 
 		// Assert
 		assertErrorCode(t, err, domain.CodeInvalid)
@@ -392,10 +392,38 @@ func TestTrackServiceGetByID(t *testing.T) {
 		tracks.getErr = errDependency
 
 		// Act
-		_, err := service.GetByID(context.Background(), testTrackID)
+		_, err := service.GetByID(context.Background(), testTrackID, "")
 
 		// Assert
 		assertErrorIs(t, err, errDependency)
+	})
+
+	runCase(t, "hides a draft from a guest", func(t *testing.T) {
+		// Arrange
+		service, tracks, _, _ := newTrackFixture()
+		tracks.seed(pendingTrack())
+
+		// Act
+		_, err := service.GetByID(context.Background(), testTrackID, "")
+
+		// Assert
+		assertErrorCode(t, err, domain.CodeNotFound)
+	})
+
+	runCase(t, "shows a draft to its owner", func(t *testing.T) {
+		// Arrange
+		service, tracks, _, _ := newTrackFixture()
+		want := pendingTrack()
+		tracks.seed(want)
+
+		// Act
+		got, err := service.GetByID(context.Background(), testTrackID, testUserID)
+
+		// Assert
+		if err != nil {
+			t.Fatalf("GetByID() error = %v", err)
+		}
+		assertEqual(t, want, got)
 	})
 }
 
@@ -411,7 +439,7 @@ func TestTrackServiceUpdate(t *testing.T) {
 		want.Artist = in.Artist
 
 		// Act
-		got, err := service.Update(context.Background(), testTrackID, in)
+		got, err := service.Update(context.Background(), testUserID, testTrackID, in)
 
 		// Assert
 		if err != nil {
@@ -426,7 +454,7 @@ func TestTrackServiceUpdate(t *testing.T) {
 		service, _, _, _ := newTrackFixture()
 
 		// Act
-		_, err := service.Update(context.Background(), "", domain.TrackWrite{Title: "Title"})
+		_, err := service.Update(context.Background(), testUserID, "", domain.TrackWrite{Title: "Title"})
 
 		// Assert
 		assertErrorCode(t, err, domain.CodeInvalid)
@@ -437,7 +465,7 @@ func TestTrackServiceUpdate(t *testing.T) {
 		service, _, _, _ := newTrackFixture()
 
 		// Act
-		_, err := service.Update(context.Background(), testTrackID, domain.TrackWrite{})
+		_, err := service.Update(context.Background(), testUserID, testTrackID, domain.TrackWrite{})
 
 		// Assert
 		assertErrorCode(t, err, domain.CodeInvalid)
@@ -449,7 +477,7 @@ func TestTrackServiceUpdate(t *testing.T) {
 		tracks.getErr = errDependency
 
 		// Act
-		_, err := service.Update(context.Background(), testTrackID, domain.TrackWrite{Title: "Title"})
+		_, err := service.Update(context.Background(), testUserID, testTrackID, domain.TrackWrite{Title: "Title"})
 
 		// Assert
 		assertErrorIs(t, err, errDependency)
@@ -462,10 +490,22 @@ func TestTrackServiceUpdate(t *testing.T) {
 		tracks.updateErrors = []error{errDependency}
 
 		// Act
-		_, err := service.Update(context.Background(), testTrackID, domain.TrackWrite{Title: "Title"})
+		_, err := service.Update(context.Background(), testUserID, testTrackID, domain.TrackWrite{Title: "Title"})
 
 		// Assert
 		assertErrorIs(t, err, errDependency)
+	})
+
+	runCase(t, "rejects another users track", func(t *testing.T) {
+		// Arrange
+		service, tracks, _, _ := newTrackFixture()
+		tracks.seed(readyTrack())
+
+		// Act
+		_, err := service.Update(context.Background(), "user-2", testTrackID, domain.TrackWrite{Title: "Title"})
+
+		// Assert
+		assertErrorCode(t, err, domain.CodeForbidden)
 	})
 }
 
@@ -476,7 +516,7 @@ func TestTrackServiceDelete(t *testing.T) {
 		tracks.seed(readyTrack())
 
 		// Act
-		err := service.Delete(context.Background(), testTrackID)
+		err := service.Delete(context.Background(), testUserID, testTrackID)
 
 		// Assert
 		if err != nil {
@@ -492,7 +532,7 @@ func TestTrackServiceDelete(t *testing.T) {
 		service, _, _, _ := newTrackFixture()
 
 		// Act
-		err := service.Delete(context.Background(), "")
+		err := service.Delete(context.Background(), testUserID, "")
 
 		// Assert
 		assertErrorCode(t, err, domain.CodeInvalid)
@@ -501,13 +541,29 @@ func TestTrackServiceDelete(t *testing.T) {
 	runCase(t, "returns repository error", func(t *testing.T) {
 		// Arrange
 		service, tracks, _, _ := newTrackFixture()
+		tracks.seed(readyTrack())
 		tracks.deleteErr = errDependency
 
 		// Act
-		err := service.Delete(context.Background(), testTrackID)
+		err := service.Delete(context.Background(), testUserID, testTrackID)
 
 		// Assert
 		assertErrorIs(t, err, errDependency)
+	})
+
+	runCase(t, "rejects another users track", func(t *testing.T) {
+		// Arrange
+		service, tracks, _, _ := newTrackFixture()
+		tracks.seed(readyTrack())
+
+		// Act
+		err := service.Delete(context.Background(), "user-2", testTrackID)
+
+		// Assert
+		assertErrorCode(t, err, domain.CodeForbidden)
+		if _, ok := tracks.tracks[testTrackID]; !ok {
+			t.Fatal("foreign delete removed the track")
+		}
 	})
 }
 
@@ -654,7 +710,7 @@ func TestTrackServiceCompleteUpload(t *testing.T) {
 		_, err := service.CompleteUpload(context.Background(), in)
 
 		// Assert
-		assertErrorCode(t, err, domain.CodeUnauthorized)
+		assertErrorCode(t, err, domain.CodeForbidden)
 	})
 
 	runCase(t, "returns initial object stat error", func(t *testing.T) {

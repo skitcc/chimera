@@ -37,8 +37,11 @@ func (s *UserService) Create(ctx context.Context, in domain.UserWrite) (domain.U
 	return s.users.Create(ctx, in.User(""), hash)
 }
 
-func (s *UserService) Update(ctx context.Context, id string, in domain.UserWrite) (domain.User, error) {
+func (s *UserService) Update(ctx context.Context, actorID, id string, in domain.UserWrite) (domain.User, error) {
 	if err := domain.UserID(id).Validate(); err != nil {
+		return domain.User{}, err
+	}
+	if err := domain.UserID(id).RequireActor(actorID); err != nil {
 		return domain.User{}, err
 	}
 	if err := in.Validate(); err != nil {
@@ -47,8 +50,11 @@ func (s *UserService) Update(ctx context.Context, id string, in domain.UserWrite
 	return s.users.Update(ctx, in.User(id))
 }
 
-func (s *UserService) Delete(ctx context.Context, id string) error {
+func (s *UserService) Delete(ctx context.Context, actorID, id string) error {
 	if err := domain.UserID(id).Validate(); err != nil {
+		return err
+	}
+	if err := domain.UserID(id).RequireActor(actorID); err != nil {
 		return err
 	}
 	return s.users.Delete(ctx, id)

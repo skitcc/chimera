@@ -49,8 +49,10 @@ type Postgres struct {
 }
 
 type Auth struct {
-	JWTSecret string
-	JWTTTL    time.Duration
+	JWTSecret  string
+	JWTTTL     time.Duration
+	RateLimit  int
+	RateWindow time.Duration
 }
 
 type Workers struct {
@@ -101,6 +103,14 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	rateLimit, err := requireInt("AUTH_RATE_LIMIT")
+	if err != nil {
+		return Config{}, err
+	}
+	rateWindow, err := requireDuration("AUTH_RATE_WINDOW")
+	if err != nil {
+		return Config{}, err
+	}
 	shutdown, err := requireDuration("HTTP_SHUTDOWN_TIMEOUT")
 	if err != nil {
 		return Config{}, err
@@ -136,7 +146,7 @@ func Load() (Config, error) {
 		HTTP:     HTTP{Addr: addr, ShutdownTimeout: shutdown, CORSOrigins: origins},
 		Log:      Log{Level: os.Getenv("LOG_LEVEL")},
 		Postgres: pg,
-		Auth:     Auth{JWTSecret: secret, JWTTTL: ttl},
+		Auth:     Auth{JWTSecret: secret, JWTTTL: ttl, RateLimit: rateLimit, RateWindow: rateWindow},
 		S3:       s3,
 		Upload:   upload,
 		Workers:  workers,

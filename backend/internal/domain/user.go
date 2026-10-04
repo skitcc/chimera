@@ -22,6 +22,13 @@ func (id UserID) Validate() error {
 	return nil
 }
 
+func (id UserID) RequireActor(actorID string) error {
+	if actorID == "" || string(id) != actorID {
+		return Forbidden("not allowed")
+	}
+	return nil
+}
+
 type UserWrite struct {
 	Email    string
 	Name     string
