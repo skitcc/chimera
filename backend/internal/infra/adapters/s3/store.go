@@ -12,9 +12,9 @@ import (
 )
 
 type Store struct {
-	client  *minio.Client
-	cfg     config.S3
-	presign *url.URL
+	client        *minio.Client
+	presignClient *minio.Client
+	cfg           config.S3
 }
 
 func New(cfg config.S3) (*Store, error) {
@@ -31,8 +31,16 @@ func New(cfg config.S3) (*Store, error) {
 	if err != nil {
 		return nil, domain.Wrap(domain.CodeInternal, "parse s3 presign endpoint", err)
 	}
+	presignClient, err := minio.New(presign.Host, &minio.Options{
+		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
+		Secure: presign.Scheme == "https",
+		Region: cfg.Region,
+	})
+	if err != nil {
+		return nil, domain.Wrap(domain.CodeInternal, "open s3 presign client", err)
+	}
 
-	return &Store{client: client, cfg: cfg, presign: presign}, nil
+	return &Store{client: client, presignClient: presignClient, cfg: cfg}, nil
 }
 
 func (s *Store) Ping(ctx context.Context) error {
@@ -58,21 +66,19 @@ func (s *Store) EnsureBucket(ctx context.Context) error {
 }
 
 func (s *Store) PresignPut(ctx context.Context, key string) (string, error) {
-	u, err := s.client.PresignedPutObject(ctx, s.cfg.Bucket, key, s.cfg.PresignTTL)
-	return s.presignURL(u, err, "presign upload")
+	u, err := s.presignClient.PresignedPutObject(ctx, s.cfg.Bucket, key, s.cfg.PresignTTL)
+	return presignURL(u, err, "presign upload")
 }
 
 func (s *Store) PresignGet(ctx context.Context, key string) (string, error) {
-	u, err := s.client.PresignedGetObject(ctx, s.cfg.Bucket, key, s.cfg.PresignTTL, nil)
-	return s.presignURL(u, err, "presign stream")
+	u, err := s.presignClient.PresignedGetObject(ctx, s.cfg.Bucket, key, s.cfg.PresignTTL, nil)
+	return presignURL(u, err, "presign stream")
 }
 
-func (s *Store) presignURL(u *url.URL, err error, fallback string) (string, error) {
+func presignURL(u *url.URL, err error, fallback string) (string, error) {
 	if err != nil {
 		return "", domain.Wrap(domain.CodeInternal, fallback, err)
 	}
-	u.Scheme = s.presign.Scheme
-	u.Host = s.presign.Host
 	return u.String(), nil
 }
 
