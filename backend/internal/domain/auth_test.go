@@ -32,7 +32,7 @@ func TestRegisterInputValidate(t *testing.T) {
 		})
 	})
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, email, password string
 		ok                         bool
 		technique                  string
@@ -43,7 +43,9 @@ func TestRegisterInputValidate(t *testing.T) {
 		{"DOM-AUTH-REG-05", "rejects email without at sign", "listener.example.com", "password123", false, testkit.TechniqueEquivalence},
 		{"DOM-AUTH-REG-06", "rejects blank email", "   ", "password123", false, testkit.TechniqueBoundary},
 		{"DOM-AUTH-REG-07", "rejects invalid email before checking password", "invalid", "short", false, testkit.TechniqueDecisionTable},
-	} {
+	}
+
+	for _, tc := range cases {
 		then := "no error is returned"
 		if !tc.ok {
 			then = "an invalid error is returned"
@@ -141,7 +143,7 @@ func TestLoginInputValidate(t *testing.T) {
 		})
 	})
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, email, password string
 		ok                         bool
 		technique                  string
@@ -149,7 +151,9 @@ func TestLoginInputValidate(t *testing.T) {
 		{"DOM-AUTH-LOGIN-02", "accepts a one-character password", "listener@example.com", "x", true, testkit.TechniqueBoundary},
 		{"DOM-AUTH-LOGIN-03", "rejects blank email after normalization", "   ", "password123", false, testkit.TechniqueBoundary},
 		{"DOM-AUTH-LOGIN-04", "rejects empty password", "listener@example.com", "", false, testkit.TechniqueBoundary},
-	} {
+	}
+
+	for _, tc := range cases {
 		then := "no error is returned"
 		if !tc.ok {
 			then = "an invalid error is returned"

@@ -11,7 +11,7 @@ import (
 func TestAuthServiceRegister(t *testing.T) {
 	const component, method = "AuthService", "Register"
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, given, then, technique string
 		arrange                           func(*fakeUserRepository, *fakePasswordHasher, *fakeTokenIssuer) domain.RegisterInput
 		want                              domain.AuthResult
@@ -105,7 +105,9 @@ func TestAuthServiceRegister(t *testing.T) {
 			wantUsers: 1,
 			wantHash:  "hash:password",
 		},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     tc.given,
@@ -154,7 +156,7 @@ func TestAuthServiceLogin(t *testing.T) {
 		users.passwords[user.ID] = "hash:password"
 	}
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, given, then, technique string
 		arrange                           func(*fakeUserRepository, *fakePasswordHasher, *fakeTokenIssuer) domain.LoginInput
 		want                              domain.AuthResult
@@ -271,7 +273,9 @@ func TestAuthServiceLogin(t *testing.T) {
 			},
 			wantErr: errDependency,
 		},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     tc.given,

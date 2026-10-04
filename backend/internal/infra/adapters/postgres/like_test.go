@@ -44,7 +44,7 @@ func TestTrackLikeRepositoryAdd(t *testing.T) {
 		})
 	})
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, sqlstate, constraint string
 		code                            domain.Code
 		message                         string
@@ -61,7 +61,9 @@ func TestTrackLikeRepositoryAdd(t *testing.T) {
 			"DA-LIKE-ADD-04", "add maps foreign key violation to not found",
 			"23503", "track_likes_track_id_fkey", domain.CodeNotFound, "not found",
 		},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, likeComponent, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "the insert fails with SQLSTATE " + tc.sqlstate + " on constraint " + tc.constraint,

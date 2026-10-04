@@ -48,14 +48,16 @@ func TestUserIDValidate(t *testing.T) {
 func TestUserWriteValidate(t *testing.T) {
 	const component, method = "UserWrite", "Validate"
 
-	for _, tc := range []struct {
+	validCases := []struct {
 		id, title, given, email, want string
 		technique                     string
 	}{
 		{"DOM-USER-VAL-01", "accepts valid write and normalizes email", "a user write whose email has surrounding spaces and mixed case", "  Listener@Example.COM  ", "listener@example.com", testkit.TechniqueEquivalence},
 		{"DOM-USER-VAL-02", "normalizes shortest padded email", "a user write with the shortest padded uppercase email", " A@B.C ", "a@b.c", testkit.TechniqueBoundary},
 		{"DOM-USER-VAL-03", "accepts bare at sign as email", "a user write whose email is a single at sign", "@", "@", testkit.TechniqueErrorGuessing},
-	} {
+	}
+
+	for _, tc := range validCases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     tc.given,
@@ -93,7 +95,7 @@ func TestUserWriteValidate(t *testing.T) {
 		r.Assert(func(t *testing.T) { assertNoError(t, err) })
 	})
 
-	for _, tc := range []struct {
+	invalidCases := []struct {
 		id, title, email string
 		technique        string
 	}{
@@ -101,7 +103,9 @@ func TestUserWriteValidate(t *testing.T) {
 		{"DOM-USER-VAL-06", "rejects empty email", "", testkit.TechniqueBoundary},
 		{"DOM-USER-VAL-07", "rejects single-character email", "a", testkit.TechniqueBoundary},
 		{"DOM-USER-VAL-08", "rejects whitespace-only email", "   ", testkit.TechniqueErrorGuessing},
-	} {
+	}
+
+	for _, tc := range invalidCases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a user write with the given email",
@@ -142,12 +146,14 @@ func TestUserWriteValidateCreate(t *testing.T) {
 		r.Assert(func(t *testing.T) { assertNoError(t, err) })
 	})
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, password string
 	}{
 		{"DOM-USER-CREATE-02", "rejects password of length 7", "1234567"},
 		{"DOM-USER-CREATE-03", "rejects empty password", ""},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a user write with a valid email and a password shorter than 8 characters",

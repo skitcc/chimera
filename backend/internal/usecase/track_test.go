@@ -137,14 +137,16 @@ func TestTrackServiceList(t *testing.T) {
 		})
 	})
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, cursor, message, technique string
 		limit                                 int
 	}{
 		{"UC-TRK-LIST-05", "rejects limit 101 before listing", "", "limit exceeded", testkit.TechniqueBoundary, 101},
 		{"UC-TRK-LIST-06", "rejects non-numeric cursor abc before listing", "abc", "invalid cursor", testkit.TechniqueEquivalence, 10},
 		{"UC-TRK-LIST-07", "rejects negative cursor -1 before listing", "-1", "invalid cursor", testkit.TechniqueBoundary, 10},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, trackComponent, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a track repository whose List is set to fail",
@@ -416,13 +418,15 @@ func TestTrackServiceLikeClassic(t *testing.T) {
 		})
 	})
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, given, then, technique string
 		status                            domain.TrackStatus
 	}{
 		{"UC-TRK-LIKE-02", "rejects pending track without storing like", "a pending track track-1", "conflict \"track is not ready\" is returned and no like is stored", testkit.TechniqueState, domain.TrackPending},
 		{"UC-TRK-LIKE-03", "rejects processing track without storing like", "a processing track track-1", "conflict \"track is not ready\" is returned and no like is stored", testkit.TechniqueState, domain.TrackProcessing},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, trackComponent, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     tc.given,
@@ -1176,14 +1180,16 @@ func TestTrackServiceDelete(t *testing.T) {
 func TestTrackServiceInitUpload(t *testing.T) {
 	const method = "InitUpload"
 
-	for _, tc := range []struct {
+	acceptedCases := []struct {
 		id, title, given, then, technique string
 		size                              int64
 	}{
 		{"UC-TRK-INIT-01", "creates pending track and presigns upload", "a valid upload init of 100 bytes with max size 1000", "a session with the pending track track-1 and the presigned put URL is returned, and the track is stored", testkit.TechniqueEquivalence, 100},
 		{"UC-TRK-INIT-02", "accepts size exactly at max", "a valid upload init of exactly 1000 bytes with max size 1000", "a session with pending track track-1 of 1000 bytes is returned and the track is stored", testkit.TechniqueBoundary, testMaxSize},
 		{"UC-TRK-INIT-03", "accepts minimum size of 1 byte", "a valid upload init of 1 byte", "a session with pending track track-1 of 1 byte is returned and the track is stored", testkit.TechniqueBoundary, 1},
-	} {
+	}
+
+	for _, tc := range acceptedCases {
 		runSpec(t, trackComponent, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     tc.given,
@@ -1217,7 +1223,7 @@ func TestTrackServiceInitUpload(t *testing.T) {
 		})
 	}
 
-	for _, tc := range []struct {
+	rejectedCases := []struct {
 		id, title, given, then, technique, message string
 		in                                         domain.TrackUploadInit
 	}{
@@ -1244,7 +1250,9 @@ func TestTrackServiceInitUpload(t *testing.T) {
 			technique: testkit.TechniqueDecisionTable, message: "title is required",
 			in: domain.TrackUploadInit{UserID: testUserID, SizeBytes: testMaxSize + 1},
 		},
-	} {
+	}
+
+	for _, tc := range rejectedCases {
 		runSpec(t, trackComponent, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     tc.given,
@@ -1349,13 +1357,15 @@ func TestTrackServiceInitUpload(t *testing.T) {
 func TestTrackServiceCompleteUpload(t *testing.T) {
 	const method = "CompleteUpload"
 
-	for _, tc := range []struct {
+	readyCases := []struct {
 		id, title, given, then string
 		status                 domain.TrackStatus
 	}{
 		{"UC-TRK-COMPLETE-01", "publishes pending track after verifying upload", "a pending track of 100 bytes owned by user-1 and an uploaded object of 100 bytes", "the track is returned and stored with status ready", domain.TrackPending},
 		{"UC-TRK-COMPLETE-02", "resumes processing track to ready", "a track left in processing by an earlier attempt and an uploaded object of matching size", "the track is returned and stored with status ready (processing to processing is allowed)", domain.TrackProcessing},
-	} {
+	}
+
+	for _, tc := range readyCases {
 		runSpec(t, trackComponent, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     tc.given,
@@ -1400,7 +1410,7 @@ func TestTrackServiceCompleteUpload(t *testing.T) {
 		}
 	}
 
-	for _, tc := range []struct {
+	failureCases := []struct {
 		id, title, given, then, technique, severity string
 		arrange                                     completeArrange
 		wantErr                                     error
@@ -1527,7 +1537,9 @@ func TestTrackServiceCompleteUpload(t *testing.T) {
 			technique: testkit.TechniqueErrorGuessing, severity: testkit.SeverityCritical,
 			wantErr: errDependency, wantStatus: domain.TrackProcessing,
 		},
-	} {
+	}
+
+	for _, tc := range failureCases {
 		severity := tc.severity
 		if severity == "" {
 			severity = testkit.SeverityNormal
@@ -1588,13 +1600,15 @@ func TestTrackServiceStreamURL(t *testing.T) {
 		})
 	})
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title string
 		status    domain.TrackStatus
 	}{
 		{"UC-TRK-STREAM-02", "rejects pending track without presigning", domain.TrackPending},
 		{"UC-TRK-STREAM-03", "rejects processing track without presigning", domain.TrackProcessing},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, trackComponent, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a stored " + string(tc.status) + " track and an object storage whose PresignGet is set to fail",

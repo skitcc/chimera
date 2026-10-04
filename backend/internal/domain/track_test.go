@@ -70,13 +70,15 @@ func TestTrackOwnedBy(t *testing.T) {
 		r.Assert(func(t *testing.T) { assertNoError(t, err) })
 	})
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, caller string
 		technique         string
 	}{
 		{"DOM-TRK-OWN-02", "rejects another user", "other-user", testkit.TechniqueEquivalence},
 		{"DOM-TRK-OWN-03", "rejects empty caller", "", testkit.TechniqueErrorGuessing},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a track owned by user owner",
@@ -117,7 +119,7 @@ func TestTrackOwnedBy(t *testing.T) {
 func TestTrackConfirmUpload(t *testing.T) {
 	const component, method = "Track", "ConfirmUpload"
 
-	for _, tc := range []struct {
+	acceptedCases := []struct {
 		id, title        string
 		expected, size   int64
 		given, technique string
@@ -125,7 +127,9 @@ func TestTrackConfirmUpload(t *testing.T) {
 		{"DOM-TRK-CONFIRM-01", "accepts matching expected size", 1024, 1024, "a track expecting 1024 bytes", testkit.TechniqueEquivalence},
 		{"DOM-TRK-CONFIRM-02", "accepts any positive size when expected size is absent", 0, 1, "a track with no expected size", testkit.TechniqueBoundary},
 		{"DOM-TRK-CONFIRM-03", "treats negative expected size as absent", -5, 7, "a track with a negative expected size", testkit.TechniqueErrorGuessing},
-	} {
+	}
+
+	for _, tc := range acceptedCases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     tc.given,
@@ -142,13 +146,15 @@ func TestTrackConfirmUpload(t *testing.T) {
 		})
 	}
 
-	for _, tc := range []struct {
+	nonPositiveCases := []struct {
 		id, title string
 		size      int64
 	}{
 		{"DOM-TRK-CONFIRM-04", "rejects zero uploaded size", 0},
 		{"DOM-TRK-CONFIRM-05", "rejects negative uploaded size", -1},
-	} {
+	}
+
+	for _, tc := range nonPositiveCases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a track expecting 1024 bytes",
@@ -167,13 +173,15 @@ func TestTrackConfirmUpload(t *testing.T) {
 		})
 	}
 
-	for _, tc := range []struct {
+	mismatchCases := []struct {
 		id, title string
 		size      int64
 	}{
 		{"DOM-TRK-CONFIRM-06", "rejects size one byte below expected", 1023},
 		{"DOM-TRK-CONFIRM-07", "rejects size one byte above expected", 1025},
-	} {
+	}
+
+	for _, tc := range mismatchCases {
 		want := "upload size mismatch: expected 1024, got " + i64toa(tc.size)
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
@@ -275,7 +283,7 @@ func TestTrackEnsureReady(t *testing.T) {
 		r.Assert(func(t *testing.T) { assertNoError(t, err) })
 	})
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title string
 		status    domain.TrackStatus
 		technique string
@@ -283,7 +291,9 @@ func TestTrackEnsureReady(t *testing.T) {
 		{"DOM-TRK-ENSURE-02", "rejects pending track", domain.TrackPending, testkit.TechniqueState},
 		{"DOM-TRK-ENSURE-03", "rejects processing track", domain.TrackProcessing, testkit.TechniqueState},
 		{"DOM-TRK-ENSURE-04", "rejects unknown status", "unknown", testkit.TechniqueErrorGuessing},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a track in status " + string(tc.status),
@@ -307,13 +317,15 @@ func TestTrackEnsureReady(t *testing.T) {
 func TestTrackIDValidate(t *testing.T) {
 	const component, method = "TrackID", "Validate"
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, value string
 		technique        string
 	}{
 		{"DOM-TRK-ID-01", "accepts non-empty id", "track-123", testkit.TechniqueEquivalence},
 		{"DOM-TRK-ID-02", "accepts whitespace because it is non-empty", " ", testkit.TechniqueErrorGuessing},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a track id with the given value",
@@ -352,13 +364,15 @@ func TestTrackIDValidate(t *testing.T) {
 func TestTrackWriteValidate(t *testing.T) {
 	const component, method = "TrackWrite", "Validate"
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, trackTitle, artist string
 		technique                     string
 	}{
 		{"DOM-TRK-WRITE-01", "accepts title without artist", "Test Track", "", testkit.TechniqueEquivalence},
 		{"DOM-TRK-WRITE-02", "accepts whitespace title because it is non-empty", " ", "Test Artist", testkit.TechniqueErrorGuessing},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a track write with the given title and artist",
@@ -399,14 +413,16 @@ func TestTrackWriteValidate(t *testing.T) {
 func TestTrackUploadInitValidate(t *testing.T) {
 	const component, method = "TrackUploadInit", "Validate"
 
-	for _, tc := range []struct {
+	acceptedCases := []struct {
 		id, title string
 		size      int64
 		technique string
 	}{
 		{"DOM-TRK-INIT-01", "accepts complete upload input", 1024, testkit.TechniqueEquivalence},
 		{"DOM-TRK-INIT-02", "accepts one byte size", 1, testkit.TechniqueBoundary},
-	} {
+	}
+
+	for _, tc := range acceptedCases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "an upload init with user id, title, and the given size",
@@ -423,13 +439,15 @@ func TestTrackUploadInitValidate(t *testing.T) {
 		})
 	}
 
-	for _, tc := range []struct {
+	nonPositiveCases := []struct {
 		id, title string
 		size      int64
 	}{
 		{"DOM-TRK-INIT-03", "rejects zero size", 0},
 		{"DOM-TRK-INIT-04", "rejects negative size", -1},
-	} {
+	}
+
+	for _, tc := range nonPositiveCases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "an upload init with user id and title but a non-positive size",
@@ -448,7 +466,7 @@ func TestTrackUploadInitValidate(t *testing.T) {
 		})
 	}
 
-	for _, tc := range []struct {
+	fieldCases := []struct {
 		id, title, given   string
 		userID, trackTitle string
 		size               int64
@@ -458,7 +476,9 @@ func TestTrackUploadInitValidate(t *testing.T) {
 		{"DOM-TRK-INIT-06", "rejects empty title", "an upload init with an empty title", "user-123", "", 1024, "title is required", testkit.TechniqueEquivalence},
 		{"DOM-TRK-INIT-07", "checks user id before title and size", "an upload init with empty user id, empty title, and size 0", "", "", 0, "user id is required", testkit.TechniqueDecisionTable},
 		{"DOM-TRK-INIT-08", "checks title before size", "an upload init with a user id, empty title, and size 0", "user-123", "", 0, "title is required", testkit.TechniqueDecisionTable},
-	} {
+	}
+
+	for _, tc := range fieldCases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     tc.given,
@@ -487,7 +507,7 @@ func TestTrackUploadInitValidate(t *testing.T) {
 func TestTrackUploadInitValidateSize(t *testing.T) {
 	const component, method = "TrackUploadInit", "ValidateSize"
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title string
 		size, max int64
 		then      string
@@ -496,7 +516,9 @@ func TestTrackUploadInitValidateSize(t *testing.T) {
 		{"DOM-TRK-SIZE-01", "accepts size equal to maximum", 1024, 1024, "no error is returned", testkit.TechniqueBoundary},
 		{"DOM-TRK-SIZE-02", "treats zero maximum as unlimited", 1 << 40, 0, "no error is returned because the limit is disabled", testkit.TechniqueBoundary},
 		{"DOM-TRK-SIZE-03", "treats negative maximum as unlimited", 1 << 40, -1, "no error is returned because the limit is disabled", testkit.TechniqueBoundary},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "an upload init with the given size",
@@ -594,14 +616,16 @@ func TestTrackUploadCompleteValidate(t *testing.T) {
 		r.Assert(func(t *testing.T) { assertNoError(t, err) })
 	})
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, trackID, userID string
 		message, technique         string
 	}{
 		{"DOM-TRK-COMPLETE-02", "rejects empty track id", "", "user-123", "track id is required", testkit.TechniqueEquivalence},
 		{"DOM-TRK-COMPLETE-03", "rejects empty user id", "track-123", "", "user id is required", testkit.TechniqueEquivalence},
 		{"DOM-TRK-COMPLETE-04", "checks track id before user id", "", "", "track id is required", testkit.TechniqueDecisionTable},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "an upload completion with the given track id and user id",
@@ -626,13 +650,15 @@ func TestTrackUploadCompleteValidate(t *testing.T) {
 func TestTrackFeedQueryValidate(t *testing.T) {
 	const component, method = "TrackFeedQuery", "Validate"
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, artist, want string
 		technique               string
 	}{
 		{"DOM-TRK-FEED-01", "trims artist and validates page", "  Test Artist  ", "Test Artist", testkit.TechniqueEquivalence},
 		{"DOM-TRK-FEED-02", "accepts blank artist as unfiltered query", "   ", "", testkit.TechniqueBoundary},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a feed query with a valid page and the given artist",
@@ -833,13 +859,15 @@ func TestTrackLikeValidate(t *testing.T) {
 		r.Assert(func(t *testing.T) { assertNoError(t, err) })
 	})
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, userID, trackID string
 		message, technique         string
 	}{
 		{"DOM-TRK-LIKE-02", "rejects empty user id before track id", "", "", "user id is required", testkit.TechniqueDecisionTable},
 		{"DOM-TRK-LIKE-03", "rejects empty track id", "user-123", "", "track id is required", testkit.TechniqueEquivalence},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a like with the given user id and track id",

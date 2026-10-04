@@ -107,7 +107,7 @@ func TestTrackRepositoryList(t *testing.T) {
 		})
 	})
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title string
 		filter    domain.TrackFilter
 		wantArgs  []any
@@ -127,7 +127,9 @@ func TestTrackRepositoryList(t *testing.T) {
 			domain.TrackFilter{Artist: "Artist"},
 			[]any{nil, nil, "Artist"},
 		},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, trackComponent, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a filter with exactly one non-empty field",

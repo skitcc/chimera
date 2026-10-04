@@ -10,7 +10,7 @@ import (
 func TestPageQueryValidate(t *testing.T) {
 	const component, method = "PageQuery", "Validate"
 
-	for _, tc := range []struct {
+	limitCases := []struct {
 		id, title string
 		limit     int
 		want      int
@@ -19,7 +19,9 @@ func TestPageQueryValidate(t *testing.T) {
 		{"DOM-PAGE-VAL-02", "defaults zero limit to 20", 0, 20},
 		{"DOM-PAGE-VAL-03", "accepts minimum limit 1", 1, 1},
 		{"DOM-PAGE-VAL-04", "accepts maximum limit 100", 100, 100},
-	} {
+	}
+
+	for _, tc := range limitCases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a page query with the given limit and an empty cursor",
@@ -57,14 +59,16 @@ func TestPageQueryValidate(t *testing.T) {
 		})
 	})
 
-	for _, tc := range []struct {
+	validCursorCases := []struct {
 		id, title, cursor string
 		technique         string
 	}{
 		{"DOM-PAGE-VAL-06", "accepts empty cursor as first page", "", testkit.TechniqueBoundary},
 		{"DOM-PAGE-VAL-07", "accepts zero cursor", "0", testkit.TechniqueBoundary},
 		{"DOM-PAGE-VAL-08", "accepts positive cursor", "25", testkit.TechniqueEquivalence},
-	} {
+	}
+
+	for _, tc := range validCursorCases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a page query with limit 20 and the given cursor",
@@ -81,14 +85,16 @@ func TestPageQueryValidate(t *testing.T) {
 		})
 	}
 
-	for _, tc := range []struct {
+	invalidCursorCases := []struct {
 		id, title, cursor string
 		technique         string
 	}{
 		{"DOM-PAGE-VAL-09", "rejects negative cursor", "-1", testkit.TechniqueBoundary},
 		{"DOM-PAGE-VAL-10", "rejects non-numeric cursor", "abc", testkit.TechniqueErrorGuessing},
 		{"DOM-PAGE-VAL-11", "rejects cursor with surrounding spaces", " 1 ", testkit.TechniqueErrorGuessing},
-	} {
+	}
+
+	for _, tc := range invalidCursorCases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a page query with limit 20 and the given cursor",
@@ -135,7 +141,7 @@ func TestPageQueryPage(t *testing.T) {
 		testkit.TrackMother().WithID("track-3").Build(),
 	}
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, cursor string
 		limit             int
 		wantIDs           []string
@@ -155,7 +161,9 @@ func TestPageQueryPage(t *testing.T) {
 			"no items are returned and the next cursor is empty", testkit.TechniqueBoundary},
 		{"DOM-PAGE-PAGE-06", "returns empty page when cursor exceeds collection", "100", 2, nil, "",
 			"no items are returned and the next cursor is empty", testkit.TechniqueBoundary},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, component, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a validated page query with the given limit and cursor over tracks track-1, track-2, track-3",

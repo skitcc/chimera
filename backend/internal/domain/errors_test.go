@@ -168,7 +168,7 @@ func TestWrap(t *testing.T) {
 }
 
 func TestErrorConstructors(t *testing.T) {
-	for _, tc := range []struct {
+	cases := []struct {
 		method, idPrefix, message string
 		code                      domain.Code
 		build                     func(string) *domain.Error
@@ -178,7 +178,9 @@ func TestErrorConstructors(t *testing.T) {
 		{"Unauthorized", "DOM-ERR-UNAUTH", "access denied", domain.CodeUnauthorized, domain.Unauthorized},
 		{"Conflict", "DOM-ERR-CONFLICT", "state conflict", domain.CodeConflict, domain.Conflict},
 		{"Internal", "DOM-ERR-INTERNAL", "unexpected failure", domain.CodeInternal, domain.Internal},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, errComponent, testkit.Spec{
 			ID: tc.idPrefix + "-01", Method: tc.method,
 			Title:     "uses " + string(tc.code) + " code",
@@ -276,14 +278,16 @@ func TestAs(t *testing.T) {
 		})
 	})
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, kind string
 		err             error
 		technique       string
 	}{
 		{"DOM-ERR-AS-02", "returns false for ordinary error", "ordinary", errors.New("ordinary error"), testkit.TechniqueEquivalence},
 		{"DOM-ERR-AS-03", "returns false for nil error", "nil", nil, testkit.TechniqueErrorGuessing},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, errComponent, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "an error that contains no domain error (" + tc.kind + ")",
@@ -322,7 +326,7 @@ func TestIs(t *testing.T) {
 		r.Assert(func(t *testing.T) { assertEqual(t, true, got) })
 	})
 
-	for _, tc := range []struct {
+	cases := []struct {
 		id, title, kind string
 		err             error
 		code            domain.Code
@@ -331,7 +335,9 @@ func TestIs(t *testing.T) {
 		{"DOM-ERR-IS-02", "rejects different code", "invalid domain error", domain.Invalid("bad input"), domain.CodeConflict, testkit.TechniqueEquivalence},
 		{"DOM-ERR-IS-03", "rejects ordinary error", "ordinary", errors.New("ordinary"), domain.CodeInternal, testkit.TechniqueEquivalence},
 		{"DOM-ERR-IS-04", "rejects nil error", "nil", nil, domain.CodeInternal, testkit.TechniqueErrorGuessing},
-	} {
+	}
+
+	for _, tc := range cases {
 		runSpec(t, errComponent, testkit.Spec{
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "an error of kind: " + tc.kind,
