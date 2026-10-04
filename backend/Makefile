@@ -7,21 +7,19 @@ GOBCO_VERSION ?= v1.3.4
 ALLURE_IMAGE ?= tobix/allure-cli:2
 ALLURE_PORT ?= 5252
 NGINX_IMAGE ?= nginx:1.27-alpine
-COMPOSE_PROJECT_NAME ?= chimera-tests
-COMPOSE := docker compose --project-name $(COMPOSE_PROJECT_NAME) --project-directory $(ROOT_DIR) -f $(ROOT_DIR)/docker-compose.test.yml
-APP_COMPOSE := docker compose --project-directory $(ROOT_DIR) -f $(ROOT_DIR)/docker-compose.yml
+API_IMAGE ?= chimera-stand-api:local
 NETSHOOT_IMAGE ?= nicolaka/netshoot:v0.13
 E2E_OUT ?= $(ARTIFACTS_DIR)/e2e-out
 
 TEST_PACKAGES ?= ./...
-INTEGRATION_PACKAGES ?= ./...
-INTEGRATION_TAGS ?= integration
-INTEGRATION_RUN ?= Integration
+INTEGRATION_PACKAGES ?= ./internal/infra/adapters/postgres ./internal/usecase
+INTEGRATION_TAGS ?= integration # что билдить go:build 
+INTEGRATION_RUN ?= Integration # регулярка TestXxx
 POSTGRES_TEST_IMAGE ?= postgres:17-alpine
 COVERAGE_PACKAGES ?= ./internal/domain ./internal/usecase ./internal/infra/adapters/postgres
 GOBCO_PACKAGES ?= ./internal/domain ./internal/usecase ./internal/infra/adapters/postgres
-GO_TEST_P ?= 1
-GO_TEST_PARALLEL ?= 4
+GO_TEST_P ?= 1 # параллелизм на уровне пакетов
+GO_TEST_PARALLEL ?= 4 # параллелизм внутри одного пакета с t parallel
 SHUFFLE_SEED ?= on
 TEST_UID := $(shell id -u)
 TEST_GID := $(shell id -g)
@@ -29,7 +27,7 @@ TEST_GID := $(shell id -g)
 RUN_TEST_IMAGE = docker run --rm --user $(TEST_UID):$(TEST_GID) -e HOME=/tmp -e ALLURE_RESULTS_DIR=/artifacts/allure-results -v "$(ARTIFACTS_DIR):/artifacts" "$(TEST_IMAGE)"
 GO_TEST_FLAGS = -count=1 -p=$(GO_TEST_P) -parallel=$(GO_TEST_PARALLEL)
 
-.PHONY: help test-image test test-shuffle test-offline test-integration test-e2e demo-capture test-all coverage gobco-condition gobco-branch allure-results allure-meta allure-render allure-report allure-open spec-matrix spec-check clean-test-results
+.PHONY: help test-image test test-shuffle test-offline stand-up stand-refresh stand-gc stand-down test-integration test-e2e demo-capture test-all coverage gobco-condition gobco-branch allure-results allure-meta allure-render allure-report allure-open spec-matrix spec-check clean-test-results
 .NOTPARALLEL: test-all
 
 help:
@@ -38,14 +36,18 @@ help:
 		'test             Run the standard test suite' \
 		'test-shuffle     Run tests with a recorded/random shuffle seed' \
 		'test-offline     Run the prebuilt image without network access' \
-		'test-integration Run integration-tagged tests with ephemeral PostgreSQL' \
-		'test-e2e         Run the MVP demo against docker compose' \
+		'stand-up         Start the shared Postgres and RustFS stand' \
+		'stand-refresh    Rebuild chimera_template from schema.sql' \
+		'stand-gc         Drop t_* databases that have no sessions' \
+		'stand-down       Stop the stand without deleting its volumes' \
+		'test-integration Run integration tests against the running stand' \
+		'test-e2e         Run the demo against a private API on the stand' \
 		'demo-capture     Replay the demo with curl and write pcap captures' \
-		'test-all         Run tests, coverage, gobco, and integration tests' \
+		'test-all         Run unit suites, coverage, gobco, and integration tests' \
 		'coverage         Write statement profile and HTML coverage' \
 		'gobco-condition  Write gobco condition coverage output' \
 		'gobco-branch     Write gobco branch coverage output' \
-		'allure-results   Run unit and integration tests into allure-results' \
+		'allure-results   Run unit, integration, and e2e tests into allure-results' \
 		'allure-render    Render allure-report from existing results (no test run)' \
 		'allure-report    Run allure-results, then allure-render' \
 		'spec-matrix      Rewrite the TEST_SPEC.md matrix from allure-results' \
@@ -68,29 +70,34 @@ test-offline: | $(ARTIFACTS_DIR)
 	@docker image inspect "$(TEST_IMAGE)" >/dev/null 2>&1 || { printf '%s\n' 'test image is missing; run make test-image while online first' >&2; exit 1; }
 	docker run --rm --pull=never --network none --user $(TEST_UID):$(TEST_GID) -e HOME=/tmp -e ALLURE_RESULTS_DIR=/artifacts/allure-results -v "$(ARTIFACTS_DIR):/artifacts" "$(TEST_IMAGE)" go test $(GO_TEST_FLAGS) $(TEST_PACKAGES)
 
-test-integration: test-image | $(ARTIFACTS_DIR)
-	@set -eu; \
-		TEST_IMAGE="$(TEST_IMAGE)" TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" $(COMPOSE) up --detach --wait postgres-test; \
-		trap 'TEST_IMAGE="$(TEST_IMAGE)" TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" $(COMPOSE) down --volumes --remove-orphans' EXIT INT TERM; \
-		TEST_IMAGE="$(TEST_IMAGE)" TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" $(COMPOSE) run --rm --no-deps test-runner \
-			go test $(GO_TEST_FLAGS) -tags="$(INTEGRATION_TAGS)" -run '$(INTEGRATION_RUN)' $(INTEGRATION_PACKAGES)
+stand-up:
+	sh scripts/stand-up.sh
 
-test-e2e: test-image | $(ARTIFACTS_DIR)
+stand-refresh:
+	sh scripts/stand-refresh.sh
+
+stand-gc:
+	sh scripts/stand-gc.sh
+
+stand-down:
+	sh scripts/stand-down.sh
+
+test-integration: | $(ARTIFACTS_DIR)
 	@test -f "$(ROOT_DIR)/.env" || { printf '%s\n' 'missing ../.env; copy .env.example to .env' >&2; exit 1; }
-	@set -eu; \
-		set -a; . "$(ROOT_DIR)/.env"; set +a; \
-		$(APP_COMPOSE) up --build --detach --wait --wait-timeout 300; \
-		if [ "$${E2E_KEEP_STACK:-}" != 1 ]; then \
-			trap '$(APP_COMPOSE) down --volumes --remove-orphans' EXIT INT TERM; \
-		fi; \
-		mkdir -p "$(ARTIFACTS_DIR)/allure-results"; \
-		docker run --rm --network host --user $(TEST_UID):$(TEST_GID) \
-			-e HOME=/tmp \
-			-e ALLURE_RESULTS_DIR=/artifacts/allure-results \
-			-e E2E_API_URL="http://127.0.0.1:$${API_PORT:-8080}" \
-			-v "$(ARTIFACTS_DIR):/artifacts" \
-			"$(TEST_IMAGE)" \
-			go test $(GO_TEST_FLAGS) -tags=e2e ./e2e/...
+	sh scripts/stand-require.sh
+	$(MAKE) test-image
+	ARTIFACTS_DIR="$(ARTIFACTS_DIR)" TEST_IMAGE="$(TEST_IMAGE)" TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" \
+		INTEGRATION_TAGS="$(INTEGRATION_TAGS)" INTEGRATION_RUN="$(INTEGRATION_RUN)" \
+		sh scripts/test-integration.sh $(INTEGRATION_PACKAGES)
+
+test-e2e: | $(ARTIFACTS_DIR)
+	@test -f "$(ROOT_DIR)/.env" || { printf '%s\n' 'missing ../.env; copy .env.example to .env' >&2; exit 1; }
+	sh scripts/stand-require.sh rustfs
+	$(MAKE) test-image
+	docker build -f Dockerfile --tag "$(API_IMAGE)" .
+	ARTIFACTS_DIR="$(ARTIFACTS_DIR)" TEST_IMAGE="$(TEST_IMAGE)" API_IMAGE="$(API_IMAGE)" \
+		TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" \
+		sh scripts/stand-e2e.sh
 
 demo-capture:
 	NETSHOOT_IMAGE="$(NETSHOOT_IMAGE)" sh scripts/demo-capture.sh
@@ -123,7 +130,7 @@ allure-meta: | $(ARTIFACTS_DIR)
 		printf 'Commit=%s\n' "$$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"; \
 		printf 'Branch=%s\n' "$$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"; \
 		if [ -n "$${GITHUB_RUN_ID:-}" ]; then printf 'Run=GitHub Actions run %s\n' "$$GITHUB_RUN_ID"; else printf 'Run=local\n'; fi; \
-		printf 'Suites=unit (domain, usecase, postgres stub and pgxmock), integration (PostgreSQL), e2e (docker compose)\n'; \
+		printf 'Suites=unit (domain, usecase, postgres stub and pgxmock), integration (one PostgreSQL clone per run), e2e (stand API)\n'; \
 		printf 'Specification=backend/TEST_SPEC.md\n'; \
 	} > "$(ARTIFACTS_DIR)/allure-results/environment.properties"
 

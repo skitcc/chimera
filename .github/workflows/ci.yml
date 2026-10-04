@@ -93,10 +93,20 @@ jobs:
         working-directory: backend
         run: make test
 
+      - name: Start test stand
+        if: ${{ !cancelled() }}
+        working-directory: backend
+        run: make stand-up
+
       - name: Run integration tests
         if: ${{ !cancelled() }}
         working-directory: backend
         run: make test-integration
+
+      - name: Stop test stand
+        if: always()
+        working-directory: backend
+        run: make stand-down
 
       - name: Render Allure report
         if: ${{ !cancelled() }}
@@ -131,6 +141,10 @@ jobs:
       - name: Prepare environment
         run: cp .env.example .env
 
+      - name: Start test stand
+        working-directory: backend
+        run: make stand-up
+
       - name: Run end-to-end demo
         working-directory: backend
         run: make test-e2e
@@ -147,6 +161,11 @@ jobs:
           name: e2e-allure-results
           path: backend/allure-results
           if-no-files-found: ignore
+
+      - name: Stop test stand
+        if: always()
+        working-directory: backend
+        run: make stand-down
 
       - name: Upload traffic capture
         if: ${{ !cancelled() }}

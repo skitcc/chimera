@@ -7,7 +7,7 @@
   {
     "name": "Test or infrastructure defect: fixture setup failed",
     "matchedStatuses": ["failed", "broken"],
-    "messageRegex": "(?s).*(open test database|ping test database|migrate test database|reset test database|seed |insert |create user|spec id|spec \").*"
+    "messageRegex": "(?s).*(open test database|open clone database|clone template database|drop clone database|ping test database|migrate test database|reset test database|seed |insert |create user|spec id|spec \").*"
   },
   {
     "name": "Product defect: domain error code or message differs",

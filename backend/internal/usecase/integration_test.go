@@ -5,7 +5,6 @@ package usecase
 import (
 	"context"
 	"errors"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -29,7 +28,7 @@ const (
 
 var errPresign = errors.New("presign unavailable")
 
-// storedObject stands in for S3: the test Compose stack has only PostgreSQL.
+// storedObject stands in for S3. These cases use PostgreSQL and do not call RustFS.
 type storedObject struct {
 	size       int64
 	presignErr error
@@ -62,28 +61,8 @@ type appFixture struct {
 
 func newAppFixture(t *testing.T, objects ObjectStorage) *appFixture {
 	t.Helper()
-	dsn := os.Getenv("TEST_DATABASE_URL")
-	if dsn == "" {
-		t.Skip("TEST_DATABASE_URL is not set")
-	}
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dsn)
-	if err != nil {
-		t.Fatalf("open test database: %v", err)
-	}
-	t.Cleanup(pool.Close)
-	if err := pool.Ping(ctx); err != nil {
-		t.Fatalf("ping test database: %v", err)
-	}
-	if err := postgres.Migrate(ctx, pool); err != nil {
-		t.Fatalf("migrate test database: %v", err)
-	}
-	if _, err := pool.Exec(ctx, `TRUNCATE track_likes, tracks, users RESTART IDENTITY CASCADE`); err != nil {
-		t.Fatalf("reset test database: %v", err)
-	}
-	t.Cleanup(func() {
-		_, _ = pool.Exec(context.Background(), `TRUNCATE track_likes, tracks, users RESTART IDENTITY CASCADE`)
-	})
+	pool := testkit.Open(t)
 
 	users := postgres.NewUserRepository(pool)
 	tracks := postgres.NewTrackRepository(pool)

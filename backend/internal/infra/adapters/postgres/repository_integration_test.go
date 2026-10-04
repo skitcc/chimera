@@ -4,7 +4,6 @@ package postgres
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -25,31 +24,9 @@ type postgresFixture struct {
 
 func newPostgresFixture(t *testing.T) *postgresFixture {
 	t.Helper()
-
-	dsn := os.Getenv("TEST_DATABASE_URL")
-	if dsn == "" {
-		t.Skip("TEST_DATABASE_URL is not set")
-	}
-	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dsn)
-	if err != nil {
-		t.Fatalf("open test database: %v", err)
-	}
-	t.Cleanup(pool.Close)
-	if err := pool.Ping(ctx); err != nil {
-		t.Fatalf("ping test database: %v", err)
-	}
-	if err := Migrate(ctx, pool); err != nil {
-		t.Fatalf("migrate test database: %v", err)
-	}
-	if _, err := pool.Exec(ctx, `TRUNCATE track_likes, tracks, users RESTART IDENTITY CASCADE`); err != nil {
-		t.Fatalf("reset test database: %v", err)
-	}
-	t.Cleanup(func() {
-		_, _ = pool.Exec(context.Background(), `TRUNCATE track_likes, tracks, users RESTART IDENTITY CASCADE`)
-	})
+	pool := testkit.Open(t)
 	return &postgresFixture{
-		ctx:    ctx,
+		ctx:    context.Background(),
 		pool:   pool,
 		users:  NewUserRepository(pool),
 		tracks: NewTrackRepository(pool),
