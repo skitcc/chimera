@@ -12,6 +12,7 @@ import { LibraryPage } from './pages/LibraryPage'
 import { LikesPage } from './pages/LikesPage'
 import { UploadPage } from './pages/UploadPage'
 import { ArtistPage } from './pages/ArtistPage'
+import { NotFoundPage } from './pages/NotFoundPage'
 import { UserTracksPage } from './pages/UserTracksPage'
 
 export function App() {
@@ -34,6 +35,7 @@ export function App() {
                 <Route path="/upload" element={<UploadPage />} />
                 <Route path="/artist" element={<ArtistPage />} />
                 <Route path="/u/:id" element={<UserTracksPage />} />
+                <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Routes>
           </BrowserRouter>
