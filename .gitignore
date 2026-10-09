@@ -12,3 +12,4 @@ backend/branch-coverage.txt
 backend/condition-coverage.txt
 backend/test-results/
 *.drawio.bkp
+backend/e2e-out

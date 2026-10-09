@@ -14,15 +14,15 @@
 
 Методы. Создание уникальной записи — `POST` и ответ 201 или 204. Полная замена полей — `PUT`. Частичная замена абсолютных значений — `PATCH`: пропущенное поле не затирается, пустое тело — 400. Снятие связи — `DELETE`.
 
-Идемпотентность. `PUT` и `PATCH` с абсолютными полями можно повторять. `followUser` и `unfollowUser` при повторе снова отвечают 204. `unlikeTrack` тоже 204, а 404 только если нет трека. `likeTrack` и `addPlaylistTrack` при повторе пары отвечают 409: это создание уникальной строки, не «убедиться, что она есть». `DELETE` сущности (`deleteTrack`, `deletePlaylist`, `deletePick`, `deleteCurrentUser`) на уже отсутствующий ресурс отвечает 404.
+Идемпотентность. `PUT` и `PATCH` с абсолютными полями можно повторять. `putFollow`, `deleteFollow`, `createFollows` и `deleteFollows` при повторе снова отвечают 204. `putLike` и `deleteLike` тоже 204, а 404 у снятия лайка только если нет трека. `createPlaylistTrack` при повторе пары отвечает 409: это создание уникальной строки. `DELETE` сущности (`deleteTrack`, `deletePlaylist`, `deletePick`, `deleteUser`) на уже отсутствующий ресурс отвечает 404.
 
 Коды. 400 — битое тело или параметры, 401 — нет или плохой токен, 403 — токен есть, но это не владелец, 404 — нет ресурса или он скрыт, 409 — занятый email, повтор пары или неверный статус, 429 — только регистрация и вход, 500 — сбой без деталей. Стрим готового трека — 302, неготового — 409.
 
 Обязательные поля. Регистрация требует email и пароль от 8 символов, имя можно не передавать. Вход требует непустые email и пароль, короткий пароль здесь не 400. Замена профиля требует email и имя. Замена трека требует title и artist. В плейлист при добавлении обязательны `track_id` и `position`. Статус, размер и ключ объекта клиент не пишет.
 
-Пагинация. У страниц одна форма: `items`, `next_cursor`, `limit`. `limit` от 1 до 100, по умолчанию 20. `listUsers` курсор не использует: справочник приходит целиком.
+Пагинация. У страниц одна форма: `items`, `next_cursor`, `limit`. `limit` от 1 до 100, по умолчанию 20. `listUsers` тоже страница.
 
-Проверка из каталога `docs`: `npm install`, затем `npm run lint`. Линтер Spectral включает правила `oas3-valid-media-example` и `oas3-valid-schema-example`. Mock поднимается контейнером: `docker compose up` из каталога `docs`, адрес `http://127.0.0.1:4010`. Сценарий публикации в другом терминале: `npm run scenario` (`login` → `initTrackUpload` → `completeTrackUpload` → `listMyTracks`).
+Проверка из каталога `docs`: `npm install`, затем `npm run lint`. Линтер Spectral включает правила `oas3-valid-media-example` и `oas3-valid-schema-example`. Mock поднимается контейнером: `docker compose up` из каталога `docs`, адрес `http://127.0.0.1:4010`. Сценарий в другом терминале: `npm run scenario` (`createSession` → `createTrack` → `updateTrack` → `listTracks` → `listPlaylists` → `createFollows` → `putFollow` → `listFollows` → `deleteFollows`).
 
 ## Что есть в коде
 
@@ -35,30 +35,36 @@
 | Сценарий | Шаг | operationId |
 | --- | --- | --- |
 | Гость слушает ленту | Открыть ленту готовых треков | `listTracks` |
-| Гость слушает ленту | Включить трек | `streamTrack` |
-| Автор публикует трек | Войти или зарегистрироваться | `login` или `register` |
-| Автор публикует трек | Создать карточку и получить ссылку записи | `initTrackUpload` |
-| Автор публикует трек | Подтвердить объект в хранилище | `completeTrackUpload` |
-| Автор публикует трек | Увидеть загрузку у себя | `listMyTracks` |
-| Пользователь собирает любимое | Войти | `login` |
-| Пользователь собирает любимое | Поставить отметку | `likeTrack` |
-| Пользователь собирает любимое | Снять отметку | `unlikeTrack` |
-| Пользователь собирает любимое | Открыть список любимого | `listMyLikes` |
+| Гость слушает ленту | Включить трек | `getTrackStream` |
+| Автор публикует трек | Войти или зарегистрироваться | `createSession` или `createUser` |
+| Автор публикует трек | Создать карточку и получить ссылку записи | `createTrack` |
+| Автор публикует трек | Подтвердить объект в хранилище | `updateTrack` со `status: ready` |
+| Автор публикует трек | Увидеть загрузку у себя | `listTracks` с `user_id` |
+| Пользователь собирает любимое | Войти | `createSession` |
+| Пользователь собирает любимое | Поставить отметку | `putLike` |
+| Пользователь собирает любимое | Снять отметку | `deleteLike` |
+| Пользователь собирает любимое | Открыть список любимого | `listTracks` с `liked_by` |
 | Поиск артиста | Запросить ленту с фильтром `artist` | `listTracks` |
+| Сборка плейлиста | Открыть ленту публичных плейлистов | `listPlaylists` |
 | Сборка плейлиста | Создать список | `createPlaylist` |
-| Сборка плейлиста | Добавить готовый трек | `addPlaylistTrack` |
+| Сборка плейлиста | Добавить готовый трек | `createPlaylistTrack` |
 | Сборка плейлиста | Прочитать состав | `listPlaylistTracks` |
+| Подписки | Подписаться на нескольких авторов | `createFollows` |
+| Подписки | Подписаться на одного автора | `putFollow` |
+| Подписки | Посмотреть, на кого подписан пользователь | `listFollows` с `follower_id` |
+| Подписки | Отписаться от нескольких авторов | `deleteFollows` |
 
 ## CRUD и частичное обновление
 
 | Ресурс | Создать | Читать | Заменить | Частично | Удалить |
 | --- | --- | --- | --- | --- | --- |
-| Профиль | `register` | `getCurrentUser`, `getUser`, `listUsers` | `replaceCurrentUser` | `updateCurrentUser` | `deleteCurrentUser` |
-| Трек | `initTrackUpload` | `getTrack`, `listTracks`, `listMyTracks`, `listUserTracks` | `replaceTrack` | `updateTrack` | `deleteTrack` |
-| Плейлист | `createPlaylist` | `getPlaylist`, `listMyPlaylists`, `listUserPlaylists` | `replacePlaylist` | `updatePlaylist` | `deletePlaylist` |
-| Трек в плейлисте | `addPlaylistTrack` | `listPlaylistTracks` | — | `movePlaylistTrack` | `removePlaylistTrack` |
-| Подборка | `generatePick` | `getMyPick`, `listMyPicks` | — | `renamePick` | `deletePick` |
-| Лайк | `likeTrack` | `listMyLikes` | — | — | `unlikeTrack` |
-| Подписка | `followUser` | `listMyFollowing`, `listFollowers`, `listUserFollowing` | — | — | `unfollowUser` |
+| Сессия | `createSession` | — | — | — | — |
+| Профиль | `createUser` | `getUser`, `listUsers` | `replaceUser` | `updateUser` | `deleteUser` |
+| Трек | `createTrack` | `getTrack`, `listTracks` | `replaceTrack` | `updateTrack` | `deleteTrack` |
+| Плейлист | `createPlaylist` | `getPlaylist`, `listPlaylists` | `replacePlaylist` | `updatePlaylist` | `deletePlaylist` |
+| Трек в плейлисте | `createPlaylistTrack` | `listPlaylistTracks` | — | `updatePlaylistTrack` | `deletePlaylistTrack` |
+| Подборка | `createPick` | `getPick`, `listPicks` | — | `updatePick` | `deletePick` |
+| Лайк | `putLike` | `listTracks` с `liked_by` | — | — | `deleteLike` |
+| Подписка | `putFollow`, `createFollows` | `getFollow`, `listFollows` | — | — | `deleteFollow`, `deleteFollows` |
 
-У подборки нет полной замены: состав собирает система, клиент меняет только название. Лайк и подписка — пара без тела, отдельное частичное обновление им не нужно. Позиция трека в плейлисте меняется через `movePlaylistTrack`.
+У подборки нет полной замены: состав собирает система, клиент меняет только название. Лайк и подписка на одного автора — пара без тела. Пакетная подписка передаёт список в теле, пакетная отписка — повторяющийся `following_id` в query. Позиция трека в плейлисте меняется через `updatePlaylistTrack`.
