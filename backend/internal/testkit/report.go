@@ -96,6 +96,7 @@ func RunSpec(t *testing.T, s Spec, body func(*testing.T, Report)) {
 
 	src := callerSource()
 	allure.Test(t, s.Title, func(a *allure.Context) {
+		logRun(a.T(), s)
 		body(a.T(), Report{t: a.T(), a: a})
 	}, s.options(src, t.Name()+"/"+strings.ReplaceAll(s.Title, " ", "_"))...)
 }

@@ -31,7 +31,7 @@ TEST_GID := $(shell id -g)
 RUN_TEST_IMAGE = docker run --rm --user $(TEST_UID):$(TEST_GID) -e HOME=/tmp -e ALLURE_RESULTS_DIR=/artifacts/allure-results -v "$(ARTIFACTS_DIR):/artifacts" "$(TEST_IMAGE)"
 GO_TEST_FLAGS = -count=1 -p=$(GO_TEST_P) -parallel=$(GO_TEST_PARALLEL)
 
-.PHONY: help test-image test test-shuffle test-offline stand-up stand-refresh stand-gc stand-down test-integration test-e2e demo-capture demo-requests e2e-dev app-logs test-all coverage gobco-condition gobco-branch allure-results allure-meta allure-render allure-report allure-open spec-matrix spec-check clean-test-results
+.PHONY: help test-image test test-shuffle test-offline stand-up stand-refresh stand-gc stand-down test-integration test-e2e demo-capture demo-requests e2e-dev app-logs test-logs test-all coverage gobco-condition gobco-branch allure-results allure-meta allure-render allure-report allure-open spec-matrix spec-check clean-test-results
 .NOTPARALLEL: test-all
 
 help:
@@ -50,6 +50,7 @@ help:
 		'demo-requests    Run the curl demo once against the running dev API (RUN=name)' \
 		'e2e-dev          Run the Go demo once against the running dev API (RUN=name)' \
 		'app-logs         Follow dev API logs, only one run with RUN=curl-1 or RUN=go-1' \
+		'test-logs        Follow integration run logs, one run with RUN=1' \
 		'test-all         Run unit suites, coverage, gobco, and integration tests' \
 		'coverage         Write statement profile and HTML coverage' \
 		'gobco-condition  Write gobco condition coverage output' \
@@ -94,7 +95,7 @@ test-integration: | $(ARTIFACTS_DIR)
 	STAND_ALLURE_SUITE=integration sh scripts/stand-require.sh
 	$(MAKE) test-image
 	ARTIFACTS_DIR="$(ARTIFACTS_DIR)" TEST_IMAGE="$(TEST_IMAGE)" TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" \
-		INTEGRATION_TAGS="$(INTEGRATION_TAGS)" INTEGRATION_RUN="$(INTEGRATION_RUN)" \
+		INTEGRATION_TAGS="$(INTEGRATION_TAGS)" INTEGRATION_RUN="$(INTEGRATION_RUN)" RUN="$(RUN)" \
 		sh scripts/test-integration.sh $(INTEGRATION_PACKAGES)
 
 test-e2e: | $(ARTIFACTS_DIR)
@@ -135,6 +136,9 @@ e2e-dev: test-image | $(ARTIFACTS_DIR)
 app-logs:
 	@pattern='run_id=$(RUN)( |$$)'; [ -n "$(RUN)" ] || pattern=''; \
 	docker logs -f --since 10m "$(DEV_API_CONTAINER)" 2>&1 | grep --line-buffered -E -- "$$pattern"
+
+test-logs:
+	@tail -n +1 -f "$(ARTIFACTS_DIR)"/test-logs/it-$(or $(RUN),*).log
 
 coverage: test-image | $(ARTIFACTS_DIR)
 	$(RUN_TEST_IMAGE) sh -ec 'go test $(GO_TEST_FLAGS) -covermode=atomic -coverprofile=/artifacts/coverage.out $(COVERAGE_PACKAGES); go tool cover -func=/artifacts/coverage.out; go tool cover -html=/artifacts/coverage.out -o=/artifacts/coverage.html'
@@ -204,7 +208,7 @@ allure-open:
 test-all: test test-shuffle test-offline coverage gobco-condition gobco-branch test-integration
 
 clean-test-results:
-	rm -rf "$(ARTIFACTS_DIR)/allure-results" "$(ARTIFACTS_DIR)/allure-report" "$(ARTIFACTS_DIR)/e2e-out"
+	rm -rf "$(ARTIFACTS_DIR)/allure-results" "$(ARTIFACTS_DIR)/allure-report" "$(ARTIFACTS_DIR)/e2e-out" "$(ARTIFACTS_DIR)/test-logs"
 	rm -f "$(ARTIFACTS_DIR)/allure-report.html"
 	rm -f "$(ARTIFACTS_DIR)/coverage.out" "$(ARTIFACTS_DIR)/coverage.html"
 	rm -f "$(ARTIFACTS_DIR)/condition-coverage.txt" "$(ARTIFACTS_DIR)/branch-coverage.txt"

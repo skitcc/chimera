@@ -11,4 +11,5 @@ backend/branch-coverage.txt
 backend/condition-coverage.txt
 backend/test-results/
 backend/e2e-out/
+backend/test-logs/
 *.drawio.bkp
