@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -20,9 +21,14 @@ type stubDB struct {
 	queryRowFn func(context.Context, string, ...any) pgx.Row
 }
 
-func runCase(t *testing.T, name string, body func(*testing.T)) {
+func runSpec(t *testing.T, component string, s testkit.Spec, body func(*testing.T, testkit.Report)) {
 	t.Helper()
-	testkit.Run(t, name, body)
+	s.Layer = testkit.LayerData
+	s.Component = component
+	if s.Kind == "" {
+		s.Kind = testkit.KindStub
+	}
+	testkit.RunSpec(t, s, body)
 }
 
 func (s stubDB) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
@@ -165,6 +171,27 @@ func assertDomainError(t *testing.T, err error, code domain.Code, message string
 	}
 	if app.Code != code || app.Message != message {
 		t.Fatalf("got domain error (%s, %q), want (%s, %q)", app.Code, app.Message, code, message)
+	}
+}
+
+func assertNoError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func assertWraps(t *testing.T, err, cause error) {
+	t.Helper()
+	if !errors.Is(err, cause) {
+		t.Fatalf("error %v does not wrap %v", err, cause)
+	}
+}
+
+func assertRowsClosed(t *testing.T, rows *stubRows) {
+	t.Helper()
+	if !rows.closed {
+		t.Fatal("rows were not closed")
 	}
 }
 

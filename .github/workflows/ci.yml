@@ -93,14 +93,84 @@ jobs:
         working-directory: backend
         run: make test
 
+      - name: Start test stand
+        if: ${{ !cancelled() }}
+        working-directory: backend
+        run: make stand-up
+
       - name: Run integration tests
+        if: ${{ !cancelled() }}
         working-directory: backend
         run: make test-integration
 
-      - name: Upload Allure results
+      - name: Stop test stand
         if: always()
-        uses: actions/upload-artifact@v4
+        working-directory: backend
+        run: make stand-down
+
+      - name: Render Allure report
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        working-directory: backend
+        run: make allure-render
+
+      - name: Upload Allure results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
         with:
           name: allure-results
           path: backend/allure-results
+          if-no-files-found: ignore
+
+      - name: Upload Allure report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: allure-report
+          path: backend/allure-report
+          if-no-files-found: ignore
+
+  e2e:
+    name: Demo scenario
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Prepare environment
+        run: cp .env.example .env
+
+      - name: Start test stand
+        working-directory: backend
+        run: make stand-up
+
+      - name: Run end-to-end demo
+        working-directory: backend
+        run: make test-e2e
+
+      - name: Capture demo traffic
+        if: ${{ !cancelled() }}
+        working-directory: backend
+        run: make demo-capture
+
+      - name: Upload end-to-end Allure results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-allure-results
+          path: backend/allure-results
+          if-no-files-found: ignore
+
+      - name: Stop test stand
+        if: always()
+        working-directory: backend
+        run: make stand-down
+
+      - name: Upload traffic capture
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-traffic
+          path: backend/e2e-out
           if-no-files-found: ignore

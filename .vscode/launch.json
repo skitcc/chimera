@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug e2e demo",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${workspaceFolder}/backend/e2e",
+      "cwd": "${workspaceFolder}/backend",
+      "buildFlags": "-tags=e2e",
+      "args": ["-test.count=1", "-test.v", "-test.run", "^TestDemoScenario$"],
+      "env": {
+        "CGO_ENABLED": "0",
+        "E2E_API_URL": "http://127.0.0.1:8080",
+        "E2E_RUN": "1"
+      }
+    }
+  ]
+}
