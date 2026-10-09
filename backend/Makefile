@@ -31,7 +31,7 @@ TEST_GID := $(shell id -g)
 RUN_TEST_IMAGE = docker run --rm --user $(TEST_UID):$(TEST_GID) -e HOME=/tmp -e ALLURE_RESULTS_DIR=/artifacts/allure-results -v "$(ARTIFACTS_DIR):/artifacts" "$(TEST_IMAGE)"
 GO_TEST_FLAGS = -count=1 -p=$(GO_TEST_P) -parallel=$(GO_TEST_PARALLEL)
 
-.PHONY: help test-image test test-shuffle test-offline stand-up stand-refresh stand-gc stand-down test-integration test-e2e demo-capture test-all coverage gobco-condition gobco-branch allure-results allure-meta allure-render allure-report allure-open spec-matrix spec-check clean-test-results
+.PHONY: help test-image test test-shuffle test-offline stand-up stand-refresh stand-gc stand-down test-integration test-e2e demo-capture demo-requests e2e-dev app-logs test-all coverage gobco-condition gobco-branch allure-results allure-meta allure-render allure-report allure-open spec-matrix spec-check clean-test-results
 .NOTPARALLEL: test-all
 
 help:
@@ -47,6 +47,9 @@ help:
 		'test-integration Run integration tests against the running stand' \
 		'test-e2e         Run the demo against a private API on the stand' \
 		'demo-capture     Replay the demo with curl and write pcap captures' \
+		'demo-requests    Run the curl demo once against the running dev API (RUN=name)' \
+		'e2e-dev          Run the Go demo once against the running dev API (RUN=name)' \
+		'app-logs         Follow dev API logs, only one run with RUN=curl-1 or RUN=go-1' \
 		'test-all         Run unit suites, coverage, gobco, and integration tests' \
 		'coverage         Write statement profile and HTML coverage' \
 		'gobco-condition  Write gobco condition coverage output' \
@@ -100,11 +103,38 @@ test-e2e: | $(ARTIFACTS_DIR)
 	$(MAKE) test-image
 	docker build -f Dockerfile --tag "$(API_IMAGE)" .
 	ARTIFACTS_DIR="$(ARTIFACTS_DIR)" TEST_IMAGE="$(TEST_IMAGE)" API_IMAGE="$(API_IMAGE)" \
-		TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" \
+		TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" RUN="$(RUN)" \
 		sh scripts/stand-e2e.sh
 
 demo-capture:
 	NETSHOOT_IMAGE="$(NETSHOOT_IMAGE)" sh scripts/demo-capture.sh
+
+DEV_API_URL ?= http://127.0.0.1:8080
+DEV_API_CONTAINER ?= chimera-api
+RUN ?=
+
+demo-requests:
+	@run="$(RUN)"; [ -n "$$run" ] || run=$$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n'); \
+	mkdir -p "$(ARTIFACTS_DIR)/e2e-out/runs"; \
+	printf '%s\n' "curl run: make app-logs RUN=curl-$$run"; \
+	docker run --rm --network host --user $(TEST_UID):$(TEST_GID) \
+		-e E2E_API_URL="$(DEV_API_URL)" -e E2E_OUT=/out -e E2E_RUN="$$run" \
+		-v "$(ARTIFACTS_DIR)/e2e-out/runs:/out" \
+		-v "$(CURDIR)/scripts/demo-requests.sh:/demo-requests.sh:ro" \
+		"$(NETSHOOT_IMAGE)" sh /demo-requests.sh
+
+e2e-dev: test-image | $(ARTIFACTS_DIR)
+	@run="$(RUN)"; [ -n "$$run" ] || run=$$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n'); \
+	printf '%s\n' "go run: make app-logs RUN=go-$$run"; \
+	docker run --rm --network host --user $(TEST_UID):$(TEST_GID) -e HOME=/tmp \
+		-e ALLURE_RESULTS_DIR=/artifacts/allure-results \
+		-e E2E_API_URL="$(DEV_API_URL)" -e E2E_RUN="$$run" \
+		-v "$(ARTIFACTS_DIR):/artifacts" "$(TEST_IMAGE)" \
+		go test -count=1 -tags=e2e ./e2e/...
+
+app-logs:
+	@pattern='run_id=$(RUN)( |$$)'; [ -n "$(RUN)" ] || pattern=''; \
+	docker logs -f --since 10m "$(DEV_API_CONTAINER)" 2>&1 | grep --line-buffered -E -- "$$pattern"
 
 coverage: test-image | $(ARTIFACTS_DIR)
 	$(RUN_TEST_IMAGE) sh -ec 'go test $(GO_TEST_FLAGS) -covermode=atomic -coverprofile=/artifacts/coverage.out $(COVERAGE_PACKAGES); go tool cover -func=/artifacts/coverage.out; go tool cover -html=/artifacts/coverage.out -o=/artifacts/coverage.html'

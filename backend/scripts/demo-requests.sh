@@ -1,16 +1,41 @@
 #!/bin/sh
-# Replays the MVP demo scenario with curl. Same steps as e2e/demo_test.go.
+# Replays the MVP demo scenario with curl once. Same steps as e2e/demo_test.go.
 # Requires E2E_API_URL and E2E_OUT. curl and jq must be on PATH.
+# Every API request carries X-Run-Id: curl-<run> and X-Run-Step, and the API
+# adds run_id and step to every log line of that request. The first request
+# also sends X-Run-Event: start; on exit GET /live sends X-Run-Event: finish
+# with X-Run-Result passed or failed.
 set -eu
 
 api=${E2E_API_URL:?E2E_API_URL is required}
 out=${E2E_OUT:?E2E_OUT is required}
 api=${api%/}
+suffix=$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')
+run=${E2E_RUN:-$suffix}
+run_id=curl-$run
+if [ -n "${E2E_RUN:-}" ]; then
+	out=$out/$run
+fi
 mkdir -p "$out/responses"
 log=$out/curl.log
 : > "$log"
+event=
 
-suffix=$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')
+finish() {
+	code=$?
+	result=passed
+	if [ "$code" -ne 0 ]; then
+		result=failed
+	fi
+	curl -sS -o /dev/null \
+		-H "X-Run-Id: $run_id" -H 'X-Run-Step: finish' \
+		-H 'X-Run-Event: finish' -H "X-Run-Result: $result" \
+		"$api/live" || true
+	printf 'run_id=%s finished result=%s\n' "$run_id" "$result" | tee -a "$log"
+	exit "$code"
+}
+trap finish EXIT
+
 artist_email="artist-${suffix}@example.com"
 listener_email="listener-${suffix}@example.com"
 password=password1
@@ -29,33 +54,28 @@ step() {
 	body=${6-}
 	hdr=$out/responses/$name.headers
 	resp=$out/responses/$name.body
-	if [ -n "$body" ] && [ "$method" != PUT ]; then
-		if [ -n "$token" ]; then
-			code=$(curl -sS -D "$hdr" -o "$resp" -w '%{http_code}' -X "$method" \
-				-H "Authorization: Bearer $token" \
-				-H 'Content-Type: application/json' \
-				--data-binary @"$body" \
-				"$url")
-		else
-			code=$(curl -sS -D "$hdr" -o "$resp" -w '%{http_code}' -X "$method" \
-				-H 'Content-Type: application/json' \
-				--data-binary @"$body" \
-				"$url")
+	set -- -sS -D "$hdr" -o "$resp" -w '%{http_code}' -X "$method"
+	case "$url" in
+	"$api"/*)
+		set -- "$@" -H "X-Run-Id: $run_id" -H "X-Run-Step: $name"
+		if [ -n "$event" ]; then
+			set -- "$@" -H "X-Run-Event: $event"
 		fi
-	elif [ -n "$body" ]; then
-		code=$(curl -sS -D "$hdr" -o "$resp" -w '%{http_code}' -X "$method" \
-			--data-binary @"$body" \
-			"$url")
-	elif [ -n "$token" ]; then
-		code=$(curl -sS -D "$hdr" -o "$resp" -w '%{http_code}' -X "$method" \
-			-H "Authorization: Bearer $token" \
-			"$url")
-	else
-		code=$(curl -sS -D "$hdr" -o "$resp" -w '%{http_code}' -X "$method" "$url")
+		;;
+	esac
+	if [ -n "$token" ]; then
+		set -- "$@" -H "Authorization: Bearer $token"
 	fi
+	if [ -n "$body" ] && [ "$method" != PUT ]; then
+		set -- "$@" -H 'Content-Type: application/json'
+	fi
+	if [ -n "$body" ]; then
+		set -- "$@" --data-binary @"$body"
+	fi
+	code=$(curl "$@" "$url")
 	path=${url#"$api"}
 	path=${path%%\?*}
-	printf 'STEP %s %s %s -> %s\n' "$name" "$method" "$path" "$code" | tee -a "$log"
+	printf 'STEP run_id=%s step=%s %s %s -> %s\n' "$run_id" "$name" "$method" "$path" "$code" | tee -a "$log"
 	rest=$expect
 	ok=0
 	while [ -n "$rest" ]; do
@@ -99,7 +119,9 @@ header_value() {
 	' "$2"
 }
 
+event=start
 step 01 GET "$api/ready" 200
+event=
 
 body=$(json_file --arg email "$artist_email" --arg password "$password" --arg name "Demo Artist" \
 	'{email:$email, password:$password, name:$name}')
@@ -162,5 +184,3 @@ step 17 DELETE "$api/v1/tracks/${track}/like" 204 "$listener_token"
 
 step 18 GET "$api/v1/me/likes?limit=100" 200 "$listener_token"
 jq -er --arg id "$track" 'select(([.items[]?.id] | index($id)) == null)' "$out/responses/18.body" >/dev/null
-
-printf 'demo requests ok\n' | tee -a "$log"

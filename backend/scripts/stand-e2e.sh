@@ -31,6 +31,10 @@ cleanup() {
 		printf '%s\n' "keeping api $api_name database $db bucket $bucket" >&2
 		exit "$code"
 	fi
+	mkdir -p "$artifacts/e2e-out"
+	if docker logs "$api_name" > "$artifacts/e2e-out/$api_name.log" 2>&1; then
+		printf '%s\n' "api log: $artifacts/e2e-out/$api_name.log" >&2
+	fi
 	docker rm -f "$api_name" >/dev/null 2>&1 || true
 	if ! stand_psql -c "DROP DATABASE IF EXISTS \"$db\" WITH (FORCE)" >/dev/null; then
 		printf '%s\n' "failed to drop $db" >&2
@@ -94,6 +98,7 @@ docker run --rm --network host \
 	-e HOME=/tmp \
 	-e ALLURE_RESULTS_DIR=/artifacts/allure-results \
 	-e E2E_API_URL="http://127.0.0.1:${port}" \
+	-e E2E_RUN="${RUN:-$(printf '%s' "$id" | cut -c1-8)}" \
 	-v "$artifacts:/artifacts" \
 	"${TEST_IMAGE:?TEST_IMAGE is required}" \
 	go test -count=1 -tags=e2e ./e2e/...

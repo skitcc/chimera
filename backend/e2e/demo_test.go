@@ -24,6 +24,10 @@ func TestDemoScenario(t *testing.T) {
 	base = strings.TrimRight(base, "/")
 
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
+	run := os.Getenv("E2E_RUN")
+	if run == "" {
+		run = suffix
+	}
 	artistEmail := "artist-" + suffix + "@example.com"
 	listenerEmail := "listener-" + suffix + "@example.com"
 	const password = "password1"
@@ -31,7 +35,7 @@ func TestDemoScenario(t *testing.T) {
 	title := "Demo Track " + suffix
 	audio := bytes.Repeat([]byte("chimera-demo-audio\n"), 64)
 
-	api := &client{base: base, http: &http.Client{
+	api := &client{base: base, run: "go-" + run, http: &http.Client{
 		Timeout: 30 * time.Second,
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -53,12 +57,28 @@ func TestDemoScenario(t *testing.T) {
 		Severity:  testkit.SeverityBlocker,
 		Kind:      testkit.KindE2E,
 	}, func(t *testing.T, r testkit.Report) {
-		r.Step("01 ready", func(t *testing.T) {
+		api.event = "start"
+		t.Cleanup(func() {
+			result := "passed"
+			if t.Failed() {
+				result = "failed"
+			}
+			api.mark(t, "finish", result)
+		})
+
+		step := func(name string, body func(*testing.T)) {
+			r.Step(name, func(t *testing.T) {
+				api.step = name[:strings.IndexByte(name, ' ')]
+				body(t)
+			})
+		}
+
+		step("01 ready", func(t *testing.T) {
 			status, _, body := api.do(t, http.MethodGet, "/ready", "", nil)
 			requireStatus(t, http.StatusOK, status, body)
 		})
 
-		r.Step("02 register artist", func(t *testing.T) {
+		step("02 register artist", func(t *testing.T) {
 			status, _, body := api.do(t, http.MethodPost, "/v1/auth/register", "", jsonBody(t, map[string]string{
 				"email": artistEmail, "password": password, "name": "Demo Artist",
 			}))
@@ -70,7 +90,7 @@ func TestDemoScenario(t *testing.T) {
 			artistToken = auth.Token
 		})
 
-		r.Step("03 login artist", func(t *testing.T) {
+		step("03 login artist", func(t *testing.T) {
 			status, _, body := api.do(t, http.MethodPost, "/v1/auth/login", "", jsonBody(t, map[string]string{
 				"email": artistEmail, "password": password,
 			}))
@@ -82,7 +102,7 @@ func TestDemoScenario(t *testing.T) {
 			artistToken = auth.Token
 		})
 
-		r.Step("04 current user", func(t *testing.T) {
+		step("04 current user", func(t *testing.T) {
 			status, _, body := api.do(t, http.MethodGet, "/v1/me", artistToken, nil)
 			requireStatus(t, http.StatusOK, status, body)
 			user := decode[userResponse](t, body)
@@ -91,7 +111,7 @@ func TestDemoScenario(t *testing.T) {
 			}
 		})
 
-		r.Step("05 init upload", func(t *testing.T) {
+		step("05 init upload", func(t *testing.T) {
 			status, _, body := api.do(t, http.MethodPost, "/v1/tracks/upload-init", artistToken, jsonBody(t, map[string]any{
 				"title": title, "artist": artistName, "size": len(audio),
 			}))
@@ -107,21 +127,21 @@ func TestDemoScenario(t *testing.T) {
 			uploadURL = session.UploadURL
 		})
 
-		r.Step("06 put object", func(t *testing.T) {
+		step("06 put object", func(t *testing.T) {
 			status, _, body := api.doURL(t, http.MethodPut, uploadURL, "", audio)
 			if status != http.StatusOK && status != http.StatusNoContent {
 				t.Fatalf("put object status %d body %s", status, body)
 			}
 		})
 
-		r.Step("07 feed hides pending track", func(t *testing.T) {
+		step("07 feed hides pending track", func(t *testing.T) {
 			page := api.feed(t, artistName, "", "")
 			if page.has(trackID) {
 				t.Fatalf("pending track %s is in the public feed", trackID)
 			}
 		})
 
-		r.Step("08 complete upload", func(t *testing.T) {
+		step("08 complete upload", func(t *testing.T) {
 			status, _, body := api.do(t, http.MethodPost, "/v1/tracks/"+trackID+"/upload-complete", artistToken, nil)
 			requireStatus(t, http.StatusOK, status, body)
 			track := decode[trackResponse](t, body)
@@ -130,7 +150,7 @@ func TestDemoScenario(t *testing.T) {
 			}
 		})
 
-		r.Step("09 feed shows ready track", func(t *testing.T) {
+		step("09 feed shows ready track", func(t *testing.T) {
 			page := api.feed(t, artistName, "", "")
 			track, ok := page.find(trackID)
 			if !ok || track.Status != "ready" {
@@ -138,7 +158,7 @@ func TestDemoScenario(t *testing.T) {
 			}
 		})
 
-		r.Step("10 register listener", func(t *testing.T) {
+		step("10 register listener", func(t *testing.T) {
 			status, _, body := api.do(t, http.MethodPost, "/v1/auth/register", "", jsonBody(t, map[string]string{
 				"email": listenerEmail, "password": password, "name": "Demo Listener",
 			}))
@@ -150,7 +170,7 @@ func TestDemoScenario(t *testing.T) {
 			listenerToken = auth.Token
 		})
 
-		r.Step("11 like without token", func(t *testing.T) {
+		step("11 like without token", func(t *testing.T) {
 			status, _, body := api.do(t, http.MethodPost, "/v1/tracks/"+trackID+"/like", "", nil)
 			requireStatus(t, http.StatusUnauthorized, status, body)
 			errBody := decode[errorResponse](t, body)
@@ -159,12 +179,12 @@ func TestDemoScenario(t *testing.T) {
 			}
 		})
 
-		r.Step("12 like track", func(t *testing.T) {
+		step("12 like track", func(t *testing.T) {
 			status, _, body := api.do(t, http.MethodPost, "/v1/tracks/"+trackID+"/like", listenerToken, nil)
 			requireStatus(t, http.StatusNoContent, status, body)
 		})
 
-		r.Step("13 like track again", func(t *testing.T) {
+		step("13 like track again", func(t *testing.T) {
 			status, _, body := api.do(t, http.MethodPost, "/v1/tracks/"+trackID+"/like", listenerToken, nil)
 			requireStatus(t, http.StatusConflict, status, body)
 			errBody := decode[errorResponse](t, body)
@@ -173,14 +193,14 @@ func TestDemoScenario(t *testing.T) {
 			}
 		})
 
-		r.Step("14 liked list", func(t *testing.T) {
+		step("14 liked list", func(t *testing.T) {
 			page := api.feed(t, "", "/v1/me/likes?limit=100", listenerToken)
 			if _, ok := page.find(trackID); !ok {
 				t.Fatalf("liked list: %+v", page.Items)
 			}
 		})
 
-		r.Step("15 stream redirect", func(t *testing.T) {
+		step("15 stream redirect", func(t *testing.T) {
 			status, header, body := api.do(t, http.MethodGet, "/v1/tracks/"+trackID+"/stream", "", nil)
 			requireStatus(t, http.StatusFound, status, body)
 			streamURL = header.Get("Location")
@@ -189,7 +209,7 @@ func TestDemoScenario(t *testing.T) {
 			}
 		})
 
-		r.Step("16 download audio", func(t *testing.T) {
+		step("16 download audio", func(t *testing.T) {
 			status, _, body := api.doURL(t, http.MethodGet, streamURL, "", nil)
 			requireStatus(t, http.StatusOK, status, body)
 			if !bytes.Equal(body, audio) {
@@ -197,12 +217,12 @@ func TestDemoScenario(t *testing.T) {
 			}
 		})
 
-		r.Step("17 unlike", func(t *testing.T) {
+		step("17 unlike", func(t *testing.T) {
 			status, _, body := api.do(t, http.MethodDelete, "/v1/tracks/"+trackID+"/like", listenerToken, nil)
 			requireStatus(t, http.StatusNoContent, status, body)
 		})
 
-		r.Step("18 liked list is empty", func(t *testing.T) {
+		step("18 liked list is empty", func(t *testing.T) {
 			page := api.feed(t, "", "/v1/me/likes?limit=100", listenerToken)
 			if page.has(trackID) || len(page.Items) != 0 {
 				t.Fatalf("liked list after unlike: %+v", page.Items)
@@ -211,9 +231,14 @@ func TestDemoScenario(t *testing.T) {
 	})
 }
 
+// client tags every API request with X-Run-Id go-<run> and X-Run-Step, which
+// the API adds to every log line of the request as run_id and step.
 type client struct {
-	base string
-	http *http.Client
+	base  string
+	run   string
+	step  string
+	event string
+	http  *http.Client
 }
 
 func (c *client) do(t *testing.T, method, path, token string, body []byte) (int, http.Header, []byte) {
@@ -231,6 +256,14 @@ func (c *client) doURL(t *testing.T, method, rawURL, token string, body []byte) 
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
+	if strings.HasPrefix(rawURL, c.base+"/") {
+		req.Header.Set("X-Run-Id", c.run)
+		req.Header.Set("X-Run-Step", c.step)
+		if c.event != "" {
+			req.Header.Set("X-Run-Event", c.event)
+			c.event = ""
+		}
+	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -247,6 +280,28 @@ func (c *client) doURL(t *testing.T, method, rawURL, token string, body []byte) 
 		t.Fatalf("read body: %v", err)
 	}
 	return res.StatusCode, res.Header, raw
+}
+
+// mark sends X-Run-Event so the API logs the start or the finish of the run.
+// It runs from Cleanup too, so it reports errors instead of failing the test.
+func (c *client) mark(t *testing.T, event, result string) {
+	req, err := http.NewRequest(http.MethodGet, c.base+"/live", nil)
+	if err != nil {
+		t.Logf("run %s: %v", event, err)
+		return
+	}
+	req.Header.Set("X-Run-Id", c.run)
+	req.Header.Set("X-Run-Step", event)
+	req.Header.Set("X-Run-Event", event)
+	if result != "" {
+		req.Header.Set("X-Run-Result", result)
+	}
+	res, err := c.http.Do(req)
+	if err != nil {
+		t.Logf("run %s: %v", event, err)
+		return
+	}
+	res.Body.Close()
 }
 
 func (c *client) feed(t *testing.T, artist, path, token string) pageResponse {
