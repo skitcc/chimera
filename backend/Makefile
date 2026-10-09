@@ -13,13 +13,17 @@ E2E_OUT ?= $(ARTIFACTS_DIR)/e2e-out
 
 TEST_PACKAGES ?= ./...
 INTEGRATION_PACKAGES ?= ./internal/infra/adapters/postgres ./internal/usecase
-INTEGRATION_TAGS ?= integration # что билдить go:build 
-INTEGRATION_RUN ?= Integration # регулярка TestXxx
+# INTEGRATION_TAGS — build tag файлов с //go:build integration.
+# INTEGRATION_RUN — регулярка go test -run.XXxTest
+INTEGRATION_TAGS ?= integration
+INTEGRATION_RUN ?= Integration
 POSTGRES_TEST_IMAGE ?= postgres:17-alpine
 COVERAGE_PACKAGES ?= ./internal/domain ./internal/usecase ./internal/infra/adapters/postgres
 GOBCO_PACKAGES ?= ./internal/domain ./internal/usecase ./internal/infra/adapters/postgres
-GO_TEST_P ?= 1 # параллелизм на уровне пакетов
-GO_TEST_PARALLEL ?= 4 # параллелизм внутри одного пакета с t parallel
+# GO_TEST_P — сколько пакетов go test запускает сразу (-p).
+# GO_TEST_PARALLEL — сколько тестов с t.Parallel() идёт внутри пакета (-parallel).
+GO_TEST_P ?= 1
+GO_TEST_PARALLEL ?= 4
 SHUFFLE_SEED ?= on
 TEST_UID := $(shell id -u)
 TEST_GID := $(shell id -g)
