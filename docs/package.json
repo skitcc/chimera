@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "scripts": {
+    "lint": "spectral lint openapi.yaml --ruleset .spectral.yaml",
+    "mock": "prism mock openapi.yaml --port 4010 --host 127.0.0.1",
+    "scenario": "node scenario.mjs"
+  },
+  "devDependencies": {
+    "@stoplight/prism-cli": "^5.14.2",
+    "@stoplight/spectral-cli": "^6.15.0"
+  }
+}

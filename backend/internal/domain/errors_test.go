@@ -190,6 +190,34 @@ func TestUnauthorized(t *testing.T) {
 	})
 }
 
+func TestForbidden(t *testing.T) {
+	runCase(t, "uses forbidden code", func(t *testing.T) {
+		// Arrange
+		message := "not allowed"
+
+		// Act
+		got := domain.Forbidden(message)
+
+		// Assert
+		assertEqual(t, domain.CodeForbidden, got.Code)
+		assertEqual(t, message, got.Message)
+	})
+}
+
+func TestTooManyRequests(t *testing.T) {
+	runCase(t, "uses too many requests code", func(t *testing.T) {
+		// Arrange
+		message := "slow down"
+
+		// Act
+		got := domain.TooManyRequests(message)
+
+		// Assert
+		assertEqual(t, domain.CodeTooManyRequests, got.Code)
+		assertEqual(t, message, got.Message)
+	})
+}
+
 func TestConflict(t *testing.T) {
 	runCase(t, "uses conflict code", func(t *testing.T) {
 		// Arrange

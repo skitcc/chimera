@@ -31,6 +31,30 @@ func TestUserIDValidate(t *testing.T) {
 	})
 }
 
+func TestUserIDRequireActor(t *testing.T) {
+	runCase(t, "accepts the same actor", func(t *testing.T) {
+		// Arrange
+		id := domain.UserID("user-123")
+
+		// Act
+		err := id.RequireActor("user-123")
+
+		// Assert
+		assertNoError(t, err)
+	})
+
+	runCase(t, "rejects another actor", func(t *testing.T) {
+		// Arrange
+		id := domain.UserID("user-123")
+
+		// Act
+		err := id.RequireActor("user-456")
+
+		// Assert
+		assertErrorCode(t, domain.CodeForbidden, err)
+	})
+}
+
 func TestUserWriteValidate(t *testing.T) {
 	runCase(t, "accepts valid write and normalizes email", func(t *testing.T) {
 		// Arrange

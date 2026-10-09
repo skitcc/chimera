@@ -57,7 +57,53 @@ func TestTrackOwnedBy(t *testing.T) {
 		err := track.OwnedBy("other-user")
 
 		// Assert
-		assertErrorCode(t, domain.CodeUnauthorized, err)
+		assertErrorCode(t, domain.CodeForbidden, err)
+	})
+}
+
+func TestTrackVisibleTo(t *testing.T) {
+	runCase(t, "shows a ready track to a guest", func(t *testing.T) {
+		// Arrange
+		track := testkit.TrackMother().WithStatus(domain.TrackReady).Build()
+
+		// Act
+		err := track.VisibleTo("")
+
+		// Assert
+		assertNoError(t, err)
+	})
+
+	runCase(t, "hides a draft from a guest", func(t *testing.T) {
+		// Arrange
+		track := testkit.TrackMother().WithUserID("owner").WithStatus(domain.TrackPending).Build()
+
+		// Act
+		err := track.VisibleTo("")
+
+		// Assert
+		assertErrorCode(t, domain.CodeNotFound, err)
+	})
+
+	runCase(t, "shows a draft to its owner", func(t *testing.T) {
+		// Arrange
+		track := testkit.TrackMother().WithUserID("owner").WithStatus(domain.TrackPending).Build()
+
+		// Act
+		err := track.VisibleTo("owner")
+
+		// Assert
+		assertNoError(t, err)
+	})
+
+	runCase(t, "hides a draft from another user", func(t *testing.T) {
+		// Arrange
+		track := testkit.TrackMother().WithUserID("owner").WithStatus(domain.TrackProcessing).Build()
+
+		// Act
+		err := track.VisibleTo("other")
+
+		// Assert
+		assertErrorCode(t, domain.CodeNotFound, err)
 	})
 }
 

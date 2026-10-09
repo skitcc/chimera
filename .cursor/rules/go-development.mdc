@@ -1,8 +1,7 @@
 ---
-description: Idiomatic Go, Clean Architecture, and SOLID standards for Chimera
-alwaysApply: true
+globs: ["**/*.go", "**/go.mod", "**/go.sum"]
+alwaysApply: false
 ---
-
 # Go Development Guidelines
 
 ## 1. Philosophy & Architecture

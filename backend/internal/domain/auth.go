@@ -1,6 +1,9 @@
 package domain
 
-import "strings"
+import (
+	"net/mail"
+	"strings"
+)
 
 const minPasswordLen = 8
 
@@ -12,7 +15,7 @@ type RegisterInput struct {
 
 func (in *RegisterInput) Validate() error {
 	in.Email = normalizeEmail(in.Email)
-	if in.Email == "" || !strings.Contains(in.Email, "@") {
+	if !validEmail(in.Email) {
 		return Invalid("valid email is required")
 	}
 	if len(in.Password) < minPasswordLen {
@@ -32,8 +35,8 @@ type LoginInput struct {
 
 func (in *LoginInput) Validate() error {
 	in.Email = normalizeEmail(in.Email)
-	if in.Email == "" {
-		return Invalid("email is required")
+	if !validEmail(in.Email) {
+		return Invalid("valid email is required")
 	}
 	if in.Password == "" {
 		return Invalid("password is required")
@@ -48,4 +51,9 @@ type AuthResult struct {
 
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func validEmail(email string) bool {
+	address, err := mail.ParseAddress(email)
+	return err == nil && address.Address == email
 }

@@ -27,6 +27,7 @@ import (
 	"chimera/internal/infra/logger"
 	"chimera/internal/infra/worker"
 	httpapi "chimera/internal/transport/http"
+	"chimera/internal/transport/http/middleware"
 	v1 "chimera/internal/transport/http/v1"
 	"chimera/internal/usecase"
 
@@ -74,8 +75,13 @@ func main() {
 	users := postgres.NewUserRepository(pool)
 	tracks := postgres.NewTrackRepository(pool)
 	likes := postgres.NewTrackLikeRepository(pool)
+	follows := postgres.NewFollowRepository(pool)
+	playlists := postgres.NewPlaylistRepository(pool)
+	picks := postgres.NewPickRepository(pool)
 	hasher := infraauth.NewBcryptHasher()
 	tokens := infraauth.NewJWT(cfg.Auth)
+	userService := usecase.NewUserService(users, hasher)
+	trackService := usecase.NewTrackService(tracks, likes, objects, cfg.Upload.MaxBytes)
 
 	router := httpapi.NewRouter(httpapi.Dependencies{
 		Log:         log,
@@ -83,16 +89,23 @@ func main() {
 		CORSOrigins: cfg.HTTP.CORSOrigins,
 		Health:      monitor,
 		Routes: v1.New(
-			usecase.NewUserService(users, hasher),
+			userService,
 			usecase.NewAuthService(users, hasher, tokens),
-			usecase.NewTrackService(tracks, likes, objects, cfg.Upload.MaxBytes),
+			trackService,
+			usecase.NewFollowService(users, follows),
+			usecase.NewPlaylistService(playlists, tracks, users),
+			usecase.NewPickService(users, tracks, picks),
+			tokens,
+			middleware.NewLimiter(cfg.Auth.RateLimit, cfg.Auth.RateWindow),
+			cfg.S3.PresignHost,
 			log,
 		),
 	})
 
 	server := &http.Server{
-		Addr:    cfg.HTTP.Addr,
-		Handler: router,
+		Addr:              cfg.HTTP.Addr,
+		Handler:           router,
+		ReadHeaderTimeout: cfg.HTTP.ReadHeaderTimeout,
 	}
 
 	log.InfoContext(ctx, "listening",

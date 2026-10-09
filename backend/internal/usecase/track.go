@@ -74,14 +74,21 @@ func (s *TrackService) page(ctx context.Context, q domain.PageQuery, filter doma
 	return q.Page(tracks), nil
 }
 
-func (s *TrackService) GetByID(ctx context.Context, id string) (domain.Track, error) {
+func (s *TrackService) GetByID(ctx context.Context, id, viewerID string) (domain.Track, error) {
 	if err := domain.TrackID(id).Validate(); err != nil {
 		return domain.Track{}, err
 	}
-	return s.tracks.GetByID(ctx, id)
+	track, err := s.tracks.GetByID(ctx, id)
+	if err != nil {
+		return domain.Track{}, err
+	}
+	if err := track.VisibleTo(viewerID); err != nil {
+		return domain.Track{}, err
+	}
+	return track, nil
 }
 
-func (s *TrackService) Update(ctx context.Context, id string, in domain.TrackWrite) (domain.Track, error) {
+func (s *TrackService) Update(ctx context.Context, actorID, id string, in domain.TrackWrite) (domain.Track, error) {
 	if err := domain.TrackID(id).Validate(); err != nil {
 		return domain.Track{}, err
 	}
@@ -92,13 +99,79 @@ func (s *TrackService) Update(ctx context.Context, id string, in domain.TrackWri
 	if err != nil {
 		return domain.Track{}, err
 	}
+	if err := track.OwnedBy(actorID); err != nil {
+		return domain.Track{}, err
+	}
 	track.Title = in.Title
 	track.Artist = in.Artist
 	return s.tracks.Update(ctx, track)
 }
 
-func (s *TrackService) Delete(ctx context.Context, id string) error {
+func (s *TrackService) Delete(ctx context.Context, actorID, id string) error {
 	if err := domain.TrackID(id).Validate(); err != nil {
+		return err
+	}
+	track, err := s.tracks.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := track.OwnedBy(actorID); err != nil {
+		return err
+	}
+	return s.tracks.Delete(ctx, id)
+}
+
+func (s *TrackService) ReplaceOwned(ctx context.Context, actorID, id string, in domain.TrackReplace) (domain.Track, error) {
+	if err := domain.TrackID(id).Validate(); err != nil {
+		return domain.Track{}, err
+	}
+	if err := in.Validate(); err != nil {
+		return domain.Track{}, err
+	}
+	track, err := s.tracks.GetByID(ctx, id)
+	if err != nil {
+		return domain.Track{}, err
+	}
+	if err := track.RequireOwner(actorID); err != nil {
+		return domain.Track{}, err
+	}
+	track.Title = in.Title
+	track.Artist = in.Artist
+	return s.tracks.Update(ctx, track)
+}
+
+func (s *TrackService) PatchOwned(ctx context.Context, actorID, id string, in domain.TrackPatch) (domain.Track, error) {
+	if err := domain.TrackID(id).Validate(); err != nil {
+		return domain.Track{}, err
+	}
+	if err := in.Validate(); err != nil {
+		return domain.Track{}, err
+	}
+	track, err := s.tracks.GetByID(ctx, id)
+	if err != nil {
+		return domain.Track{}, err
+	}
+	if err := track.RequireOwner(actorID); err != nil {
+		return domain.Track{}, err
+	}
+	if in.Title != nil {
+		track.Title = *in.Title
+	}
+	if in.Artist != nil {
+		track.Artist = *in.Artist
+	}
+	return s.tracks.Update(ctx, track)
+}
+
+func (s *TrackService) DeleteOwned(ctx context.Context, actorID, id string) error {
+	if err := domain.TrackID(id).Validate(); err != nil {
+		return err
+	}
+	track, err := s.tracks.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := track.RequireOwner(actorID); err != nil {
 		return err
 	}
 	return s.tracks.Delete(ctx, id)
@@ -129,6 +202,14 @@ func (s *TrackService) InitUpload(ctx context.Context, in domain.TrackUploadInit
 }
 
 func (s *TrackService) CompleteUpload(ctx context.Context, in domain.TrackUploadComplete) (domain.Track, error) {
+	return s.completeUpload(ctx, in, false)
+}
+
+func (s *TrackService) CompleteUploadOwned(ctx context.Context, in domain.TrackUploadComplete) (domain.Track, error) {
+	return s.completeUpload(ctx, in, true)
+}
+
+func (s *TrackService) completeUpload(ctx context.Context, in domain.TrackUploadComplete, strictOwner bool) (domain.Track, error) {
 	if err := in.Validate(); err != nil {
 		return domain.Track{}, err
 	}
@@ -137,8 +218,14 @@ func (s *TrackService) CompleteUpload(ctx context.Context, in domain.TrackUpload
 	if err != nil {
 		return domain.Track{}, err
 	}
-	if err := track.OwnedBy(in.UserID); err != nil {
-		return domain.Track{}, err
+	var ownerErr error
+	if strictOwner {
+		ownerErr = track.RequireOwner(in.UserID)
+	} else {
+		ownerErr = track.OwnedBy(in.UserID)
+	}
+	if ownerErr != nil {
+		return domain.Track{}, ownerErr
 	}
 
 	if err := s.verifyObject(ctx, track); err != nil {

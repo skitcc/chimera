@@ -1,0 +1,1879 @@
+openapi: 3.0.3
+info:
+  title: Sound Chimera API
+  version: 1.0.0
+servers:
+  - url: /
+tags:
+  - name: sessions
+    description: Вход
+  - name: users
+    description: Аккаунты и профили
+  - name: tracks
+    description: Каталог и публикация
+  - name: likes
+    description: Любимое
+  - name: playlists
+    description: Списки пользователя
+  - name: picks
+    description: Подборки, которые собирает система
+  - name: follows
+    description: Подписки на авторов
+
+paths:
+  /v1/sessions:
+    post:
+      tags: [sessions]
+      operationId: createSession
+      summary: Вход
+      description: |
+        Открывает сессию и возвращает токен и `user_id` владельца.
+        Неизвестный email и неверный пароль дают один и тот же `unauthorized`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionCreate'
+            example:
+              email: ada@example.com
+              password: long-enough
+      responses:
+        '201':
+          description: Сессия открыта
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+              example:
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example
+                user_id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/users:
+    get:
+      tags: [users]
+      operationId: listUsers
+      summary: Пользователи
+      description: Весь справочник по страницам. Подписчики и подписки — в `GET /v1/follows`.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: Страница профилей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+              example:
+                items:
+                  - id: 9e4b5f6d-a07c-4d4e-cf1b-444444444444
+                    email: grace@example.com
+                    name: Grace
+                next_cursor: "20"
+                limit: 20
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '500':
+          $ref: '#/components/responses/Internal'
+    post:
+      tags: [users]
+      operationId: createUser
+      summary: Регистрация
+      description: |
+        Создаёт аккаунт. Пароль не короче 8 символов.
+        Токен здесь не выдаётся: после регистрации клиент открывает сессию через `POST /v1/sessions`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+            example:
+              email: ada@example.com
+              password: long-enough
+              name: Ada
+      responses:
+        '201':
+          description: Аккаунт создан
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                email: ada@example.com
+                name: Ada
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/users/{userId}:
+    get:
+      tags: [users]
+      operationId: getUser
+      summary: Профиль
+      description: Публичный профиль. Пароль в ответ не входит.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      responses:
+        '200':
+          description: Профиль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                email: ada@example.com
+                name: Ada
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    put:
+      tags: [users]
+      operationId: replaceUser
+      summary: Заменить профиль
+      description: Нужны и имя, и email. Пароль этой операцией не меняется. Только владелец аккаунта.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserReplace'
+            example:
+              email: ada@example.com
+              name: Ada Lovelace
+      responses:
+        '200':
+          description: Профиль заменён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                email: ada@example.com
+                name: Ada Lovelace
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/Internal'
+    patch:
+      tags: [users]
+      operationId: updateUser
+      summary: Частично изменить профиль
+      description: |
+        Меняются только переданные поля. Пустое тело не принимается.
+        Пароль меняется только здесь. Только владелец аккаунта.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPatch'
+            example:
+              name: Ada Lovelace
+      responses:
+        '200':
+          description: Профиль изменён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                email: ada@example.com
+                name: Ada Lovelace
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      tags: [users]
+      operationId: deleteUser
+      summary: Удалить аккаунт
+      description: |
+        Только владелец аккаунта. Повтор по уже удалённому аккаунту — 401, сессии больше нет.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      responses:
+        '204':
+          description: Аккаунт удалён
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/follows:
+    get:
+      tags: [follows]
+      operationId: listFollows
+      summary: Подписки
+      description: |
+        Нужен хотя бы один фильтр, иначе 400.
+
+        - `follower_id` — на кого подписан пользователь.
+        - `following_id` — кто подписан на пользователя.
+        - Оба сразу — есть ли подписка у этой пары: страница из одной записи или пустая.
+
+        Если указанного пользователя нет — 404.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/followerIdQuery'
+        - $ref: '#/components/parameters/followingIdQuery'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: Страница подписок
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FollowPage'
+              example:
+                items:
+                  - follower:
+                      id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                      email: ada@example.com
+                      name: Ada
+                    following:
+                      id: 9e4b5f6d-a07c-4d4e-cf1b-444444444444
+                      email: grace@example.com
+                      name: Grace
+                    created_at: '2026-09-25T09:00:00Z'
+                next_cursor: "20"
+                limit: 20
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    post:
+      tags: [follows]
+      operationId: createFollows
+      summary: Подписаться на нескольких авторов
+      description: |
+        Создаёт подписки `follower_id` на всех из `following_ids`.
+        `follower_id` должен совпадать с владельцем токена, иначе 403.
+
+        - Атомарно: если хоть одного автора нет — 404, ничего не меняется.
+        - Идемпотентно: уже существующие подписки пропускаются, повтор запроса снова 204.
+        - Пустой список, повтор внутри списка, `follower_id` в списке или больше 100 идентификаторов — 400.
+
+        Для одного автора — `PUT /v1/follows/{followerId}/{followingId}`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FollowsCreate'
+            example:
+              follower_id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+              following_ids:
+                - 9e4b5f6d-a07c-4d4e-cf1b-444444444444
+                - b16d718f-c29e-4f60-e13d-666666666666
+      responses:
+        '204':
+          description: Подписки на всех из списка есть
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      tags: [follows]
+      operationId: deleteFollows
+      summary: Отписаться от нескольких авторов
+      description: |
+        Снимает подписки `follower_id` на всех из `following_id`.
+        `follower_id` должен совпадать с владельцем токена, иначе 403.
+        Список передаётся в query, а не в теле: тело у DELETE многие клиенты и прокси отбрасывают.
+
+        - Атомарно и идемпотентно: отсутствующие подписки и несуществующие авторы пропускаются, повтор снова 204.
+        - Без `following_id` — 400: запрос без списка не снимает все подписки.
+        - Повтор внутри списка или больше 100 идентификаторов — 400.
+
+        Для одного автора — `DELETE /v1/follows/{followerId}/{followingId}`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/followerIdQueryRequired'
+        - $ref: '#/components/parameters/followingIds'
+      responses:
+        '204':
+          description: Подписок на авторов из списка нет
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/follows/{followerId}/{followingId}:
+    get:
+      tags: [follows]
+      operationId: getFollow
+      summary: Подписка пары
+      description: 200 — подписка есть, 404 — нет её или нет одного из пользователей.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/followerId'
+        - $ref: '#/components/parameters/followingId'
+      responses:
+        '200':
+          description: Подписка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Follow'
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    put:
+      tags: [follows]
+      operationId: putFollow
+      summary: Подписаться на автора
+      description: |
+        `followerId` должен совпадать с владельцем токена, иначе 403.
+        Идемпотентно: повтор той же пары снова 204. На себя подписаться нельзя — 400.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/followerId'
+        - $ref: '#/components/parameters/followingId'
+      responses:
+        '204':
+          description: Подписка есть
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      tags: [follows]
+      operationId: deleteFollow
+      summary: Отписаться от автора
+      description: |
+        `followerId` должен совпадать с владельцем токена, иначе 403.
+        Идемпотентно: повторное снятие снова 204.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/followerId'
+        - $ref: '#/components/parameters/followingId'
+      responses:
+        '204':
+          description: Подписки нет
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/users/{userId}/likes/{trackId}:
+    put:
+      tags: [likes]
+      operationId: putLike
+      summary: Отметить трек любимым
+      description: |
+        `userId` должен совпадать с владельцем токена. Только готовый трек.
+        Идемпотентно: повтор той же пары снова 204.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/userId'
+        - $ref: '#/components/parameters/trackId'
+      responses:
+        '204':
+          description: Лайк есть
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      tags: [likes]
+      operationId: deleteLike
+      summary: Снять отметку
+      description: |
+        `userId` должен совпадать с владельцем токена. Повторное снятие тоже 204.
+        404 только если нет самого трека.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/userId'
+        - $ref: '#/components/parameters/trackId'
+      responses:
+        '204':
+          description: Лайка нет
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/tracks:
+    get:
+      tags: [tracks, likes]
+      operationId: listTracks
+      summary: Треки
+      description: |
+        Одна коллекция для ленты, каталога автора, своих загрузок и любимого. Фильтры складываются через И.
+
+        - `user_id` — треки автора.
+        - `artist` — точное имя без учёта регистра и краевых пробелов.
+        - `liked_by` — любимое пользователя. Только свой `user_id`: без токена 401, чужой — 403.
+        - `status` — по умолчанию только `ready`. Если `user_id` совпадает с владельцем токена,
+          по умолчанию видны все статусы. Статус кроме `ready` для чужих треков — 403.
+
+        Если Authorization передан, токен должен быть верным.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/userIdQuery'
+        - $ref: '#/components/parameters/artist'
+        - $ref: '#/components/parameters/likedBy'
+        - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: Страница треков
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackPage'
+              example:
+                items:
+                  - id: 7c2f3d4b-8e5a-4b2c-ad9f-222222222222
+                    user_id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                    title: Night Drive
+                    artist: Ada
+                    status: ready
+                    size_bytes: 3200000
+                next_cursor: "20"
+                limit: 20
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+    post:
+      tags: [tracks]
+      operationId: createTrack
+      summary: Создать трек
+      description: |
+        Создаёт трек `pending` у владельца токена и временную ссылку на запись объекта.
+        Байты файла в этот запрос не входят. Публикация — `PATCH /v1/tracks/{trackId}` со `status: ready`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackCreate'
+            example:
+              title: Night Drive
+              artist: Ada
+              size: 3200000
+      responses:
+        '201':
+          description: Карточка создана
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackUpload'
+              example:
+                track:
+                  id: 7c2f3d4b-8e5a-4b2c-ad9f-222222222222
+                  user_id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                  title: Night Drive
+                  artist: Ada
+                  status: pending
+                  size_bytes: 3200000
+                upload_url: https://storage.example/music-raw/7c2f3d4b-8e5a-4b2c-ad9f-222222222222.mp3?X-Amz-Signature=example
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/tracks/{trackId}:
+    get:
+      tags: [tracks]
+      operationId: getTrack
+      summary: Карточка трека
+      description: |
+        Без токена виден только `ready`. Владелец с верным токеном видит свой трек в любом статусе.
+        Если заголовок Authorization передан, токен должен быть верным.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/trackId'
+      responses:
+        '200':
+          description: Карточка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Track'
+              example:
+                id: 7c2f3d4b-8e5a-4b2c-ad9f-222222222222
+                user_id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                title: Night Drive
+                artist: Ada
+                status: ready
+                size_bytes: 3200000
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    put:
+      tags: [tracks]
+      operationId: replaceTrack
+      summary: Заменить название и артиста
+      description: Оба поля обязательны. Статус, размер и файл не меняются. Только владелец.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/trackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackReplace'
+            example:
+              title: Night Drive
+              artist: Ada
+      responses:
+        '200':
+          description: Карточка заменена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Track'
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    patch:
+      tags: [tracks]
+      operationId: updateTrack
+      summary: Частично изменить трек или опубликовать его
+      description: |
+        Меняются только переданные поля. Пустое тело не принимается. Только владелец.
+
+        `status: ready` подтверждает загрузку: сервер сверяет владельца и размер объекта
+        в хранилище и публикует трек. Если объекта нет, размер не совпал или текущий статус
+        не допускает перехода — 409.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/trackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackPatch'
+            examples:
+              rename:
+                summary: Изменить название
+                value:
+                  title: Night Drive (demo)
+              publish:
+                summary: Подтвердить загрузку
+                value:
+                  status: ready
+      responses:
+        '200':
+          description: Карточка изменена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Track'
+              example:
+                id: 7c2f3d4b-8e5a-4b2c-ad9f-222222222222
+                user_id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                title: Night Drive
+                artist: Ada
+                status: ready
+                size_bytes: 3200000
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      tags: [tracks]
+      operationId: deleteTrack
+      summary: Удалить трек
+      description: Только владелец. Строки плейлистов и подборок с этим треком уходят, сами списки остаются.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/trackId'
+      responses:
+        '204':
+          description: Трек удалён
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/tracks/{trackId}/stream:
+    get:
+      tags: [tracks]
+      operationId: getTrackStream
+      summary: Аудио трека
+      description: Ответ — переход на временную ссылку чтения. Неготовый трек не отдаётся.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/trackId'
+      responses:
+        '302':
+          description: Временная ссылка в Location
+          headers:
+            Location:
+              description: Временная ссылка на объект
+              schema:
+                type: string
+                format: uri
+              example: https://storage.example/music-raw/7c2f3d4b-8e5a-4b2c-ad9f-222222222222.mp3?X-Amz-Signature=example
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/playlists:
+    get:
+      tags: [playlists]
+      operationId: listPlaylists
+      summary: Плейлисты
+      description: |
+        Одна коллекция для ленты и плейлистов пользователя, как `GET /v1/tracks`. Фильтры складываются через И.
+
+        - Без фильтров — лента всех публичных плейлистов.
+        - `owner_id` — плейлисты пользователя. Если пользователя нет — 404.
+        - `is_public` — по умолчанию только публичные. Если `owner_id` совпадает с владельцем токена,
+          по умолчанию видны и скрытые. `is_public=false` для чужих плейлистов — 403.
+
+        Если Authorization передан, токен должен быть верным.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ownerId'
+        - $ref: '#/components/parameters/isPublic'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: Страница плейлистов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistPage'
+              example:
+                items:
+                  - id: 8d3a4e5c-9f6b-4c3d-be0a-333333333333
+                    owner_id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                    title: Ночные
+                    is_public: true
+                limit: 20
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    post:
+      tags: [playlists]
+      operationId: createPlaylist
+      summary: Создать плейлист
+      description: |
+        Владелец — владелец токена. Нужны название и флаг публичности.
+        Повтор запроса создаёт ещё один плейлист.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaylistReplace'
+            example:
+              title: Ночные
+              is_public: false
+      responses:
+        '201':
+          description: Плейлист создан
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Playlist'
+              example:
+                id: 8d3a4e5c-9f6b-4c3d-be0a-333333333333
+                owner_id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                title: Ночные
+                is_public: false
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/playlists/{playlistId}:
+    get:
+      tags: [playlists]
+      operationId: getPlaylist
+      summary: Плейлист
+      description: |
+        Публичный читается без токена. Скрытый виден только владельцу.
+        Чужому скрытому списку отвечаем как отсутствующему.
+        Если Authorization передан, токен должен быть верным.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/playlistId'
+      responses:
+        '200':
+          description: Плейлист
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Playlist'
+              example:
+                id: 8d3a4e5c-9f6b-4c3d-be0a-333333333333
+                owner_id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                title: Ночные
+                is_public: true
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    put:
+      tags: [playlists]
+      operationId: replacePlaylist
+      summary: Заменить название и видимость
+      description: Оба поля обязательны. Повтор с тем же телом не меняет результат. Только владелец.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/playlistId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaylistReplace'
+            example:
+              title: Ночные
+              is_public: true
+      responses:
+        '200':
+          description: Плейлист заменён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Playlist'
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    patch:
+      tags: [playlists]
+      operationId: updatePlaylist
+      summary: Частично изменить плейлист
+      description: Меняется только переданное поле. Пустое тело не принимается. Только владелец.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/playlistId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaylistPatch'
+            example:
+              is_public: true
+      responses:
+        '200':
+          description: Плейлист изменён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Playlist'
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      tags: [playlists]
+      operationId: deletePlaylist
+      summary: Удалить плейлист
+      description: Только владелец. Повтор по уже удалённому плейлисту — 404.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/playlistId'
+      responses:
+        '204':
+          description: Плейлист удалён
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/playlists/{playlistId}/tracks:
+    get:
+      tags: [playlists]
+      operationId: listPlaylistTracks
+      summary: Треки плейлиста
+      description: Только готовые треки, в порядке `position`. Доступ как у самого плейлиста.
+      security:
+        - {}
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/playlistId'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: Страница состава
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistTrackPage'
+              example:
+                items:
+                  - position: 1
+                    track:
+                      id: 7c2f3d4b-8e5a-4b2c-ad9f-222222222222
+                      user_id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                      title: Night Drive
+                      artist: Ada
+                      status: ready
+                      size_bytes: 3200000
+                limit: 20
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    post:
+      tags: [playlists]
+      operationId: createPlaylistTrack
+      summary: Добавить трек в плейлист
+      description: Только готовый трек. Повтор пары — конфликт. Только владелец плейлиста.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/playlistId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaylistTrackCreate'
+            example:
+              track_id: 7c2f3d4b-8e5a-4b2c-ad9f-222222222222
+              position: 1
+      responses:
+        '201':
+          description: Трек добавлен
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistTrack'
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/playlists/{playlistId}/tracks/{trackId}:
+    patch:
+      tags: [playlists]
+      operationId: updatePlaylistTrack
+      summary: Сменить позицию трека
+      description: Меняется только `position`. Повтор с тем же значением снова 200. Только владелец плейлиста.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/playlistId'
+        - $ref: '#/components/parameters/trackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaylistTrackPatch'
+            example:
+              position: 2
+      responses:
+        '200':
+          description: Позиция изменена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistTrack'
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      tags: [playlists]
+      operationId: deletePlaylistTrack
+      summary: Убрать трек из плейлиста
+      description: Сам плейлист остаётся. Только владелец плейлиста.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/playlistId'
+        - $ref: '#/components/parameters/trackId'
+      responses:
+        '204':
+          description: Трек убран из списка
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/picks:
+    get:
+      tags: [picks]
+      operationId: listPicks
+      summary: Подборки пользователя
+      description: |
+        `user_id` обязателен и должен совпадать с владельцем токена, иначе 403.
+        Новые генерации не затирают старые.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/userIdQueryRequired'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+      responses:
+        '200':
+          description: Страница подборок
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PickPage'
+              example:
+                items:
+                  - id: a05c607e-b18d-4e5f-d02c-555555555555
+                    user_id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                    title: По лайкам
+                    generated_at: '2026-09-25T09:00:00Z'
+                limit: 20
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/Internal'
+    post:
+      tags: [picks]
+      operationId: createPick
+      summary: Создать подборку
+      description: |
+        Система собирает новую подборку для владельца токена по лайкам, подпискам
+        и артистам этих треков. Состав клиент не передаёт, тела у запроса нет.
+      x-implemented: false
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Подборка создана
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PickDetail'
+              example:
+                id: a05c607e-b18d-4e5f-d02c-555555555555
+                user_id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+                title: По лайкам
+                generated_at: '2026-09-25T09:00:00Z'
+                tracks:
+                  - position: 1
+                    note: like
+                    track:
+                      id: 7c2f3d4b-8e5a-4b2c-ad9f-222222222222
+                      user_id: 9e4b5f6d-a07c-4d4e-cf1b-444444444444
+                      title: Night Drive
+                      artist: Ada
+                      status: ready
+                      size_bytes: 3200000
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+  /v1/picks/{pickId}:
+    get:
+      tags: [picks]
+      operationId: getPick
+      summary: Подборка с треками
+      description: Подборка и состав с `position` и `note`. Чужая подборка — 403.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/pickId'
+      responses:
+        '200':
+          description: Подборка и почему выбран каждый трек
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PickDetail'
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    patch:
+      tags: [picks]
+      operationId: updatePick
+      summary: Изменить название подборки
+      description: Меняется только название. Состав остаётся за системой. Чужая подборка — 403.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/pickId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PickPatch'
+            example:
+              title: Ночная
+      responses:
+        '200':
+          description: Название изменено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pick'
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+    delete:
+      tags: [picks]
+      operationId: deletePick
+      summary: Удалить подборку
+      description: Только своя подборка. Повтор по уже удалённой — 404.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/pickId'
+      responses:
+        '204':
+          description: Подборка удалена
+        '400':
+          $ref: '#/components/responses/Invalid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Internal'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Заголовок Authorization: Bearer <token>"
+  headers:
+    Location:
+      description: Адрес созданного ресурса
+      schema:
+        type: string
+        format: uri-reference
+      example: /v1/tracks/7c2f3d4b-8e5a-4b2c-ad9f-222222222222
+  parameters:
+    userId:
+      name: userId
+      in: path
+      required: true
+      description: Идентификатор пользователя
+      schema:
+        type: string
+        format: uuid
+    followerId:
+      name: followerId
+      in: path
+      required: true
+      description: Кто подписывается
+      schema:
+        type: string
+        format: uuid
+    followingId:
+      name: followingId
+      in: path
+      required: true
+      description: На кого подписываются
+      schema:
+        type: string
+        format: uuid
+    followerIdQuery:
+      name: follower_id
+      in: query
+      required: false
+      description: Только подписки этого пользователя
+      schema:
+        type: string
+        format: uuid
+    followerIdQueryRequired:
+      name: follower_id
+      in: query
+      required: true
+      description: Чьи подписки снимаются. Должен совпадать с владельцем токена.
+      schema:
+        type: string
+        format: uuid
+    followingIdQuery:
+      name: following_id
+      in: query
+      required: false
+      description: Только подписки на этого пользователя
+      schema:
+        type: string
+        format: uuid
+    followingIds:
+      name: following_id
+      in: query
+      required: true
+      description: От кого отписаться. Параметр повторяется на каждого автора — `?following_id=a&following_id=b`.
+      style: form
+      explode: true
+      schema:
+        type: array
+        minItems: 1
+        maxItems: 100
+        uniqueItems: true
+        items:
+          type: string
+          format: uuid
+    trackId:
+      name: trackId
+      in: path
+      required: true
+      description: Идентификатор трека
+      schema:
+        type: string
+        format: uuid
+    playlistId:
+      name: playlistId
+      in: path
+      required: true
+      description: Идентификатор плейлиста
+      schema:
+        type: string
+        format: uuid
+    pickId:
+      name: pickId
+      in: path
+      required: true
+      description: Идентификатор подборки
+      schema:
+        type: string
+        format: uuid
+    userIdQuery:
+      name: user_id
+      in: query
+      required: false
+      description: Автор треков
+      schema:
+        type: string
+        format: uuid
+    userIdQueryRequired:
+      name: user_id
+      in: query
+      required: true
+      description: Чьи подборки. Должен совпадать с владельцем токена.
+      schema:
+        type: string
+        format: uuid
+    ownerId:
+      name: owner_id
+      in: query
+      required: false
+      description: Владелец плейлистов
+      schema:
+        type: string
+        format: uuid
+    isPublic:
+      name: is_public
+      in: query
+      required: false
+      description: Видимость плейлиста. `false` — только для своих плейлистов.
+      schema:
+        type: boolean
+    likedBy:
+      name: liked_by
+      in: query
+      required: false
+      description: Только треки, отмеченные любимыми этим пользователем. Должен совпадать с владельцем токена.
+      schema:
+        type: string
+        format: uuid
+    artist:
+      name: artist
+      in: query
+      required: false
+      description: Точное имя артиста
+      schema:
+        type: string
+      example: Ada
+    status:
+      name: status
+      in: query
+      required: false
+      description: Статус трека. Кроме `ready` — только для своих треков.
+      schema:
+        type: string
+        enum: [pending, processing, ready]
+    limit:
+      name: limit
+      in: query
+      required: false
+      description: Размер страницы. По умолчанию 20, больше 100 не принимается.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Курсор следующей страницы из прошлого ответа
+      schema:
+        type: string
+  responses:
+    Invalid:
+      description: Неверное тело, параметр или пустое частичное обновление
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: invalid
+            message: title is required
+    Unauthorized:
+      description: Токена нет или он неверен. При входе сюда же попадает неверный пароль.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: unauthorized
+            message: missing token
+    Forbidden:
+      description: Токен верный, но ресурс принадлежит другому пользователю
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: forbidden
+            message: not allowed
+    NotFound:
+      description: Ресурс не найден или скрыт от этого клиента
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: not_found
+            message: track not found
+    Conflict:
+      description: Повтор уникальной пары, занятый email или неверный статус трека
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: conflict
+            message: track is not ready
+    TooManyRequests:
+      description: Слишком частые регистрация или вход. Ответ не говорит, какая квота сработала.
+      headers:
+        Retry-After:
+          description: Секунды до конца окна
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: too_many_requests
+            message: slow down
+    Internal:
+      description: Сбой сервера. Клиенту не отдаются детали.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: internal
+            message: internal error
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum:
+            - invalid
+            - unauthorized
+            - forbidden
+            - not_found
+            - conflict
+            - too_many_requests
+            - internal
+        message:
+          type: string
+    SessionCreate:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    Session:
+      type: object
+      required: [token, user_id]
+      properties:
+        token:
+          type: string
+        user_id:
+          type: string
+          format: uuid
+          description: Владелец токена. Подставляется в пути и фильтры вместо текущего пользователя.
+    User:
+      type: object
+      required: [id, email, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+    UserCreate:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+    UserReplace:
+      type: object
+      required: [email, name]
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+    UserPatch:
+      type: object
+      minProperties: 1
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        password:
+          type: string
+          minLength: 8
+          description: Если поле передано, пароль заменяется. Иначе остаётся прежним.
+    Follow:
+      type: object
+      required: [follower, following, created_at]
+      properties:
+        follower:
+          $ref: '#/components/schemas/User'
+        following:
+          $ref: '#/components/schemas/User'
+        created_at:
+          type: string
+          format: date-time
+    FollowPage:
+      type: object
+      required: [items, limit]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Follow'
+        next_cursor:
+          type: string
+        limit:
+          type: integer
+    FollowsCreate:
+      type: object
+      required: [follower_id, following_ids]
+      properties:
+        follower_id:
+          type: string
+          format: uuid
+          description: Кто подписывается. Должен совпадать с владельцем токена.
+        following_ids:
+          type: array
+          description: На кого подписаться
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    UserPage:
+      type: object
+      required: [items, limit]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        next_cursor:
+          type: string
+        limit:
+          type: integer
+    Track:
+      type: object
+      required: [id, user_id, title, artist, status, size_bytes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        artist:
+          type: string
+          description: Строка для поиска, не аккаунт
+        status:
+          type: string
+          enum: [pending, processing, ready]
+        size_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+    TrackCreate:
+      type: object
+      required: [title, artist, size]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        artist:
+          type: string
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Размер файла в байтах
+    TrackReplace:
+      type: object
+      required: [title, artist]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        artist:
+          type: string
+    TrackPatch:
+      type: object
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+        artist:
+          type: string
+        status:
+          type: string
+          enum: [ready]
+          description: Единственный переход, который задаёт клиент, — публикация загруженного файла.
+    TrackUpload:
+      type: object
+      required: [track, upload_url]
+      properties:
+        track:
+          $ref: '#/components/schemas/Track'
+        upload_url:
+          type: string
+          format: uri
+    TrackPage:
+      type: object
+      required: [items, limit]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Track'
+        next_cursor:
+          type: string
+        limit:
+          type: integer
+    Playlist:
+      type: object
+      required: [id, owner_id, title, is_public]
+      properties:
+        id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        is_public:
+          type: boolean
+    PlaylistReplace:
+      type: object
+      required: [title, is_public]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        is_public:
+          type: boolean
+    PlaylistPatch:
+      type: object
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+        is_public:
+          type: boolean
+    PlaylistPage:
+      type: object
+      required: [items, limit]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Playlist'
+        next_cursor:
+          type: string
+        limit:
+          type: integer
+    PlaylistTrack:
+      type: object
+      required: [position, track]
+      properties:
+        position:
+          type: integer
+          minimum: 0
+        track:
+          $ref: '#/components/schemas/Track'
+    PlaylistTrackCreate:
+      type: object
+      required: [track_id, position]
+      properties:
+        track_id:
+          type: string
+          format: uuid
+        position:
+          type: integer
+          minimum: 0
+    PlaylistTrackPatch:
+      type: object
+      required: [position]
+      properties:
+        position:
+          type: integer
+          minimum: 0
+    PlaylistTrackPage:
+      type: object
+      required: [items, limit]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaylistTrack'
+        next_cursor:
+          type: string
+        limit:
+          type: integer
+    Pick:
+      type: object
+      required: [id, user_id, title, generated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+          description: Кому собрана подборка
+        title:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+    PickPatch:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+    PickTrack:
+      type: object
+      required: [position, note, track]
+      properties:
+        position:
+          type: integer
+          minimum: 0
+        note:
+          type: string
+          description: Почему система выбрала трек. Не описание файла.
+        track:
+          $ref: '#/components/schemas/Track'
+    PickDetail:
+      allOf:
+        - $ref: '#/components/schemas/Pick'
+        - type: object
+          required: [tracks]
+          properties:
+            tracks:
+              type: array
+              items:
+                $ref: '#/components/schemas/PickTrack'
+    PickPage:
+      type: object
+      required: [items, limit]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pick'
+        next_cursor:
+          type: string
+        limit:
+          type: integer
+
+security:
+  - bearerAuth: []

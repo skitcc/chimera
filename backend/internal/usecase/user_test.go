@@ -144,7 +144,7 @@ func TestUserServiceUpdate(t *testing.T) {
 		in := validUserWrite()
 
 		// Act
-		got, err := service.Update(context.Background(), testUserID, in)
+		got, err := service.Update(context.Background(), testUserID, testUserID, in)
 
 		// Assert
 		if err != nil {
@@ -158,7 +158,7 @@ func TestUserServiceUpdate(t *testing.T) {
 		service, _, _ := newUserFixture()
 
 		// Act
-		_, err := service.Update(context.Background(), "", validUserWrite())
+		_, err := service.Update(context.Background(), testUserID, "", validUserWrite())
 
 		// Assert
 		assertErrorCode(t, err, domain.CodeInvalid)
@@ -171,7 +171,7 @@ func TestUserServiceUpdate(t *testing.T) {
 		in.Email = "invalid"
 
 		// Act
-		_, err := service.Update(context.Background(), testUserID, in)
+		_, err := service.Update(context.Background(), testUserID, testUserID, in)
 
 		// Assert
 		assertErrorCode(t, err, domain.CodeInvalid)
@@ -183,10 +183,22 @@ func TestUserServiceUpdate(t *testing.T) {
 		users.updateErr = errDependency
 
 		// Act
-		_, err := service.Update(context.Background(), testUserID, validUserWrite())
+		_, err := service.Update(context.Background(), testUserID, testUserID, validUserWrite())
 
 		// Assert
 		assertErrorIs(t, err, errDependency)
+	})
+
+	runCase(t, "rejects another user", func(t *testing.T) {
+		// Arrange
+		service, users, _ := newUserFixture()
+		users.users[testUserID] = validUser()
+
+		// Act
+		_, err := service.Update(context.Background(), "user-2", testUserID, validUserWrite())
+
+		// Assert
+		assertErrorCode(t, err, domain.CodeForbidden)
 	})
 }
 
@@ -197,7 +209,7 @@ func TestUserServiceDelete(t *testing.T) {
 		users.users[testUserID] = validUser()
 
 		// Act
-		err := service.Delete(context.Background(), testUserID)
+		err := service.Delete(context.Background(), testUserID, testUserID)
 
 		// Assert
 		if err != nil {
@@ -213,7 +225,7 @@ func TestUserServiceDelete(t *testing.T) {
 		service, _, _ := newUserFixture()
 
 		// Act
-		err := service.Delete(context.Background(), "")
+		err := service.Delete(context.Background(), testUserID, "")
 
 		// Assert
 		assertErrorCode(t, err, domain.CodeInvalid)
@@ -225,9 +237,24 @@ func TestUserServiceDelete(t *testing.T) {
 		users.deleteErr = errDependency
 
 		// Act
-		err := service.Delete(context.Background(), testUserID)
+		err := service.Delete(context.Background(), testUserID, testUserID)
 
 		// Assert
 		assertErrorIs(t, err, errDependency)
+	})
+
+	runCase(t, "rejects another user", func(t *testing.T) {
+		// Arrange
+		service, users, _ := newUserFixture()
+		users.users[testUserID] = validUser()
+
+		// Act
+		err := service.Delete(context.Background(), "user-2", testUserID)
+
+		// Assert
+		assertErrorCode(t, err, domain.CodeForbidden)
+		if _, ok := users.users[testUserID]; !ok {
+			t.Fatal("foreign delete removed the user")
+		}
 	})
 }
