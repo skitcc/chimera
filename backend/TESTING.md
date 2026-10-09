@@ -315,6 +315,55 @@ JSON, чтобы склеивать прогоны или копить исто�
 
 ## Захват трафика демо-сценария
 
+## Логи приложения в демо-сценарии
+
+`make test`, `make test-integration` и `make test-e2e` печатают ход `go test` в терминал. Отчёт Allure — это JSON в `backend/allure-results`, не лог сервера. Лог API идёт в stdout контейнера: строка `msg=request` на каждый запрос с методом, путём и статусом. `make test-e2e` перед удалением своего контейнера API сохраняет этот лог в `backend/e2e-out/chimera-e2e-<id>.log`.
+
+Каждый прогон теста получает сквозной `run_id`. Клиент шлёт его в заголовке `X-Run-Id`, а номер шага — в `X-Run-Step`. Middleware `RunTrace` кладёт их в контекст запроса, и логгер добавляет `run_id` и `step` ко всем строкам, которые API пишет при обработке запроса: к `msg=request` и к ошибкам. Заголовок `X-Run-Event: start` или `finish` (с `X-Run-Result: passed|failed`) API пишет отдельной строкой:
+
+```text
+level=INFO msg="test run started" mode=development run_id=curl-1 step=01
+level=INFO msg=request mode=development method=POST path=/v1/auth/login status=200 duration=41ms run_id=curl-1 step=03
+level=INFO msg="test run finished" mode=development result=passed run_id=curl-1 step=finish
+```
+
+| Прогон | `run_id` | Где лог |
+| --- | --- | --- |
+| `make demo-requests RUN=1` | `curl-1` | `docker logs chimera-api` |
+| `make e2e-dev RUN=1` | `go-1` | `docker logs chimera-api` |
+| `make test-e2e RUN=1` | `go-1` | `backend/e2e-out/chimera-e2e-<id>.log` |
+| `make test-integration RUN=1` | `it-1` | `backend/test-logs/it-1.log` |
+
+curl-сценарий шлёт `finish` из `trap` на выходе, поэтому упавший прогон тоже даёт строку с `result=failed`. Go-сценарий ставит `X-Run-Event: start` на первый запрос (`api.event = "start"` в `e2e/demo_test.go`, заголовок добавляет `doURL`) и шлёт `finish` из `t.Cleanup`.
+
+Точка останова в `demo_test.go` останавливает клиент, и API не получает следующий запрос, поэтому его лог замирает на последнем шаге. `make e2e-dev` запускает тест внутри контейнера, и брейкпоинт редактора туда не попадает. Конфигурация `Debug e2e demo` в `.vscode/launch.json` запускает тот же тест на хосте против `http://127.0.0.1:8080` с `run_id=go-1`. API при этом должен работать в Compose (`docker compose up` в корне, пересобранный после изменения логгера). В одном терминале из `backend/`:
+
+```bash
+make app-logs RUN=go-1
+```
+
+В `e2e/demo_test.go` точка ставится на строку `api.do` нужного шага, например шага `08 complete upload`. Запуск: Run and Debug, конфигурация `Debug e2e demo`. В логе появятся `test run started` и шаги до этой строки, затем тишина. Continue (`F5`) отправляет следующий запрос, и в логе появляется его строка со `step`. В конце cleanup пишет `test run finished result=passed`.
+
+Интеграционные тесты HTTP не используют: код приложения работает внутри `go test`. Там `run_id` приходит из `TEST_RUN_ID`. `testkit.RunSpec` пишет `msg="test started"` и `msg="test finished" result=...` с `run_id` и `spec_id` на каждый кейс в `backend/test-logs/it-<run>.log`, а `test-integration.sh` пишет туда же начало и конец прогона. В строке подключения к PostgreSQL стоит `application_name=it-<run>`, поэтому сессии прогона видны в `pg_stat_activity` стенда. Без `RUN` берётся случайный id.
+
+Когда разработческий Compose (`docker compose up` в корне: `chimera-api`, PostgreSQL, RustFS) уже работает, из `backend/` один прогон запускается так:
+
+```bash
+make demo-requests RUN=1   # curl, ответы в backend/e2e-out/runs/1/
+make e2e-dev RUN=1         # go test -tags=e2e против того же API
+```
+
+Три параллельных прогона — это три такие команды в разных терминалах с `RUN=1`, `RUN=2` и `RUN=3`. Лог приложения в отдельном терминале:
+
+```bash
+make app-logs                              # docker logs -f chimera-api, весь лог
+make app-logs | grep 'test run'            # начало и конец каждого прогона
+make app-logs RUN=curl-2                   # только строки прогона curl-2
+make test-logs                             # интеграционные прогоны, RUN=1 — только it-1
+```
+
+`DEV_API_URL` (по умолчанию `http://127.0.0.1:8080`) и `DEV_API_CONTAINER` (по умолчанию `chimera-api`) меняют адрес и контейнер.
+
 `make demo-capture` пишет в `backend/e2e-out/`:
 
 | Файл | Что внутри |
