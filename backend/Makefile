@@ -88,7 +88,7 @@ stand-down:
 
 test-integration: | $(ARTIFACTS_DIR)
 	@test -f "$(ROOT_DIR)/.env" || { printf '%s\n' 'missing ../.env; copy .env.example to .env' >&2; exit 1; }
-	sh scripts/stand-require.sh
+	STAND_ALLURE_SUITE=integration sh scripts/stand-require.sh
 	$(MAKE) test-image
 	ARTIFACTS_DIR="$(ARTIFACTS_DIR)" TEST_IMAGE="$(TEST_IMAGE)" TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" \
 		INTEGRATION_TAGS="$(INTEGRATION_TAGS)" INTEGRATION_RUN="$(INTEGRATION_RUN)" \
@@ -96,7 +96,7 @@ test-integration: | $(ARTIFACTS_DIR)
 
 test-e2e: | $(ARTIFACTS_DIR)
 	@test -f "$(ROOT_DIR)/.env" || { printf '%s\n' 'missing ../.env; copy .env.example to .env' >&2; exit 1; }
-	sh scripts/stand-require.sh rustfs
+	STAND_ALLURE_SUITE=e2e sh scripts/stand-require.sh rustfs
 	$(MAKE) test-image
 	docker build -f Dockerfile --tag "$(API_IMAGE)" .
 	ARTIFACTS_DIR="$(ARTIFACTS_DIR)" TEST_IMAGE="$(TEST_IMAGE)" API_IMAGE="$(API_IMAGE)" \
@@ -155,10 +155,19 @@ spec-check:
 	sh scripts/spec-matrix.sh "$(ARTIFACTS_DIR)/allure-results" --check TEST_SPEC.md
 
 allure-open:
-	@test -f "$(ARTIFACTS_DIR)/allure-report/index.html" || { printf '%s\n' 'report is missing; run make allure-report first' >&2; exit 1; }
-	@docker image inspect "$(NGINX_IMAGE)" >/dev/null 2>&1 || docker pull "$(NGINX_IMAGE)"
-	@printf '%s\n' "serving Allure report at http://127.0.0.1:$(ALLURE_PORT)"
-	docker run --rm --pull=never -p "$(ALLURE_PORT):80" \
+	@ids=$$(docker ps -q --filter "publish=$(ALLURE_PORT)"); \
+	if ls "$(ARTIFACTS_DIR)/allure-results/"*-result.json >/dev/null 2>&1; then \
+		$(MAKE) allure-render; \
+		if [ -n "$$ids" ]; then docker stop $$ids >/dev/null; fi; \
+	elif [ -n "$$ids" ]; then \
+		printf '%s\n' "Allure report is already served at http://127.0.0.1:$(ALLURE_PORT)"; \
+		printf '%s\n' "This page was rendered earlier and does not include the latest make test-e2e." >&2; \
+		exit 0; \
+	fi; \
+	test -f "$(ARTIFACTS_DIR)/allure-report/index.html" || { printf '%s\n' 'report is missing; run make allure-report first' >&2; exit 1; }; \
+	docker image inspect "$(NGINX_IMAGE)" >/dev/null 2>&1 || docker pull "$(NGINX_IMAGE)"; \
+	printf '%s\n' "serving Allure report at http://127.0.0.1:$(ALLURE_PORT)"; \
+	docker run --rm --pull=never --name chimera-allure -p "$(ALLURE_PORT):80" \
 		-v "$(ARTIFACTS_DIR)/allure-report:/usr/share/nginx/html:ro" \
 		"$(NGINX_IMAGE)"
 

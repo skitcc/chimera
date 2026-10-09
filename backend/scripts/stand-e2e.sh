@@ -2,13 +2,13 @@
 set -eu
 . "$(dirname "$0")/stand.sh"
 load_env
+export STAND_ALLURE_SUITE=e2e
 stand_require
 stand_require_rustfs
 stand_require_template
 
 if [ -z "${S3_ACCESS_KEY:-}" ] || [ -z "${S3_SECRET_KEY:-}" ]; then
-	printf '%s\n' "S3_ACCESS_KEY and S3_SECRET_KEY are required in .env" >&2
-	exit 1
+	stand_fail "S3_ACCESS_KEY and S3_SECRET_KEY are required in .env"
 fi
 
 artifacts=${ARTIFACTS_DIR:-$stand_backend_dir}
@@ -17,8 +17,7 @@ id=$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')
 case "$id" in
 [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
 *)
-	printf '%s\n' "failed to generate a database id" >&2
-	exit 1
+	stand_fail "failed to generate a database id"
 	;;
 esac
 db=t_$id
@@ -75,22 +74,19 @@ while [ "$i" -lt 90 ]; do
 	fi
 	if [ "$status" = "unhealthy" ] || [ "$status" = "none" ]; then
 		docker logs "$api_name" >&2 || true
-		printf '%s\n' "api container $api_name did not become healthy" >&2
-		exit 1
+		stand_fail "api container $api_name did not become healthy"
 	fi
 	i=$((i + 1))
 	sleep 1
 done
 if [ "$(stand_healthy "$api_name")" != "healthy" ]; then
 	docker logs "$api_name" >&2 || true
-	printf '%s\n' "api container $api_name did not become healthy" >&2
-	exit 1
+	stand_fail "api container $api_name did not become healthy"
 fi
 
 port=$(docker port "$api_name" 8080/tcp | head -n 1 | sed 's/.*://')
 if [ -z "$port" ]; then
-	printf '%s\n' "api container $api_name has no published port" >&2
-	exit 1
+	stand_fail "api container $api_name has no published port"
 fi
 
 docker run --rm --network host \

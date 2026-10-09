@@ -41,7 +41,12 @@ RustFS на `127.0.0.1:9002`. Рабочий проект `chimera` он не т
 
 `make test`, `make test-integration` и `make test-e2e` стенд не включают и не
 выключают. Если его нет, интеграция и сквозной прогон заканчиваются просьбой
-выполнить `make stand-up`, а не поднимают свой PostgreSQL. `make stand-down`
+выполнить `make stand-up`, а не поднимают свой PostgreSQL. Тот же отказ
+записывается в `allure-results` как broken: «integration tests did not start»
+или «e2e tests did not start», а прежние результаты этого набора из каталога
+удаляются. `go test` при этом не запускается. `make allure-open` показывает
+не этот каталог, а уже собранный `allure-report`. Если в `allure-results` есть
+файлы, цель перед отдачей страницы собирает отчёт заново. `make stand-down`
 останавливает контейнеры и нужен только для обслуживания машины: тома и шаблон
 он не удаляет. `make stand-refresh` заново собирает шаблон из `schema.sql` и
 не удаляет копии `t_*`. `make stand-gc` удаляет базы `t_*` без сессий — это

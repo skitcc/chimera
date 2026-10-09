@@ -2,6 +2,7 @@
 set -eu
 . "$(dirname "$0")/stand.sh"
 load_env
+export STAND_ALLURE_SUITE=integration
 stand_require
 stand_require_template
 
@@ -15,8 +16,7 @@ id=$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')
 case "$id" in
 [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
 *)
-	printf '%s\n' "failed to generate a database id" >&2
-	exit 1
+	stand_fail "failed to generate a database id"
 	;;
 esac
 db=t_$id
