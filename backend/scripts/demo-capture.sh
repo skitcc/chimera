@@ -37,9 +37,6 @@ trap cleanup EXIT INT TERM
 
 $compose up --build --detach --wait --wait-timeout 300
 
-# tcpdump copies frames from one interface. `any` on a current kernel is a
-# cooked socket, and a port filter there often matches nothing. eth0 is the
-# container's real Ethernet NIC, where the bridge actually delivers packets.
 start_dump() {
 	name=$1
 	network=$2
