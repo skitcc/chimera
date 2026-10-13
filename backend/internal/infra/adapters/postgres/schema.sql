@@ -57,20 +57,8 @@ CREATE TABLE IF NOT EXISTS playlist_tracks (
     PRIMARY KEY (playlist_id, track_id)
 );
 
-CREATE TABLE IF NOT EXISTS picks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    title TEXT NOT NULL,
-    generated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS pick_tracks (
-    pick_id UUID NOT NULL REFERENCES picks(id) ON DELETE CASCADE,
-    track_id UUID NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
-    position INTEGER NOT NULL CHECK (position >= 0),
-    note TEXT NOT NULL DEFAULT '',
-    PRIMARY KEY (pick_id, track_id)
-);
+DROP TABLE IF EXISTS pick_tracks;
+DROP TABLE IF EXISTS picks;
 
 CREATE INDEX IF NOT EXISTS tracks_user_id_idx ON tracks (user_id);
 CREATE INDEX IF NOT EXISTS tracks_status_created_at_idx ON tracks (status, created_at);
@@ -80,8 +68,6 @@ CREATE INDEX IF NOT EXISTS user_follows_following_created_idx ON user_follows (f
 CREATE INDEX IF NOT EXISTS playlists_owner_created_idx ON playlists (owner_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS playlists_owner_public_created_idx ON playlists (owner_id, is_public, created_at DESC);
 CREATE INDEX IF NOT EXISTS playlist_tracks_playlist_position_idx ON playlist_tracks (playlist_id, position);
-CREATE INDEX IF NOT EXISTS picks_user_generated_idx ON picks (user_id, generated_at DESC);
-CREATE INDEX IF NOT EXISTS pick_tracks_pick_position_idx ON pick_tracks (pick_id, position);
 
 CREATE OR REPLACE FUNCTION compact_playlist_track_positions()
 RETURNS trigger

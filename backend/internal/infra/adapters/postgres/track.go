@@ -77,21 +77,6 @@ func (r *TrackRepository) List(ctx context.Context, filter domain.TrackFilter) (
 	return collectTracks(rows)
 }
 
-func (r *TrackRepository) ListRandomReady(ctx context.Context, limit int) ([]domain.Track, error) {
-	rows, err := r.db.Query(ctx,
-		`SELECT `+trackCols+`
-		 FROM tracks
-		 WHERE status = $1
-		 ORDER BY random()
-		 LIMIT $2`,
-		string(domain.TrackReady), limit,
-	)
-	if err != nil {
-		return nil, mapError(err, "list random tracks")
-	}
-	return collectTracks(rows)
-}
-
 func (r *TrackRepository) GetByID(ctx context.Context, id string) (domain.Track, error) {
 	t, err := scanTrack(r.db.QueryRow(ctx, `SELECT `+trackCols+` FROM tracks WHERE id = $1::uuid`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
