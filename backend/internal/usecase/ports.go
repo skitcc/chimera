@@ -37,10 +37,6 @@ type TrackLikeRepository interface {
 	ListReadyByUser(ctx context.Context, userID string) ([]domain.Track, error)
 }
 
-type TrackSelectionRepository interface {
-	ListRandomReady(ctx context.Context, limit int) ([]domain.Track, error)
-}
-
 type FollowRepository interface {
 	Add(ctx context.Context, followerID, followingID string) error
 	Remove(ctx context.Context, followerID, followingID string) error
@@ -58,14 +54,6 @@ type PlaylistRepository interface {
 	AddTrack(ctx context.Context, playlistID string, in domain.PlaylistTrackAdd) (domain.PlaylistTrack, error)
 	MoveTrack(ctx context.Context, playlistID, trackID string, position int) (domain.PlaylistTrack, error)
 	RemoveTrack(ctx context.Context, playlistID, trackID string) error
-}
-
-type PickRepository interface {
-	CreateRandom(ctx context.Context, userID, title string, tracks []domain.Track) (domain.PickDetail, error)
-	ListByUser(ctx context.Context, userID string) ([]domain.Pick, error)
-	GetByID(ctx context.Context, id string) (domain.PickDetail, error)
-	UpdateTitle(ctx context.Context, id, title string) (domain.Pick, error)
-	Delete(ctx context.Context, id string) error
 }
 
 type ObjectStorage interface {
