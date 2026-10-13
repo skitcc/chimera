@@ -23,13 +23,13 @@ func (w *statusWriter) WriteHeader(code int) {
 
 func RequestLogger(log Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			start := time.Now()
 			sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
-			next.ServeHTTP(sw, r)
-			log.InfoContext(r.Context(), "request",
-				"method", r.Method,
-				"path", r.URL.Path,
+			next.ServeHTTP(sw, req)
+			log.InfoContext(req.Context(), "request",
+				"method", req.Method,
+				"path", req.URL.Path,
 				"status", sw.status,
 				"duration", time.Since(start),
 			)
