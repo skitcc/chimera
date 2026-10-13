@@ -15,8 +15,6 @@ tags:
     description: Любимое
   - name: playlists
     description: Списки пользователя
-  - name: picks
-    description: Подборки, которые собирает система
   - name: follows
     description: Подписки на авторов
 
@@ -719,7 +717,7 @@ paths:
       tags: [tracks]
       operationId: deleteTrack
       summary: Удалить трек
-      description: Только владелец. Строки плейлистов и подборок с этим треком уходят, сами списки остаются.
+      description: Только владелец. Строки плейлистов с этим треком уходят, сами списки остаются.
       security:
         - bearerAuth: []
       parameters:
@@ -1118,165 +1116,6 @@ paths:
         '500':
           $ref: '#/components/responses/Internal'
 
-  /v1/picks:
-    get:
-      tags: [picks]
-      operationId: listPicks
-      summary: Подборки пользователя
-      description: |
-        `user_id` обязателен и должен совпадать с владельцем токена, иначе 403.
-        Новые генерации не затирают старые.
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/userIdQueryRequired'
-        - $ref: '#/components/parameters/limit'
-        - $ref: '#/components/parameters/cursor'
-      responses:
-        '200':
-          description: Страница подборок
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PickPage'
-              example:
-                items:
-                  - id: a05c607e-b18d-4e5f-d02c-555555555555
-                    user_id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
-                    title: По лайкам
-                    generated_at: '2026-09-25T09:00:00Z'
-                limit: 20
-        '400':
-          $ref: '#/components/responses/Invalid'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/Internal'
-    post:
-      tags: [picks]
-      operationId: createPick
-      summary: Создать подборку
-      description: |
-        Система собирает новую подборку для владельца токена по лайкам, подпискам
-        и артистам этих треков. Состав клиент не передаёт, тела у запроса нет.
-      x-implemented: false
-      security:
-        - bearerAuth: []
-      responses:
-        '201':
-          description: Подборка создана
-          headers:
-            Location:
-              $ref: '#/components/headers/Location'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PickDetail'
-              example:
-                id: a05c607e-b18d-4e5f-d02c-555555555555
-                user_id: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
-                title: По лайкам
-                generated_at: '2026-09-25T09:00:00Z'
-                tracks:
-                  - position: 1
-                    note: like
-                    track:
-                      id: 7c2f3d4b-8e5a-4b2c-ad9f-222222222222
-                      user_id: 9e4b5f6d-a07c-4d4e-cf1b-444444444444
-                      title: Night Drive
-                      artist: Ada
-                      status: ready
-                      size_bytes: 3200000
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/Internal'
-
-  /v1/picks/{pickId}:
-    get:
-      tags: [picks]
-      operationId: getPick
-      summary: Подборка с треками
-      description: Подборка и состав с `position` и `note`. Чужая подборка — 403.
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/pickId'
-      responses:
-        '200':
-          description: Подборка и почему выбран каждый трек
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PickDetail'
-        '400':
-          $ref: '#/components/responses/Invalid'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/Internal'
-    patch:
-      tags: [picks]
-      operationId: updatePick
-      summary: Изменить название подборки
-      description: Меняется только название. Состав остаётся за системой. Чужая подборка — 403.
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/pickId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PickPatch'
-            example:
-              title: Ночная
-      responses:
-        '200':
-          description: Название изменено
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Pick'
-        '400':
-          $ref: '#/components/responses/Invalid'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/Internal'
-    delete:
-      tags: [picks]
-      operationId: deletePick
-      summary: Удалить подборку
-      description: Только своя подборка. Повтор по уже удалённой — 404.
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/pickId'
-      responses:
-        '204':
-          description: Подборка удалена
-        '400':
-          $ref: '#/components/responses/Invalid'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/Internal'
 
 components:
   securitySchemes:
@@ -1372,27 +1211,11 @@ components:
       schema:
         type: string
         format: uuid
-    pickId:
-      name: pickId
-      in: path
-      required: true
-      description: Идентификатор подборки
-      schema:
-        type: string
-        format: uuid
     userIdQuery:
       name: user_id
       in: query
       required: false
       description: Автор треков
-      schema:
-        type: string
-        format: uuid
-    userIdQueryRequired:
-      name: user_id
-      in: query
-      required: true
-      description: Чьи подборки. Должен совпадать с владельцем токена.
       schema:
         type: string
         format: uuid
@@ -1813,63 +1636,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PlaylistTrack'
-        next_cursor:
-          type: string
-        limit:
-          type: integer
-    Pick:
-      type: object
-      required: [id, user_id, title, generated_at]
-      properties:
-        id:
-          type: string
-          format: uuid
-        user_id:
-          type: string
-          format: uuid
-          description: Кому собрана подборка
-        title:
-          type: string
-        generated_at:
-          type: string
-          format: date-time
-    PickPatch:
-      type: object
-      required: [title]
-      properties:
-        title:
-          type: string
-          minLength: 1
-    PickTrack:
-      type: object
-      required: [position, note, track]
-      properties:
-        position:
-          type: integer
-          minimum: 0
-        note:
-          type: string
-          description: Почему система выбрала трек. Не описание файла.
-        track:
-          $ref: '#/components/schemas/Track'
-    PickDetail:
-      allOf:
-        - $ref: '#/components/schemas/Pick'
-        - type: object
-          required: [tracks]
-          properties:
-            tracks:
-              type: array
-              items:
-                $ref: '#/components/schemas/PickTrack'
-    PickPage:
-      type: object
-      required: [items, limit]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Pick'
         next_cursor:
           type: string
         limit:

@@ -1,6 +1,6 @@
 // Physical model aligned with the conceptual ER in docs/architecture.md §6.
 // users, tracks, track_likes match schema.sql.
-// playlists, playlist_tracks, picks, pick_tracks, follows are not migrated yet.
+// playlists, playlist_tracks and follows are not migrated yet.
 
 Project chimera {
   database_type: 'PostgreSQL'
@@ -8,7 +8,6 @@ Project chimera {
     Sound Chimera.
     Интересы пользователя не хранятся отдельной таблицей:
     это track_likes, follows и artist у связанных треков.
-    Подборку (picks) собирает система для одного пользователя.
   '''
 }
 
@@ -21,8 +20,6 @@ TableGroup already_in_schema {
 TableGroup planned {
   playlists
   playlist_tracks
-  picks
-  pick_tracks
   follows
 }
 
@@ -87,30 +84,6 @@ Table playlist_tracks {
   }
 }
 
-Table picks {
-  id uuid [pk, default: `gen_random_uuid()`]
-  user_id uuid [not null, note: 'Кому собрана подборка']
-  title text [not null]
-  generated_at timestamptz [not null, default: `now()`]
-
-  indexes {
-    (user_id, generated_at)
-  }
-
-  Note: 'Новая генерация — новая строка. Старые подборки не затираются.'
-}
-
-Table pick_tracks {
-  pick_id uuid [pk, not null]
-  track_id uuid [pk, not null]
-  position int [not null]
-  note text [not null, default: '', note: 'Почему система выбрала трек: лайк, подписка или артист']
-
-  indexes {
-    (pick_id, position)
-  }
-}
-
 Table follows {
   follower_id uuid [pk, not null]
   followee_id uuid [pk, not null]
@@ -132,11 +105,6 @@ Ref: playlists.owner_id > users.id [delete: cascade]
 
 Ref: playlist_tracks.playlist_id > playlists.id [delete: cascade]
 Ref: playlist_tracks.track_id > tracks.id [delete: cascade]
-
-Ref: picks.user_id > users.id [delete: cascade]
-
-Ref: pick_tracks.pick_id > picks.id [delete: cascade]
-Ref: pick_tracks.track_id > tracks.id [delete: cascade]
 
 Ref: follows.follower_id > users.id [delete: cascade]
 Ref: follows.followee_id > users.id [delete: cascade]
