@@ -89,17 +89,6 @@ func (q PageQuery) PagePlaylistTracks(tracks []PlaylistTrack) PlaylistTrackPage 
 	return PlaylistTrackPage{Items: items, NextCursor: next, Limit: q.Limit}
 }
 
-type PickPage struct {
-	Items      []Pick
-	NextCursor string
-	Limit      int
-}
-
-func (q PageQuery) PagePicks(picks []Pick) PickPage {
-	items, next := pageItems(q, picks)
-	return PickPage{Items: items, NextCursor: next, Limit: q.Limit}
-}
-
 func pageItems[T any](q PageQuery, all []T) ([]T, string) {
 	start := min(q.start, len(all))
 	end := min(len(all), start+q.Limit)
