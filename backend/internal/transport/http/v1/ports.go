@@ -61,12 +61,4 @@ type PlaylistService interface {
 	RemoveTrack(ctx context.Context, actorID, id, trackID string) error
 }
 
-type PickService interface {
-	Generate(ctx context.Context, userID string) (domain.PickDetail, error)
-	List(ctx context.Context, userID string, q domain.PageQuery) (domain.PickPage, error)
-	Get(ctx context.Context, userID, id string) (domain.PickDetail, error)
-	Rename(ctx context.Context, userID, id string, in domain.PickPatch) (domain.Pick, error)
-	Delete(ctx context.Context, userID, id string) error
-}
-
 type Logger = middleware.Logger

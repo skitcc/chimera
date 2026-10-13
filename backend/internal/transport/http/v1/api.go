@@ -16,7 +16,6 @@ type API struct {
 	tracks    *TrackController
 	follows   *FollowController
 	playlists *PlaylistController
-	picks     *PickController
 	log       Logger
 	tokens    middleware.TokenParser
 	limit     *middleware.Limiter
@@ -28,7 +27,6 @@ func New(
 	tracks TrackService,
 	follows FollowService,
 	playlists PlaylistService,
-	picks PickService,
 	tokens middleware.TokenParser,
 	limit *middleware.Limiter,
 	streamHost string,
@@ -40,7 +38,6 @@ func New(
 		tracks:    NewTrackController(tracks, streamHost, log),
 		follows:   NewFollowController(follows, log),
 		playlists: NewPlaylistController(playlists, log),
-		picks:     NewPickController(picks, log),
 		log:       log,
 		tokens:    tokens,
 		limit:     limit,
@@ -73,11 +70,6 @@ func (a *API) Protected(r chi.Router) {
 	r.Get("/me/likes", a.tracks.ListLikedTracks)
 	r.Get("/me/playlists", a.playlists.ListMyPlaylists)
 	r.Get("/me/following", a.follows.ListMyFollowing)
-	r.Get("/me/picks", a.picks.List)
-	r.Post("/me/picks", a.picks.Generate)
-	r.Get("/me/picks/{pickId}", a.picks.Get)
-	r.Patch("/me/picks/{pickId}", a.picks.Rename)
-	r.Delete("/me/picks/{pickId}", a.picks.Delete)
 	r.Put("/users/{userId}/follow", a.follows.Follow)
 	r.Delete("/users/{userId}/follow", a.follows.Unfollow)
 	r.Post("/tracks/{trackId}/like", a.tracks.LikeTrack)

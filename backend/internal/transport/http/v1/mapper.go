@@ -106,27 +106,3 @@ func playlistTrackPageToResponse(page domain.PlaylistTrackPage) PlaylistTrackPag
 	}
 	return PlaylistTrackPageResponse{Items: items, NextCursor: page.NextCursor, Limit: page.Limit}
 }
-
-func pickToResponse(pick domain.Pick) PickResponse {
-	return PickResponse{
-		ID: pick.ID, UserID: pick.UserID, Title: pick.Title, GeneratedAt: pick.GeneratedAt,
-	}
-}
-
-func pickDetailToResponse(detail domain.PickDetail) PickDetailResponse {
-	tracks := make([]PickTrackResponse, 0, len(detail.Tracks))
-	for _, item := range detail.Tracks {
-		tracks = append(tracks, PickTrackResponse{
-			Position: item.Position, Note: item.Note, Track: trackToResponse(item.Track),
-		})
-	}
-	return PickDetailResponse{PickResponse: pickToResponse(detail.Pick), Tracks: tracks}
-}
-
-func pickPageToResponse(page domain.PickPage) PickPageResponse {
-	items := make([]PickResponse, 0, len(page.Items))
-	for _, pick := range page.Items {
-		items = append(items, pickToResponse(pick))
-	}
-	return PickPageResponse{Items: items, NextCursor: page.NextCursor, Limit: page.Limit}
-}

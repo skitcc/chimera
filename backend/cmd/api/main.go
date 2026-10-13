@@ -77,7 +77,6 @@ func main() {
 	likes := postgres.NewTrackLikeRepository(pool)
 	follows := postgres.NewFollowRepository(pool)
 	playlists := postgres.NewPlaylistRepository(pool)
-	picks := postgres.NewPickRepository(pool)
 	hasher := infraauth.NewBcryptHasher()
 	tokens := infraauth.NewJWT(cfg.Auth)
 	userService := usecase.NewUserService(users, hasher)
@@ -94,7 +93,6 @@ func main() {
 			trackService,
 			usecase.NewFollowService(users, follows),
 			usecase.NewPlaylistService(playlists, tracks, users),
-			usecase.NewPickService(users, tracks, picks),
 			tokens,
 			middleware.NewLimiter(cfg.Auth.RateLimit, cfg.Auth.RateWindow),
 			cfg.S3.PresignHost,

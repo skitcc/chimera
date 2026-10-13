@@ -1,7 +1,5 @@
 package v1
 
-import "time"
-
 type RegisterRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -129,34 +127,6 @@ type PlaylistTrackPageResponse struct {
 	Items      []PlaylistTrackResponse `json:"items"`
 	NextCursor string                  `json:"next_cursor,omitempty"`
 	Limit      int                     `json:"limit"`
-}
-
-type PickPatchRequest struct {
-	Title *string `json:"title"`
-}
-
-type PickResponse struct {
-	ID          string    `json:"id"`
-	UserID      string    `json:"user_id"`
-	Title       string    `json:"title"`
-	GeneratedAt time.Time `json:"generated_at"`
-}
-
-type PickTrackResponse struct {
-	Position int           `json:"position"`
-	Note     string        `json:"note"`
-	Track    TrackResponse `json:"track"`
-}
-
-type PickDetailResponse struct {
-	PickResponse
-	Tracks []PickTrackResponse `json:"tracks"`
-}
-
-type PickPageResponse struct {
-	Items      []PickResponse `json:"items"`
-	NextCursor string         `json:"next_cursor,omitempty"`
-	Limit      int            `json:"limit"`
 }
 
 type ErrorResponse struct {
