@@ -83,13 +83,23 @@ func (r *PlaylistRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *PlaylistRepository) ListByOwner(ctx context.Context, ownerID string, publicOnly bool) ([]domain.Playlist, error) {
+func (r *PlaylistRepository) List(ctx context.Context, filter domain.PlaylistFilter) ([]domain.Playlist, error) {
+	var ownerID any
+	if filter.OwnerID != "" {
+		ownerID = filter.OwnerID
+	}
+	var isPublic any
+	if filter.IsPublic != nil {
+		isPublic = *filter.IsPublic
+	}
+
 	rows, err := r.db.Query(ctx,
 		`SELECT `+playlistCols+`
 		 FROM playlists
-		 WHERE owner_id = $1::uuid AND (NOT $2 OR is_public)
+		 WHERE ($1::uuid IS NULL OR owner_id = $1)
+		   AND ($2::boolean IS NULL OR is_public = $2)
 		 ORDER BY created_at DESC, id DESC`,
-		ownerID, publicOnly,
+		ownerID, isPublic,
 	)
 	if err != nil {
 		return nil, mapError(err, "list playlists")

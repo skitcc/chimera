@@ -37,15 +37,16 @@ func TestTrackRepositoryList(t *testing.T) {
 		rows := newStubRows(trackValues(want[0]), trackValues(want[1]))
 		repo := NewTrackRepository(stubDB{
 			queryFn: func(_ context.Context, _ string, args ...any) (pgx.Rows, error) {
-				assertEqual(t, args, []any{string(domain.TrackReady), "user-1", "Artist"})
+				assertEqual(t, args, []any{string(domain.TrackReady), "user-1", "Artist", "user-2"})
 				return rows, nil
 			},
 		})
 
 		got, err := repo.List(context.Background(), domain.TrackFilter{
-			Status: domain.TrackReady,
-			UserID: "user-1",
-			Artist: "Artist",
+			Status:  domain.TrackReady,
+			UserID:  "user-1",
+			Artist:  "Artist",
+			LikedBy: "user-2",
 		})
 		if err != nil {
 			t.Fatalf("List returned error: %v", err)
@@ -59,7 +60,7 @@ func TestTrackRepositoryList(t *testing.T) {
 	runCase(t, "success without filters", func(t *testing.T) {
 		repo := NewTrackRepository(stubDB{
 			queryFn: func(_ context.Context, _ string, args ...any) (pgx.Rows, error) {
-				assertEqual(t, args, []any{nil, nil, nil})
+				assertEqual(t, args, []any{nil, nil, nil, nil})
 				return newStubRows(), nil
 			},
 		})

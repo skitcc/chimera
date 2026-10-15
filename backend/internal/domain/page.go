@@ -67,6 +67,17 @@ func (q PageQuery) PageUsers(users []User) UserPage {
 	return UserPage{Items: items, NextCursor: next, Limit: q.Limit}
 }
 
+type FollowPage struct {
+	Items      []Follow
+	NextCursor string
+	Limit      int
+}
+
+func (q PageQuery) PageFollows(follows []Follow) FollowPage {
+	items, next := pageItems(q, follows)
+	return FollowPage{Items: items, NextCursor: next, Limit: q.Limit}
+}
+
 type PlaylistPage struct {
 	Items      []Playlist
 	NextCursor string

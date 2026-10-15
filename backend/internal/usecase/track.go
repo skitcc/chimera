@@ -42,6 +42,43 @@ func (s *TrackService) ListLiked(ctx context.Context, q domain.TrackLikeListQuer
 	return q.Page(tracks), nil
 }
 
+func (s *TrackService) Search(ctx context.Context, q domain.TrackListQuery) (domain.TrackPage, error) {
+	if err := q.Validate(); err != nil {
+		return domain.TrackPage{}, err
+	}
+	return s.page(ctx, q.PageQuery, q.Filter())
+}
+
+func (s *TrackService) PutLike(ctx context.Context, actorID string, in domain.TrackLike) error {
+	if err := in.Validate(); err != nil {
+		return err
+	}
+	if err := domain.UserID(in.UserID).RequireActor(actorID); err != nil {
+		return err
+	}
+	track, err := s.tracks.GetByID(ctx, in.TrackID)
+	if err != nil {
+		return err
+	}
+	if err := track.EnsureReady(); err != nil {
+		return err
+	}
+	if err := s.likes.Add(ctx, in.UserID, in.TrackID); err != nil && !domain.Is(err, domain.CodeConflict) {
+		return err
+	}
+	return nil
+}
+
+func (s *TrackService) DeleteLike(ctx context.Context, actorID string, in domain.TrackLike) error {
+	if err := in.Validate(); err != nil {
+		return err
+	}
+	if err := domain.UserID(in.UserID).RequireActor(actorID); err != nil {
+		return err
+	}
+	return s.Unlike(ctx, in)
+}
+
 func (s *TrackService) Like(ctx context.Context, in domain.TrackLike) error {
 	if err := in.Validate(); err != nil {
 		return err
@@ -160,7 +197,26 @@ func (s *TrackService) PatchOwned(ctx context.Context, actorID, id string, in do
 	if in.Artist != nil {
 		track.Artist = *in.Artist
 	}
+	if in.Publish {
+		if err := s.verifyObject(ctx, track); err != nil {
+			return domain.Track{}, publishConflict(err)
+		}
+		if err := track.MarkProcessing(); err != nil {
+			return domain.Track{}, err
+		}
+		if err := track.MarkReady(); err != nil {
+			return domain.Track{}, err
+		}
+	}
 	return s.tracks.Update(ctx, track)
+}
+
+func publishConflict(err error) error {
+	appErr, ok := domain.As(err)
+	if ok && (appErr.Code == domain.CodeNotFound || appErr.Code == domain.CodeInvalid) {
+		return domain.Conflict(appErr.Message)
+	}
+	return err
 }
 
 func (s *TrackService) DeleteOwned(ctx context.Context, actorID, id string) error {

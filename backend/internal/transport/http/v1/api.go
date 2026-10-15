@@ -12,7 +12,7 @@ import (
 
 type API struct {
 	users     *UserController
-	auth      *AuthController
+	sessions  *SessionController
 	tracks    *TrackController
 	follows   *FollowController
 	playlists *PlaylistController
@@ -23,7 +23,7 @@ type API struct {
 
 func New(
 	users UserService,
-	auth AuthService,
+	sessions SessionService,
 	tracks TrackService,
 	follows FollowService,
 	playlists PlaylistService,
@@ -34,7 +34,7 @@ func New(
 ) *API {
 	return &API{
 		users:     NewUserController(users, log),
-		auth:      NewAuthController(auth, log),
+		sessions:  NewSessionController(sessions, log),
 		tracks:    NewTrackController(tracks, streamHost, log),
 		follows:   NewFollowController(follows, log),
 		playlists: NewPlaylistController(playlists, log),
@@ -46,39 +46,36 @@ func New(
 
 func (a *API) Public(r chi.Router) {
 	limited := r.With(middleware.RateLimit(a.limit, a.log, httpapi.WriteAppError))
-	limited.Post("/auth/register", a.auth.Register)
-	limited.Post("/auth/login", a.auth.Login)
-	r.Get("/users", a.users.ListUsers)
-	r.Get("/users/{userId}/tracks", a.tracks.ListUploaderTracks)
-	r.Get("/users/{userId}/playlists", a.playlists.ListUserPlaylists)
-	r.Get("/users/{userId}/followers", a.follows.ListFollowers)
-	r.Get("/users/{userId}/following", a.follows.ListUserFollowing)
-	r.Get("/users/{userId}", a.users.GetUser)
-	r.Get("/tracks", a.tracks.ListTracks)
-	r.Get("/tracks/{trackId}/stream", a.tracks.StreamTrack)
-	r.With(middleware.OptionalAuth(a.log, a.tokens, httpapi.WriteAppError)).Get("/tracks/{trackId}", a.tracks.GetTrack)
-	r.With(middleware.OptionalAuth(a.log, a.tokens, httpapi.WriteAppError)).Get("/playlists/{playlistId}", a.playlists.Get)
-	r.With(middleware.OptionalAuth(a.log, a.tokens, httpapi.WriteAppError)).Get("/playlists/{playlistId}/tracks", a.playlists.ListTracks)
+	limited.Post("/sessions", a.sessions.Create)
+	limited.Post("/users", a.users.Create)
+	r.Get("/users", a.users.List)
+	r.Get("/users/{userId}", a.users.Get)
+	r.Get("/follows", a.follows.List)
+	r.Get("/follows/{followerId}/{followingId}", a.follows.Get)
+	r.Get("/tracks/{trackId}/stream", a.tracks.Stream)
+
+	optional := r.With(middleware.OptionalAuth(a.log, a.tokens, httpapi.WriteAppError))
+	optional.Get("/tracks", a.tracks.List)
+	optional.Get("/tracks/{trackId}", a.tracks.Get)
+	optional.Get("/playlists", a.playlists.List)
+	optional.Get("/playlists/{playlistId}", a.playlists.Get)
+	optional.Get("/playlists/{playlistId}/tracks", a.playlists.ListTracks)
 }
 
 func (a *API) Protected(r chi.Router) {
-	r.Get("/me", a.users.Me)
-	r.Put("/me", a.users.ReplaceMe)
-	r.Patch("/me", a.users.PatchMe)
-	r.Delete("/me", a.users.DeleteMe)
-	r.Get("/me/tracks", a.tracks.ListMyTracks)
-	r.Get("/me/likes", a.tracks.ListLikedTracks)
-	r.Get("/me/playlists", a.playlists.ListMyPlaylists)
-	r.Get("/me/following", a.follows.ListMyFollowing)
-	r.Put("/users/{userId}/follow", a.follows.Follow)
-	r.Delete("/users/{userId}/follow", a.follows.Unfollow)
-	r.Post("/tracks/{trackId}/like", a.tracks.LikeTrack)
-	r.Delete("/tracks/{trackId}/like", a.tracks.UnlikeTrack)
-	r.Post("/tracks/upload-init", a.tracks.InitUpload)
-	r.Post("/tracks/{trackId}/upload-complete", a.tracks.CompleteUpload)
-	r.Put("/tracks/{trackId}", a.tracks.UpdateTrack)
-	r.Patch("/tracks/{trackId}", a.tracks.PatchTrack)
-	r.Delete("/tracks/{trackId}", a.tracks.DeleteTrack)
+	r.Put("/users/{userId}", a.users.Replace)
+	r.Patch("/users/{userId}", a.users.Patch)
+	r.Delete("/users/{userId}", a.users.Delete)
+	r.Put("/users/{userId}/likes/{trackId}", a.tracks.PutLike)
+	r.Delete("/users/{userId}/likes/{trackId}", a.tracks.DeleteLike)
+	r.Post("/follows", a.follows.CreateMany)
+	r.Delete("/follows", a.follows.DeleteMany)
+	r.Put("/follows/{followerId}/{followingId}", a.follows.Put)
+	r.Delete("/follows/{followerId}/{followingId}", a.follows.Delete)
+	r.Post("/tracks", a.tracks.Create)
+	r.Put("/tracks/{trackId}", a.tracks.Replace)
+	r.Patch("/tracks/{trackId}", a.tracks.Patch)
+	r.Delete("/tracks/{trackId}", a.tracks.Delete)
 	r.Post("/playlists", a.playlists.Create)
 	r.Put("/playlists/{playlistId}", a.playlists.Replace)
 	r.Patch("/playlists/{playlistId}", a.playlists.Patch)
@@ -95,4 +92,9 @@ func actorID(w http.ResponseWriter, r *http.Request, log Logger, op string) (str
 		return "", false
 	}
 	return id, true
+}
+
+func writeCreated(w http.ResponseWriter, location string, v any) {
+	w.Header().Set("Location", location)
+	httpapi.WriteJSON(w, http.StatusCreated, v)
 }

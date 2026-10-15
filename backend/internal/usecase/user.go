@@ -17,8 +17,15 @@ func NewUserService(users UserRepository, hasher PasswordHasher) *UserService {
 	return &UserService{users: users, profiles: profiles, hasher: hasher}
 }
 
-func (s *UserService) List(ctx context.Context) ([]domain.User, error) {
-	return s.users.List(ctx)
+func (s *UserService) List(ctx context.Context, q domain.PageQuery) (domain.UserPage, error) {
+	if err := q.Validate(); err != nil {
+		return domain.UserPage{}, err
+	}
+	users, err := s.users.List(ctx)
+	if err != nil {
+		return domain.UserPage{}, err
+	}
+	return q.PageUsers(users), nil
 }
 
 func (s *UserService) GetByID(ctx context.Context, id string) (domain.User, error) {
@@ -59,11 +66,14 @@ func (s *UserService) Delete(ctx context.Context, actorID, id string) error {
 	if err := domain.UserID(id).RequireActor(actorID); err != nil {
 		return err
 	}
-	return s.users.Delete(ctx, id)
+	return currentUserError(s.users.Delete(ctx, id))
 }
 
-func (s *UserService) ReplaceCurrent(ctx context.Context, userID string, in domain.UserReplace) (domain.User, error) {
+func (s *UserService) Replace(ctx context.Context, actorID, userID string, in domain.UserReplace) (domain.User, error) {
 	if err := domain.UserID(userID).Validate(); err != nil {
+		return domain.User{}, err
+	}
+	if err := domain.UserID(userID).RequireActor(actorID); err != nil {
 		return domain.User{}, err
 	}
 	if err := in.Validate(); err != nil {
@@ -76,8 +86,11 @@ func (s *UserService) ReplaceCurrent(ctx context.Context, userID string, in doma
 	return user, currentUserError(err)
 }
 
-func (s *UserService) PatchCurrent(ctx context.Context, userID string, in domain.UserPatch) (domain.User, error) {
+func (s *UserService) Patch(ctx context.Context, actorID, userID string, in domain.UserPatch) (domain.User, error) {
 	if err := domain.UserID(userID).Validate(); err != nil {
+		return domain.User{}, err
+	}
+	if err := domain.UserID(userID).RequireActor(actorID); err != nil {
 		return domain.User{}, err
 	}
 	if err := in.Validate(); err != nil {
@@ -106,16 +119,6 @@ func (s *UserService) PatchCurrent(ctx context.Context, userID string, in domain
 	}
 	user, err = s.profiles.UpdateProfile(ctx, user, hash)
 	return user, currentUserError(err)
-}
-
-func (s *UserService) DeleteCurrent(ctx context.Context, userID string) error {
-	if err := domain.UserID(userID).Validate(); err != nil {
-		return err
-	}
-	if err := s.users.Delete(ctx, userID); err != nil {
-		return currentUserError(err)
-	}
-	return nil
 }
 
 func currentUserError(err error) error {

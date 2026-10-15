@@ -57,6 +57,41 @@ func (in PlaylistPatch) Validate() error {
 	return nil
 }
 
+// PlaylistFilter selects playlists. A nil IsPublic matches both visibilities.
+type PlaylistFilter struct {
+	OwnerID  string
+	IsPublic *bool
+}
+
+// PlaylistListQuery is one listing for the public feed and a user's playlists.
+// ViewerID is the token owner or empty for a guest.
+type PlaylistListQuery struct {
+	PageQuery
+	ViewerID string
+	OwnerID  string
+	IsPublic *bool
+}
+
+func (q *PlaylistListQuery) Validate() error {
+	if q.IsPublic != nil && !*q.IsPublic && !q.own() {
+		return Forbidden("not allowed")
+	}
+	return q.PageQuery.Validate()
+}
+
+func (q PlaylistListQuery) Filter() PlaylistFilter {
+	isPublic := q.IsPublic
+	if isPublic == nil && !q.own() {
+		public := true
+		isPublic = &public
+	}
+	return PlaylistFilter{OwnerID: q.OwnerID, IsPublic: isPublic}
+}
+
+func (q PlaylistListQuery) own() bool {
+	return q.OwnerID != "" && q.OwnerID == q.ViewerID
+}
+
 type PlaylistTrack struct {
 	Position int
 	Track    Track

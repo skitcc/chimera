@@ -1,308 +1,90 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "Music streaming backend",
-        "title": "Chimera API",
+        "title": "Sound Chimera API",
         "contact": {},
-        "version": "1.0"
+        "version": "1.0.0"
     },
     "basePath": "/",
     "paths": {
-        "/v1/auth/login": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Login",
-                "operationId": "login",
-                "parameters": [
-                    {
-                        "description": "Login",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/v1.LoginRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.AuthResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "429": {
-                        "description": "Too Many Requests",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/auth/register": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Register user",
-                "operationId": "register",
-                "parameters": [
-                    {
-                        "description": "Register",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/v1.RegisterRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/v1.AuthResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "429": {
-                        "description": "Too Many Requests",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/me": {
+        "/v1/follows": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
+                "description": "Нужен хотя бы один фильтр, иначе 400.\n\n- `follower_id` — на кого подписан пользователь.\n- `following_id` — кто подписан на пользователя.\n- Оба сразу — есть ли подписка у этой пары: страница из одной записи или пустая.\n\nЕсли указанного пользователя нет — 404.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "follows"
                 ],
-                "summary": "Current user",
-                "operationId": "getCurrentUser",
+                "summary": "Подписки",
+                "operationId": "listFollows",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Только подписки этого пользователя",
+                        "name": "follower_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Только подписки на этого пользователя",
+                        "name": "following_id",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Размер страницы. По умолчанию 20, больше 100 не принимается.",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Курсор следующей страницы из прошлого ответа",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Страница подписок",
                         "schema": {
-                            "$ref": "#/definitions/v1.UserResponse"
+                            "$ref": "#/definitions/FollowPage"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Ресурс не найден или скрыт от этого клиента",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
             },
-            "put": {
+            "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "bearerAuth": []
                     }
                 ],
+                "description": "Создаёт подписки `follower_id` на всех из `following_ids`.\n`follower_id` должен совпадать с владельцем токена, иначе 403.\n\n- Атомарно: если хоть одного автора нет — 404, ничего не меняется.\n- Идемпотентно: уже существующие подписки пропускаются, повтор запроса снова 204.\n- Пустой список, повтор внутри списка, `follower_id` в списке или больше 100 идентификаторов — 400.\n\nДля одного автора — `PUT /v1/follows/{followerId}/{followingId}`.",
                 "consumes": [
                     "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "users"
-                ],
-                "summary": "Replace current profile",
-                "operationId": "replaceCurrentUser",
-                "parameters": [
-                    {
-                        "description": "Profile",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/v1.UserReplaceRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.UserResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "users"
-                ],
-                "summary": "Delete current account",
-                "operationId": "deleteCurrentUser",
-                "responses": {
-                    "204": {
-                        "description": "No Content",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "users"
-                ],
-                "summary": "Update current profile",
-                "operationId": "updateCurrentUser",
-                "parameters": [
-                    {
-                        "description": "Profile fields",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/v1.UserPatchRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.UserResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/me/following": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
                 ],
                 "produces": [
                     "application/json"
@@ -310,367 +92,51 @@
                 "tags": [
                     "follows"
                 ],
-                "summary": "List users followed by the current user",
-                "operationId": "listMyFollowing",
+                "summary": "Подписаться на нескольких авторов",
+                "operationId": "createFollows",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Page size",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Pagination cursor",
-                        "name": "cursor",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.UserPageResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/me/likes": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "tracks"
-                ],
-                "summary": "My liked tracks",
-                "operationId": "listMyLikes",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 20,
-                        "description": "Page size",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Pagination cursor",
-                        "name": "cursor",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.TrackPageResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/me/playlists": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "playlists"
-                ],
-                "summary": "List current user's playlists",
-                "operationId": "listMyPlaylists",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Page size",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Pagination cursor",
-                        "name": "cursor",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.PlaylistPageResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/me/tracks": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "All tracks uploaded by the current user, including drafts.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "tracks"
-                ],
-                "summary": "My uploaded tracks",
-                "operationId": "listMyTracks",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 20,
-                        "description": "Page size",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Pagination cursor",
-                        "name": "cursor",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.TrackPageResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/playlists": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "playlists"
-                ],
-                "summary": "Create a playlist",
-                "operationId": "createPlaylist",
-                "parameters": [
-                    {
-                        "description": "Playlist",
+                        "description": "Подписчик и авторы",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/v1.PlaylistReplaceRequest"
+                            "$ref": "#/definitions/FollowsCreate"
                         }
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/v1.PlaylistResponse"
-                        }
+                    "204": {
+                        "description": "Подписки на всех из списка есть"
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/playlists/{playlistId}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "playlists"
-                ],
-                "summary": "Get a visible playlist",
-                "operationId": "getPlaylist",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Playlist ID",
-                        "name": "playlistId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.PlaylistResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "playlists"
-                ],
-                "summary": "Replace a playlist",
-                "operationId": "replacePlaylist",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Playlist ID",
-                        "name": "playlistId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Playlist",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/v1.PlaylistReplaceRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.PlaylistResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Ресурс не найден или скрыт от этого клиента",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
@@ -678,170 +144,340 @@
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "bearerAuth": []
                     }
                 ],
-                "tags": [
-                    "playlists"
+                "description": "Снимает подписки `follower_id` на всех из `following_id`.\n`follower_id` должен совпадать с владельцем токена, иначе 403.\nСписок передаётся в query, а не в теле: тело у DELETE многие клиенты и прокси отбрасывают.\n\n- Атомарно и идемпотентно: отсутствующие подписки и несуществующие авторы пропускаются, повтор снова 204.\n- Без `following_id` — 400: запрос без списка не снимает все подписки.\n- Повтор внутри списка или больше 100 идентификаторов — 400.\n\nДля одного автора — `DELETE /v1/follows/{followerId}/{followingId}`.",
+                "produces": [
+                    "application/json"
                 ],
-                "summary": "Delete a playlist",
-                "operationId": "deletePlaylist",
+                "tags": [
+                    "follows"
+                ],
+                "summary": "Отписаться от нескольких авторов",
+                "operationId": "deleteFollows",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Playlist ID",
-                        "name": "playlistId",
+                        "format": "uuid",
+                        "description": "Чьи подписки снимаются. Должен совпадать с владельцем токена.",
+                        "name": "follower_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
+                        "description": "От кого отписаться. Параметр повторяется на каждого автора — `?following_id=a\u0026following_id=b`.",
+                        "name": "following_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Подписок на авторов из списка нет"
+                    },
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/follows/{followerId}/{followingId}": {
+            "get": {
+                "description": "200 — подписка есть, 404 — нет её или нет одного из пользователей.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "follows"
+                ],
+                "summary": "Подписка пары",
+                "operationId": "getFollow",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Кто подписывается",
+                        "name": "followerId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "На кого подписываются",
+                        "name": "followingId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Подписка",
+                        "schema": {
+                            "$ref": "#/definitions/Follow"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Ресурс не найден или скрыт от этого клиента",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "`followerId` должен совпадать с владельцем токена, иначе 403.\nИдемпотентно: повтор той же пары снова 204. На себя подписаться нельзя — 400.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "follows"
+                ],
+                "summary": "Подписаться на автора",
+                "operationId": "putFollow",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Кто подписывается",
+                        "name": "followerId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "На кого подписываются",
+                        "name": "followingId",
                         "in": "path",
                         "required": true
                     }
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": "Подписка есть"
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Ресурс не найден или скрыт от этого клиента",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
             },
-            "patch": {
+            "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "bearerAuth": []
                     }
                 ],
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "`followerId` должен совпадать с владельцем токена, иначе 403.\nИдемпотентно: повторное снятие снова 204.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "playlists"
+                    "follows"
                 ],
-                "summary": "Update playlist fields",
-                "operationId": "updatePlaylist",
+                "summary": "Отписаться от автора",
+                "operationId": "deleteFollow",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Playlist ID",
-                        "name": "playlistId",
+                        "format": "uuid",
+                        "description": "Кто подписывается",
+                        "name": "followerId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Playlist fields",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/v1.PlaylistPatchRequest"
-                        }
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "На кого подписываются",
+                        "name": "followingId",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.PlaylistResponse"
-                        }
+                    "204": {
+                        "description": "Подписки нет"
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
             }
         },
-        "/v1/playlists/{playlistId}/tracks": {
+        "/v1/playlists": {
             "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Одна коллекция для ленты и плейлистов пользователя, как `GET /v1/tracks`. Фильтры складываются через И.\n\n- Без фильтров — лента всех публичных плейлистов.\n- `owner_id` — плейлисты пользователя. Если пользователя нет — 404.\n- `is_public` — по умолчанию только публичные. Если `owner_id` совпадает с владельцем токена,\nпо умолчанию видны и скрытые. `is_public=false` для чужих плейлистов — 403.\n\nЕсли Authorization передан, токен должен быть верным.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "playlists"
                 ],
-                "summary": "List tracks in a visible playlist",
-                "operationId": "listPlaylistTracks",
+                "summary": "Плейлисты",
+                "operationId": "listPlaylists",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Playlist ID",
-                        "name": "playlistId",
-                        "in": "path",
-                        "required": true
+                        "format": "uuid",
+                        "description": "Владелец плейлистов",
+                        "name": "owner_id",
+                        "in": "query"
                     },
                     {
+                        "type": "boolean",
+                        "description": "Видимость плейлиста. `false` — только для своих плейлистов.",
+                        "name": "is_public",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "Page size",
+                        "default": 20,
+                        "description": "Размер страницы. По умолчанию 20, больше 100 не принимается.",
                         "name": "limit",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Pagination cursor",
+                        "description": "Курсор следующей страницы из прошлого ответа",
                         "name": "cursor",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Страница плейлистов",
                         "schema": {
-                            "$ref": "#/definitions/v1.PlaylistTrackPageResponse"
+                            "$ref": "#/definitions/PlaylistPage"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Ресурс не найден или скрыт от этого клиента",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
@@ -849,9 +485,10 @@
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "bearerAuth": []
                     }
                 ],
+                "description": "Владелец — владелец токена. Нужны название и флаг публичности.\nПовтор запроса создаёт ещё один плейлист.",
                 "consumes": [
                     "application/json"
                 ],
@@ -861,61 +498,484 @@
                 "tags": [
                     "playlists"
                 ],
-                "summary": "Add a track to a playlist",
-                "operationId": "addPlaylistTrack",
+                "summary": "Создать плейлист",
+                "operationId": "createPlaylist",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Playlist ID",
-                        "name": "playlistId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Track and position",
+                        "description": "Название и видимость",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/v1.PlaylistTrackAddRequest"
+                            "$ref": "#/definitions/PlaylistReplace"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Плейлист создан",
                         "schema": {
-                            "$ref": "#/definitions/v1.PlaylistTrackResponse"
+                            "$ref": "#/definitions/Playlist"
+                        },
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "Адрес созданного ресурса"
+                            }
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/playlists/{playlistId}": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Публичный читается без токена. Скрытый виден только владельцу.\nЧужому скрытому списку отвечаем как отсутствующему.\nЕсли Authorization передан, токен должен быть верным.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "playlists"
+                ],
+                "summary": "Плейлист",
+                "operationId": "getPlaylist",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Идентификатор плейлиста",
+                        "name": "playlistId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Плейлист",
+                        "schema": {
+                            "$ref": "#/definitions/Playlist"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Ресурс не найден или скрыт от этого клиента",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Оба поля обязательны. Повтор с тем же телом не меняет результат. Только владелец.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "playlists"
+                ],
+                "summary": "Заменить название и видимость",
+                "operationId": "replacePlaylist",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Идентификатор плейлиста",
+                        "name": "playlistId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Название и видимость",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/PlaylistReplace"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Плейлист заменён",
+                        "schema": {
+                            "$ref": "#/definitions/Playlist"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Ресурс не найден или скрыт от этого клиента",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Только владелец. Повтор по уже удалённому плейлисту — 404.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "playlists"
+                ],
+                "summary": "Удалить плейлист",
+                "operationId": "deletePlaylist",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Идентификатор плейлиста",
+                        "name": "playlistId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Плейлист удалён"
+                    },
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Ресурс не найден или скрыт от этого клиента",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Меняется только переданное поле. Пустое тело не принимается. Только владелец.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "playlists"
+                ],
+                "summary": "Частично изменить плейлист",
+                "operationId": "updatePlaylist",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Идентификатор плейлиста",
+                        "name": "playlistId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Поля плейлиста",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/PlaylistPatch"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Плейлист изменён",
+                        "schema": {
+                            "$ref": "#/definitions/Playlist"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Ресурс не найден или скрыт от этого клиента",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/playlists/{playlistId}/tracks": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Только готовые треки, в порядке `position`. Доступ как у самого плейлиста.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "playlists"
+                ],
+                "summary": "Треки плейлиста",
+                "operationId": "listPlaylistTracks",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Идентификатор плейлиста",
+                        "name": "playlistId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Размер страницы. По умолчанию 20, больше 100 не принимается.",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Курсор следующей страницы из прошлого ответа",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Страница состава",
+                        "schema": {
+                            "$ref": "#/definitions/PlaylistTrackPage"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Ресурс не найден или скрыт от этого клиента",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Только готовый трек. Повтор пары — конфликт. Только владелец плейлиста.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "playlists"
+                ],
+                "summary": "Добавить трек в плейлист",
+                "operationId": "createPlaylistTrack",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Идентификатор плейлиста",
+                        "name": "playlistId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Трек и позиция",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/PlaylistTrackCreate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Трек добавлен",
+                        "schema": {
+                            "$ref": "#/definitions/PlaylistTrack"
+                        },
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "Адрес созданного ресурса"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Ресурс не найден или скрыт от этого клиента",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "Повтор уникальной пары, занятый email или неверный статус трека",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
@@ -925,25 +985,31 @@
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "bearerAuth": []
                     }
+                ],
+                "description": "Сам плейлист остаётся. Только владелец плейлиста.",
+                "produces": [
+                    "application/json"
                 ],
                 "tags": [
                     "playlists"
                 ],
-                "summary": "Remove a track from a playlist",
-                "operationId": "removePlaylistTrack",
+                "summary": "Убрать трек из плейлиста",
+                "operationId": "deletePlaylistTrack",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Playlist ID",
+                        "format": "uuid",
+                        "description": "Идентификатор плейлиста",
                         "name": "playlistId",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Track ID",
+                        "format": "uuid",
+                        "description": "Идентификатор трека",
                         "name": "trackId",
                         "in": "path",
                         "required": true
@@ -951,30 +1017,36 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": "Трек убран из списка"
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Ресурс не найден или скрыт от этого клиента",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
@@ -982,9 +1054,10 @@
             "patch": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "bearerAuth": []
                     }
                 ],
+                "description": "Меняется только `position`. Повтор с тем же значением снова 200. Только владелец плейлиста.",
                 "consumes": [
                     "application/json"
                 ],
@@ -994,62 +1067,135 @@
                 "tags": [
                     "playlists"
                 ],
-                "summary": "Move a track within a playlist",
-                "operationId": "movePlaylistTrack",
+                "summary": "Сменить позицию трека",
+                "operationId": "updatePlaylistTrack",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Playlist ID",
+                        "format": "uuid",
+                        "description": "Идентификатор плейлиста",
                         "name": "playlistId",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Track ID",
+                        "format": "uuid",
+                        "description": "Идентификатор трека",
                         "name": "trackId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "New position",
+                        "description": "Новая позиция",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/v1.PlaylistTrackMoveRequest"
+                            "$ref": "#/definitions/PlaylistTrackPatch"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Позиция изменена",
                         "schema": {
-                            "$ref": "#/definitions/v1.PlaylistTrackResponse"
+                            "$ref": "#/definitions/PlaylistTrack"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Ресурс не найден или скрыт от этого клиента",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/sessions": {
+            "post": {
+                "description": "Открывает сессию и возвращает токен и `user_id` владельца.\nНеизвестный email и неверный пароль дают один и тот же `unauthorized`.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sessions"
+                ],
+                "summary": "Вход",
+                "operationId": "createSession",
+                "parameters": [
+                    {
+                        "description": "Email и пароль",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SessionCreate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Сессия открыта",
+                        "schema": {
+                            "$ref": "#/definitions/Session"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "429": {
+                        "description": "Слишком частые регистрация или вход. Ответ не говорит, какая квота сработала.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "type": "integer",
+                                "description": "Секунды до конца окна"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
@@ -1057,65 +1203,109 @@
         },
         "/v1/tracks": {
             "get": {
-                "description": "Lists ready tracks only.",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Одна коллекция для ленты, каталога автора, своих загрузок и любимого. Фильтры складываются через И.\n\n- `user_id` — треки автора.\n- `artist` — точное имя без учёта регистра и краевых пробелов.\n- `liked_by` — любимое пользователя. Только свой `user_id`: без токена 401, чужой — 403.\n- `status` — по умолчанию только `ready`. Если `user_id` совпадает с владельцем токена,\nпо умолчанию видны все статусы. Статус кроме `ready` для чужих треков — 403.\n\nЕсли Authorization передан, токен должен быть верным.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "tracks"
+                    "tracks",
+                    "likes"
                 ],
-                "summary": "Track feed",
+                "summary": "Треки",
                 "operationId": "listTracks",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Exact artist credit (case-insensitive)",
+                        "format": "uuid",
+                        "description": "Автор треков",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Точное имя артиста",
                         "name": "artist",
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Только треки, отмеченные любимыми этим пользователем. Должен совпадать с владельцем токена.",
+                        "name": "liked_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "pending",
+                            "processing",
+                            "ready"
+                        ],
+                        "type": "string",
+                        "description": "Статус трека. Кроме `ready` — только для своих треков.",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
                         "type": "integer",
                         "default": 20,
-                        "description": "Page size",
+                        "description": "Размер страницы. По умолчанию 20, больше 100 не принимается.",
                         "name": "limit",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Pagination cursor",
+                        "description": "Курсор следующей страницы из прошлого ответа",
                         "name": "cursor",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Страница треков",
                         "schema": {
-                            "$ref": "#/definitions/v1.TrackPageResponse"
+                            "$ref": "#/definitions/TrackPage"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
-            }
-        },
-        "/v1/tracks/upload-init": {
+            },
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "bearerAuth": []
                     }
                 ],
+                "description": "Создаёт трек `pending` у владельца токена и временную ссылку на запись объекта.\nБайты файла в этот запрос не входят. Публикация — `PATCH /v1/tracks/{trackId}` со `status: ready`.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1125,42 +1315,48 @@
                 "tags": [
                     "tracks"
                 ],
-                "summary": "Start track upload",
-                "operationId": "initTrackUpload",
+                "summary": "Создать трек",
+                "operationId": "createTrack",
                 "parameters": [
                     {
-                        "description": "Track metadata",
+                        "description": "Метаданные трека",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/v1.TrackUploadInitRequest"
+                            "$ref": "#/definitions/TrackCreate"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "Карточка создана",
                         "schema": {
-                            "$ref": "#/definitions/v1.TrackUploadInitResponse"
+                            "$ref": "#/definitions/TrackUpload"
+                        },
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "Адрес созданного ресурса"
+                            }
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
@@ -1168,18 +1364,25 @@
         },
         "/v1/tracks/{trackId}": {
             "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Без токена виден только `ready`. Владелец с верным токеном видит свой трек в любом статусе.\nЕсли заголовок Authorization передан, токен должен быть верным.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "tracks"
                 ],
-                "summary": "Get track by id",
+                "summary": "Карточка трека",
                 "operationId": "getTrack",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Track ID",
+                        "format": "uuid",
+                        "description": "Идентификатор трека",
                         "name": "trackId",
                         "in": "path",
                         "required": true
@@ -1187,27 +1390,33 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Карточка",
                         "schema": {
-                            "$ref": "#/definitions/v1.TrackResponse"
+                            "$ref": "#/definitions/Track"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Ресурс не найден или скрыт от этого клиента",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
@@ -1215,9 +1424,10 @@
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "bearerAuth": []
                     }
                 ],
+                "description": "Оба поля обязательны. Статус, размер и файл не меняются. Только владелец.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1227,61 +1437,62 @@
                 "tags": [
                     "tracks"
                 ],
-                "summary": "Update track",
+                "summary": "Заменить название и артиста",
                 "operationId": "replaceTrack",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Track ID",
+                        "format": "uuid",
+                        "description": "Идентификатор трека",
                         "name": "trackId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Track",
+                        "description": "Название и артист",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/v1.TrackWriteRequest"
+                            "$ref": "#/definitions/TrackReplace"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Карточка заменена",
                         "schema": {
-                            "$ref": "#/definitions/v1.TrackResponse"
+                            "$ref": "#/definitions/Track"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Ресурс не найден или скрыт от этого клиента",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
@@ -1289,18 +1500,23 @@
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "bearerAuth": []
                     }
+                ],
+                "description": "Только владелец. Строки плейлистов и подборок с этим треком уходят, сами списки остаются.",
+                "produces": [
+                    "application/json"
                 ],
                 "tags": [
                     "tracks"
                 ],
-                "summary": "Delete track",
+                "summary": "Удалить трек",
                 "operationId": "deleteTrack",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Track ID",
+                        "format": "uuid",
+                        "description": "Идентификатор трека",
                         "name": "trackId",
                         "in": "path",
                         "required": true
@@ -1308,39 +1524,36 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "description": "Трек удалён"
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Ресурс не найден или скрыт от этого клиента",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
@@ -1348,9 +1561,10 @@
             "patch": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "bearerAuth": []
                     }
                 ],
+                "description": "Меняются только переданные поля. Пустое тело не принимается. Только владелец.\n\n`status: ready` подтверждает загрузку: сервер сверяет владельца и размер объекта\nв хранилище и публикует трек. Если объекта нет, размер не совпал или текущий статус\nне допускает перехода — 409.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1360,169 +1574,68 @@
                 "tags": [
                     "tracks"
                 ],
-                "summary": "Update track fields",
+                "summary": "Частично изменить трек или опубликовать его",
                 "operationId": "updateTrack",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Track ID",
+                        "format": "uuid",
+                        "description": "Идентификатор трека",
                         "name": "trackId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Track fields",
+                        "description": "Поля трека или публикация",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/v1.TrackPatchRequest"
+                            "$ref": "#/definitions/TrackPatch"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Карточка изменена",
                         "schema": {
-                            "$ref": "#/definitions/v1.TrackResponse"
+                            "$ref": "#/definitions/Track"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Ресурс не найден или скрыт от этого клиента",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/tracks/{trackId}/like": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "tracks"
-                ],
-                "summary": "Like a ready track",
-                "operationId": "likeTrack",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Track ID",
-                        "name": "trackId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "Повтор уникальной пары, занятый email или неверный статус трека",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "tags": [
-                    "tracks"
-                ],
-                "summary": "Remove a like",
-                "operationId": "unlikeTrack",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Track ID",
-                        "name": "trackId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
@@ -1530,15 +1643,20 @@
         },
         "/v1/tracks/{trackId}/stream": {
             "get": {
+                "description": "Ответ — переход на временную ссылку чтения. Неготовый трек не отдаётся.",
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "tracks"
                 ],
-                "summary": "Stream a ready track",
-                "operationId": "streamTrack",
+                "summary": "Аудио трека",
+                "operationId": "getTrackStream",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Track ID",
+                        "format": "uuid",
+                        "description": "Идентификатор трека",
                         "name": "trackId",
                         "in": "path",
                         "required": true
@@ -1546,104 +1664,36 @@
                 ],
                 "responses": {
                     "302": {
-                        "description": "Redirect to audio",
-                        "schema": {
-                            "type": "string"
+                        "description": "Временная ссылка в Location",
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "Временная ссылка на объект"
+                            }
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Ресурс не найден или скрыт от этого клиента",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "409": {
-                        "description": "Conflict",
+                        "description": "Повтор уникальной пары, занятый email или неверный статус трека",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/tracks/{trackId}/upload-complete": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Checks the object in MinIO and publishes the track as ready.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "tracks"
-                ],
-                "summary": "Finish track upload",
-                "operationId": "completeTrackUpload",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Track ID",
-                        "name": "trackId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.TrackResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
@@ -1651,28 +1701,118 @@
         },
         "/v1/users": {
             "get": {
+                "description": "Весь справочник по страницам. Подписчики и подписки — в `GET /v1/follows`.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "users"
                 ],
-                "summary": "List users",
+                "summary": "Пользователи",
                 "operationId": "listUsers",
+                "parameters": [
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Размер страницы. По умолчанию 20, больше 100 не принимается.",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Курсор следующей страницы из прошлого ответа",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Страница профилей",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/v1.UserResponse"
+                            "$ref": "#/definitions/UserPage"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Создаёт аккаунт. Пароль не короче 8 символов.\nТокен здесь не выдаётся: после регистрации клиент открывает сессию через `POST /v1/sessions`.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Регистрация",
+                "operationId": "createUser",
+                "parameters": [
+                    {
+                        "description": "Аккаунт",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/UserCreate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Аккаунт создан",
+                        "schema": {
+                            "$ref": "#/definitions/User"
+                        },
+                        "headers": {
+                            "Location": {
+                                "type": "string",
+                                "description": "Адрес созданного ресурса"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Повтор уникальной пары, занятый email или неверный статус трека",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "429": {
+                        "description": "Слишком частые регистрация или вход. Ответ не говорит, какая квота сработала.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        },
+                        "headers": {
+                            "Retry-After": {
+                                "type": "integer",
+                                "description": "Секунды до конца окна"
                             }
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
@@ -1680,18 +1820,20 @@
         },
         "/v1/users/{userId}": {
             "get": {
+                "description": "Публичный профиль. Пароль в ответ не входит.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "users"
                 ],
-                "summary": "Get user by id",
+                "summary": "Профиль",
                 "operationId": "getUser",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "User ID",
+                        "format": "uuid",
+                        "description": "Идентификатор пользователя",
                         "name": "userId",
                         "in": "path",
                         "required": true
@@ -1699,73 +1841,103 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Профиль",
                         "schema": {
-                            "$ref": "#/definitions/v1.UserResponse"
+                            "$ref": "#/definitions/User"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Ресурс не найден или скрыт от этого клиента",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
-            }
-        },
-        "/v1/users/{userId}/follow": {
+            },
             "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "bearerAuth": []
                     }
                 ],
-                "tags": [
-                    "follows"
+                "description": "Нужны и имя, и email. Пароль этой операцией не меняется. Только владелец аккаунта.",
+                "consumes": [
+                    "application/json"
                 ],
-                "summary": "Follow a user",
-                "operationId": "followUser",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Заменить профиль",
+                "operationId": "replaceUser",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "User ID",
+                        "format": "uuid",
+                        "description": "Идентификатор пользователя",
                         "name": "userId",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Профиль",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/UserReplace"
+                        }
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No Content"
+                    "200": {
+                        "description": "Профиль заменён",
+                        "schema": {
+                            "$ref": "#/definitions/User"
+                        }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "403": {
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Повтор уникальной пары, занятый email или неверный статус трека",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
@@ -1773,18 +1945,23 @@
             "delete": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "bearerAuth": []
                     }
                 ],
-                "tags": [
-                    "follows"
+                "description": "Только владелец аккаунта. Повтор по уже удалённому аккаунту — 401, сессии больше нет.",
+                "produces": [
+                    "application/json"
                 ],
-                "summary": "Unfollow a user",
-                "operationId": "unfollowUser",
+                "tags": [
+                    "users"
+                ],
+                "summary": "Удалить аккаунт",
+                "operationId": "deleteUser",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "User ID",
+                        "format": "uuid",
+                        "description": "Идентификатор пользователя",
                         "name": "userId",
                         "in": "path",
                         "required": true
@@ -1792,232 +1969,252 @@
                 ],
                 "responses": {
                     "204": {
-                        "description": "No Content"
+                        "description": "Аккаунт удалён"
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/users/{userId}/followers": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "follows"
-                ],
-                "summary": "List user followers",
-                "operationId": "listFollowers",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User ID",
-                        "name": "userId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Page size",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Pagination cursor",
-                        "name": "cursor",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.UserPageResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "403": {
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/users/{userId}/following": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "follows"
-                ],
-                "summary": "List users followed by a user",
-                "operationId": "listUserFollowing",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User ID",
-                        "name": "userId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Page size",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Pagination cursor",
-                        "name": "cursor",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.UserPageResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/users/{userId}/playlists": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "playlists"
-                ],
-                "summary": "List a user's public playlists",
-                "operationId": "listUserPlaylists",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User ID",
-                        "name": "userId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Page size",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Pagination cursor",
-                        "name": "cursor",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.PlaylistPageResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/users/{userId}/tracks": {
-            "get": {
-                "description": "Ready tracks uploaded by the given user.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "tracks"
-                ],
-                "summary": "Tracks uploaded by a user",
-                "operationId": "listUserTracks",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User ID",
-                        "name": "userId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "default": 20,
-                        "description": "Page size",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Pagination cursor",
-                        "name": "cursor",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/v1.TrackPageResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
                         "schema": {
-                            "$ref": "#/definitions/v1.ErrorResponse"
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Меняются только переданные поля. Пустое тело не принимается.\nПароль меняется только здесь. Только владелец аккаунта.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Частично изменить профиль",
+                "operationId": "updateUser",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Идентификатор пользователя",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Поля профиля",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/UserPatch"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Профиль изменён",
+                        "schema": {
+                            "$ref": "#/definitions/User"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Повтор уникальной пары, занятый email или неверный статус трека",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/users/{userId}/likes/{trackId}": {
+            "put": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "`userId` должен совпадать с владельцем токена. Только готовый трек.\nИдемпотентно: повтор той же пары снова 204.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "likes"
+                ],
+                "summary": "Отметить трек любимым",
+                "operationId": "putLike",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Идентификатор пользователя",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Идентификатор трека",
+                        "name": "trackId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Лайк есть"
+                    },
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Ресурс не найден или скрыт от этого клиента",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Повтор уникальной пары, занятый email или неверный статус трека",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "`userId` должен совпадать с владельцем токена. Повторное снятие тоже 204.\n404 только если нет самого трека.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "likes"
+                ],
+                "summary": "Снять отметку",
+                "operationId": "deleteLike",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Идентификатор пользователя",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Идентификатор трека",
+                        "name": "trackId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Лайка нет"
+                    },
+                    "400": {
+                        "description": "Неверное тело, параметр или пустое частичное обновление",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Токена нет или он неверен. При входе сюда же попадает неверный пароль.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Токен верный, но ресурс принадлежит другому пользователю",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Ресурс не найден или скрыт от этого клиента",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
                         }
                     }
                 }
@@ -2025,320 +2222,580 @@
         }
     },
     "definitions": {
-        "v1.AuthResponse": {
+        "Error": {
             "type": "object",
-            "properties": {
-                "token": {
-                    "type": "string"
-                },
-                "user": {
-                    "$ref": "#/definitions/v1.UserResponse"
-                }
-            }
-        },
-        "v1.ErrorResponse": {
-            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
             "properties": {
                 "code": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "invalid",
+                        "unauthorized",
+                        "forbidden",
+                        "not_found",
+                        "conflict",
+                        "too_many_requests",
+                        "internal"
+                    ]
                 },
                 "message": {
                     "type": "string"
                 }
             }
         },
-        "v1.LoginRequest": {
+        "Follow": {
             "type": "object",
+            "required": [
+                "created_at",
+                "follower",
+                "following"
+            ],
             "properties": {
-                "email": {
-                    "type": "string"
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-09-25T09:00:00Z"
                 },
-                "password": {
-                    "type": "string"
+                "follower": {
+                    "$ref": "#/definitions/User"
+                },
+                "following": {
+                    "$ref": "#/definitions/User"
                 }
             }
         },
-        "v1.PlaylistPageResponse": {
+        "FollowPage": {
             "type": "object",
+            "required": [
+                "items",
+                "limit"
+            ],
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/v1.PlaylistResponse"
+                        "$ref": "#/definitions/Follow"
                     }
                 },
                 "limit": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 20
                 },
                 "next_cursor": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "20"
                 }
             }
         },
-        "v1.PlaylistPatchRequest": {
+        "FollowsCreate": {
             "type": "object",
+            "required": [
+                "follower_id",
+                "following_ids"
+            ],
             "properties": {
-                "is_public": {
-                    "type": "boolean"
+                "follower_id": {
+                    "description": "Кто подписывается. Должен совпадать с владельцем токена.",
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "6b1e2c3a-7d4f-4a1b-9c8e-111111111111"
                 },
-                "title": {
-                    "type": "string"
+                "following_ids": {
+                    "description": "На кого подписаться",
+                    "type": "array",
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
                 }
             }
         },
-        "v1.PlaylistReplaceRequest": {
+        "Playlist": {
             "type": "object",
-            "properties": {
-                "is_public": {
-                    "type": "boolean"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "v1.PlaylistResponse": {
-            "type": "object",
+            "required": [
+                "id",
+                "is_public",
+                "owner_id",
+                "title"
+            ],
             "properties": {
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "8d3a4e5c-9f6b-4c3d-be0a-333333333333"
                 },
                 "is_public": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": true
                 },
                 "owner_id": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "6b1e2c3a-7d4f-4a1b-9c8e-111111111111"
                 },
                 "title": {
+                    "type": "string",
+                    "example": "Ночные"
+                }
+            }
+        },
+        "PlaylistPage": {
+            "type": "object",
+            "required": [
+                "items",
+                "limit"
+            ],
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Playlist"
+                    }
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "next_cursor": {
                     "type": "string"
                 }
             }
         },
-        "v1.PlaylistTrackAddRequest": {
+        "PlaylistPatch": {
             "type": "object",
             "properties": {
+                "is_public": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "title": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "PlaylistReplace": {
+            "type": "object",
+            "required": [
+                "is_public",
+                "title"
+            ],
+            "properties": {
+                "is_public": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "example": "Ночные"
+                }
+            }
+        },
+        "PlaylistTrack": {
+            "type": "object",
+            "required": [
+                "position",
+                "track"
+            ],
+            "properties": {
                 "position": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 1
+                },
+                "track": {
+                    "$ref": "#/definitions/Track"
+                }
+            }
+        },
+        "PlaylistTrackCreate": {
+            "type": "object",
+            "required": [
+                "position",
+                "track_id"
+            ],
+            "properties": {
+                "position": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 1
                 },
                 "track_id": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "7c2f3d4b-8e5a-4b2c-ad9f-222222222222"
                 }
             }
         },
-        "v1.PlaylistTrackMoveRequest": {
+        "PlaylistTrackPage": {
             "type": "object",
-            "properties": {
-                "position": {
-                    "type": "integer"
-                }
-            }
-        },
-        "v1.PlaylistTrackPageResponse": {
-            "type": "object",
+            "required": [
+                "items",
+                "limit"
+            ],
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/v1.PlaylistTrackResponse"
+                        "$ref": "#/definitions/PlaylistTrack"
                     }
                 },
                 "limit": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 20
                 },
                 "next_cursor": {
                     "type": "string"
                 }
             }
         },
-        "v1.PlaylistTrackResponse": {
+        "PlaylistTrackPatch": {
             "type": "object",
+            "required": [
+                "position"
+            ],
             "properties": {
                 "position": {
-                    "type": "integer"
-                },
-                "track": {
-                    "$ref": "#/definitions/v1.TrackResponse"
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 2
                 }
             }
         },
-        "v1.RegisterRequest": {
+        "Session": {
             "type": "object",
+            "required": [
+                "token",
+                "user_id"
+            ],
             "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "v1.TrackPageResponse": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/v1.TrackResponse"
-                    }
-                },
-                "limit": {
-                    "type": "integer"
-                },
-                "next_cursor": {
-                    "type": "string"
-                }
-            }
-        },
-        "v1.TrackPatchRequest": {
-            "type": "object",
-            "properties": {
-                "artist": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "v1.TrackResponse": {
-            "type": "object",
-            "properties": {
-                "artist": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "size_bytes": {
-                    "type": "integer"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
+                "token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example"
                 },
                 "user_id": {
-                    "type": "string"
+                    "description": "Владелец токена. Подставляется в пути и фильтры вместо текущего пользователя.",
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "6b1e2c3a-7d4f-4a1b-9c8e-111111111111"
                 }
             }
         },
-        "v1.TrackUploadInitRequest": {
+        "SessionCreate": {
             "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "ada@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "long-enough"
+                }
+            }
+        },
+        "Track": {
+            "type": "object",
+            "required": [
+                "artist",
+                "id",
+                "size_bytes",
+                "status",
+                "title",
+                "user_id"
+            ],
             "properties": {
                 "artist": {
-                    "type": "string"
+                    "description": "Строка для поиска, не аккаунт",
+                    "type": "string",
+                    "example": "Ada"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "7c2f3d4b-8e5a-4b2c-ad9f-222222222222"
+                },
+                "size_bytes": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 0,
+                    "example": 3200000
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "pending",
+                        "processing",
+                        "ready"
+                    ],
+                    "example": "ready"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Night Drive"
+                },
+                "user_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "6b1e2c3a-7d4f-4a1b-9c8e-111111111111"
+                }
+            }
+        },
+        "TrackCreate": {
+            "type": "object",
+            "required": [
+                "artist",
+                "size",
+                "title"
+            ],
+            "properties": {
+                "artist": {
+                    "type": "string",
+                    "example": "Ada"
                 },
                 "size": {
-                    "type": "integer"
+                    "description": "Размер файла в байтах",
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 1,
+                    "example": 3200000
                 },
                 "title": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1,
+                    "example": "Night Drive"
                 }
             }
         },
-        "v1.TrackUploadInitResponse": {
+        "TrackPage": {
             "type": "object",
-            "properties": {
-                "track": {
-                    "$ref": "#/definitions/v1.TrackResponse"
-                },
-                "upload_url": {
-                    "type": "string"
-                }
-            }
-        },
-        "v1.TrackWriteRequest": {
-            "type": "object",
-            "properties": {
-                "artist": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "v1.UserPageResponse": {
-            "type": "object",
+            "required": [
+                "items",
+                "limit"
+            ],
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/v1.UserResponse"
+                        "$ref": "#/definitions/Track"
                     }
                 },
                 "limit": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 20
                 },
                 "next_cursor": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "20"
                 }
             }
         },
-        "v1.UserPatchRequest": {
+        "TrackPatch": {
             "type": "object",
             "properties": {
-                "email": {
+                "artist": {
                     "type": "string"
                 },
-                "name": {
-                    "type": "string"
+                "status": {
+                    "description": "Единственный переход, который задаёт клиент, — публикация загруженного файла.",
+                    "type": "string",
+                    "enum": [
+                        "ready"
+                    ]
                 },
-                "password": {
-                    "type": "string"
+                "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "example": "Night Drive (demo)"
                 }
             }
         },
-        "v1.UserReplaceRequest": {
+        "TrackReplace": {
             "type": "object",
+            "required": [
+                "artist",
+                "title"
+            ],
             "properties": {
-                "email": {
-                    "type": "string"
+                "artist": {
+                    "type": "string",
+                    "example": "Ada"
                 },
-                "name": {
-                    "type": "string"
+                "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "example": "Night Drive"
                 }
             }
         },
-        "v1.UserResponse": {
+        "TrackUpload": {
             "type": "object",
+            "required": [
+                "track",
+                "upload_url"
+            ],
+            "properties": {
+                "track": {
+                    "$ref": "#/definitions/Track"
+                },
+                "upload_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "example": "https://storage.example/music-raw/7c2f3d4b-8e5a-4b2c-ad9f-222222222222.mp3?X-Amz-Signature=example"
+                }
+            }
+        },
+        "User": {
+            "type": "object",
+            "required": [
+                "email",
+                "id",
+                "name"
+            ],
             "properties": {
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "email",
+                    "example": "ada@example.com"
                 },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "6b1e2c3a-7d4f-4a1b-9c8e-111111111111"
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Ada"
                 }
             }
         },
-        "v1.UserWriteRequest": {
+        "UserCreate": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "ada@example.com"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Ada"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "example": "long-enough"
+                }
+            }
+        },
+        "UserPage": {
+            "type": "object",
+            "required": [
+                "items",
+                "limit"
+            ],
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/User"
+                    }
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "next_cursor": {
+                    "type": "string",
+                    "example": "20"
+                }
+            }
+        },
+        "UserPatch": {
             "type": "object",
             "properties": {
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "email"
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Ada Lovelace"
                 },
                 "password": {
-                    "type": "string"
+                    "description": "Если поле передано, пароль заменяется. Иначе остаётся прежним.",
+                    "type": "string",
+                    "minLength": 8
+                }
+            }
+        },
+        "UserReplace": {
+            "type": "object",
+            "required": [
+                "email",
+                "name"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "ada@example.com"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Ada Lovelace"
                 }
             }
         }
     },
     "securityDefinitions": {
-        "BearerAuth": {
-            "description": "JWT from /v1/auth/login. Paste only the token, or \"Bearer \u003ctoken\u003e\".",
+        "bearerAuth": {
+            "description": "Заголовок Authorization: Bearer \u003ctoken\u003e",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
         }
-    }
+    },
+    "tags": [
+        {
+            "description": "Вход",
+            "name": "sessions"
+        },
+        {
+            "description": "Аккаунты и профили",
+            "name": "users"
+        },
+        {
+            "description": "Каталог и публикация",
+            "name": "tracks"
+        },
+        {
+            "description": "Любимое",
+            "name": "likes"
+        },
+        {
+            "description": "Списки пользователя",
+            "name": "playlists"
+        },
+        {
+            "description": "Подписки на авторов",
+            "name": "follows"
+        }
+    ]
 }

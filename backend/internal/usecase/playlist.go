@@ -42,17 +42,16 @@ func (s *PlaylistService) Get(ctx context.Context, id, viewerID string) (domain.
 	return playlist, nil
 }
 
-func (s *PlaylistService) ListByOwner(ctx context.Context, ownerID string, publicOnly bool, q domain.PageQuery) (domain.PlaylistPage, error) {
-	if err := domain.UserID(ownerID).Validate(); err != nil {
-		return domain.PlaylistPage{}, err
-	}
+func (s *PlaylistService) List(ctx context.Context, q domain.PlaylistListQuery) (domain.PlaylistPage, error) {
 	if err := q.Validate(); err != nil {
 		return domain.PlaylistPage{}, err
 	}
-	if _, err := s.users.GetByID(ctx, ownerID); err != nil {
-		return domain.PlaylistPage{}, err
+	if q.OwnerID != "" {
+		if _, err := s.users.GetByID(ctx, q.OwnerID); err != nil {
+			return domain.PlaylistPage{}, err
+		}
 	}
-	playlists, err := s.playlists.ListByOwner(ctx, ownerID, publicOnly)
+	playlists, err := s.playlists.List(ctx, q.Filter())
 	if err != nil {
 		return domain.PlaylistPage{}, err
 	}

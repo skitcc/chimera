@@ -1,11 +1,22 @@
-// @title Chimera API
-// @version 1.0
-// @description Music streaming backend
+// @title Sound Chimera API
+// @version 1.0.0
 // @BasePath /
-// @securityDefinitions.apikey BearerAuth
+// @tag.name sessions
+// @tag.description Вход
+// @tag.name users
+// @tag.description Аккаунты и профили
+// @tag.name tracks
+// @tag.description Каталог и публикация
+// @tag.name likes
+// @tag.description Любимое
+// @tag.name playlists
+// @tag.description Списки пользователя
+// @tag.name follows
+// @tag.description Подписки на авторов
+// @securityDefinitions.apikey bearerAuth
 // @in header
 // @name Authorization
-// @description JWT from /v1/auth/login. Paste only the token, or "Bearer <token>".
+// @description Заголовок Authorization: Bearer <token>
 package main
 
 import (

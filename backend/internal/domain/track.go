@@ -125,12 +125,13 @@ func (in TrackReplace) Validate() error {
 }
 
 type TrackPatch struct {
-	Title  *string
-	Artist *string
+	Title   *string
+	Artist  *string
+	Publish bool
 }
 
 func (in TrackPatch) Validate() error {
-	if in.Title == nil && in.Artist == nil {
+	if in.Title == nil && in.Artist == nil && !in.Publish {
 		return Invalid("at least one field is required")
 	}
 	if in.Title != nil && *in.Title == "" {
@@ -196,10 +197,56 @@ type TrackUploadSession struct {
 	UploadURL string
 }
 
+// TrackFilter selects tracks. An empty Status matches every status.
 type TrackFilter struct {
-	Status TrackStatus
-	UserID string
-	Artist string
+	Status  TrackStatus
+	UserID  string
+	Artist  string
+	LikedBy string
+}
+
+// TrackListQuery is one listing for the feed, an author's tracks and liked tracks.
+// ViewerID is the token owner or empty for a guest.
+type TrackListQuery struct {
+	PageQuery
+	ViewerID string
+	UserID   string
+	Artist   string
+	LikedBy  string
+	Status   TrackStatus
+}
+
+func (q *TrackListQuery) Validate() error {
+	q.Artist = strings.TrimSpace(q.Artist)
+	switch q.Status {
+	case "", TrackPending, TrackProcessing, TrackReady:
+	default:
+		return Invalid("invalid status")
+	}
+	if q.LikedBy != "" {
+		if q.ViewerID == "" {
+			return Unauthorized("missing token")
+		}
+		if q.LikedBy != q.ViewerID {
+			return Forbidden("not allowed")
+		}
+	}
+	if q.Status != "" && q.Status != TrackReady && !q.own() {
+		return Forbidden("not allowed")
+	}
+	return q.PageQuery.Validate()
+}
+
+func (q TrackListQuery) Filter() TrackFilter {
+	status := q.Status
+	if status == "" && !q.own() {
+		status = TrackReady
+	}
+	return TrackFilter{Status: status, UserID: q.UserID, Artist: q.Artist, LikedBy: q.LikedBy}
+}
+
+func (q TrackListQuery) own() bool {
+	return q.UserID != "" && q.UserID == q.ViewerID
 }
 
 type TrackFeedQuery struct {

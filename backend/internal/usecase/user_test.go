@@ -15,13 +15,13 @@ func TestUserServiceList(t *testing.T) {
 		users.users[user.ID] = user
 
 		// Act
-		got, err := service.List(context.Background())
+		got, err := service.List(context.Background(), domain.PageQuery{})
 
 		// Assert
 		if err != nil {
 			t.Fatalf("List() error = %v", err)
 		}
-		assertEqual(t, []domain.User{user}, got)
+		assertEqual(t, domain.UserPage{Items: []domain.User{user}, Limit: 20}, got)
 	})
 
 	runCase(t, "returns repository error", func(t *testing.T) {
@@ -30,7 +30,7 @@ func TestUserServiceList(t *testing.T) {
 		users.listErr = errDependency
 
 		// Act
-		_, err := service.List(context.Background())
+		_, err := service.List(context.Background(), domain.PageQuery{})
 
 		// Assert
 		assertErrorIs(t, err, errDependency)

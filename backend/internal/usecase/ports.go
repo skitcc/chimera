@@ -40,8 +40,9 @@ type TrackLikeRepository interface {
 type FollowRepository interface {
 	Add(ctx context.Context, followerID, followingID string) error
 	Remove(ctx context.Context, followerID, followingID string) error
-	ListFollowers(ctx context.Context, userID string) ([]domain.User, error)
-	ListFollowing(ctx context.Context, userID string) ([]domain.User, error)
+	AddMany(ctx context.Context, followerID string, followingIDs []string) error
+	RemoveMany(ctx context.Context, followerID string, followingIDs []string) error
+	List(ctx context.Context, filter domain.FollowFilter) ([]domain.Follow, error)
 }
 
 type PlaylistRepository interface {
@@ -49,7 +50,7 @@ type PlaylistRepository interface {
 	GetByID(ctx context.Context, id string) (domain.Playlist, error)
 	Update(ctx context.Context, playlist domain.Playlist) (domain.Playlist, error)
 	Delete(ctx context.Context, id string) error
-	ListByOwner(ctx context.Context, ownerID string, publicOnly bool) ([]domain.Playlist, error)
+	List(ctx context.Context, filter domain.PlaylistFilter) ([]domain.Playlist, error)
 	ListTracks(ctx context.Context, playlistID string) ([]domain.PlaylistTrack, error)
 	AddTrack(ctx context.Context, playlistID string, in domain.PlaylistTrackAdd) (domain.PlaylistTrack, error)
 	MoveTrack(ctx context.Context, playlistID, trackID string, position int) (domain.PlaylistTrack, error)

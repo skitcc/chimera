@@ -61,6 +61,10 @@ func (r *TrackRepository) List(ctx context.Context, filter domain.TrackFilter) (
 	if filter.Artist != "" {
 		artist = filter.Artist
 	}
+	var likedBy any
+	if filter.LikedBy != "" {
+		likedBy = filter.LikedBy
+	}
 
 	rows, err := r.db.Query(ctx,
 		`SELECT `+trackCols+`
@@ -68,8 +72,10 @@ func (r *TrackRepository) List(ctx context.Context, filter domain.TrackFilter) (
 		 WHERE ($1::text IS NULL OR status = $1)
 		   AND ($2::uuid IS NULL OR user_id = $2)
 		   AND ($3::text IS NULL OR lower(btrim(artist)) = lower(btrim($3)))
+		   AND ($4::uuid IS NULL OR EXISTS (
+		         SELECT 1 FROM track_likes l WHERE l.track_id = tracks.id AND l.user_id = $4))
 		 ORDER BY created_at, id`,
-		status, userID, artist,
+		status, userID, artist, likedBy,
 	)
 	if err != nil {
 		return nil, mapError(err, "list tracks")
