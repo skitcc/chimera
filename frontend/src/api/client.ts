@@ -1,21 +1,45 @@
 import { ApiError } from './types'
-import type { AuthResponse, Track, TrackPage, UploadSession, User } from './types'
+import type { AuthResponse, Session, Track, TrackPage, UploadSession, User } from './types'
 
 const base = import.meta.env.VITE_API_URL ?? ''
 
-type Session = {
+const TOKEN_KEY = 'chimera.token'
+const USER_ID_KEY = 'chimera.user_id'
+
+type ClientSession = {
   token: string | null
+  userId: string | null
 }
 
-const session: Session = { token: localStorage.getItem('chimera.token') }
+const session: ClientSession = {
+  token: localStorage.getItem(TOKEN_KEY),
+  userId: localStorage.getItem(USER_ID_KEY),
+}
 
 export function setToken(token: string | null) {
   session.token = token
   if (token) {
-    localStorage.setItem('chimera.token', token)
+    localStorage.setItem(TOKEN_KEY, token)
     return
   }
-  localStorage.removeItem('chimera.token')
+  localStorage.removeItem(TOKEN_KEY)
+  setUserId(null)
+}
+
+function setUserId(id: string | null) {
+  session.userId = id
+  if (id) {
+    localStorage.setItem(USER_ID_KEY, id)
+    return
+  }
+  localStorage.removeItem(USER_ID_KEY)
+}
+
+function currentUserId(): string {
+  if (!session.userId) {
+    throw new ApiError('unauthorized', 'missing session')
+  }
+  return session.userId
 }
 
 export function streamUrl(id: string) {
@@ -44,20 +68,28 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T
 }
 
+async function login(email: string, password: string): Promise<AuthResponse> {
+  const created = await request<Session>('/v1/sessions', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  })
+  setUserId(created.user_id)
+  const user = await request<User>(`/v1/users/${created.user_id}`)
+  return { token: created.token, user }
+}
+
 export const api = {
-  register: (email: string, password: string, name: string) =>
-    request<AuthResponse>('/v1/auth/register', {
+  register: async (email: string, password: string, name: string) => {
+    await request<User>('/v1/users', {
       method: 'POST',
       body: JSON.stringify({ email, password, name }),
-    }),
+    })
+    return login(email, password)
+  },
 
-  login: (email: string, password: string) =>
-    request<AuthResponse>('/v1/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    }),
+  login,
 
-  me: () => request<User>('/v1/me'),
+  me: () => request<User>(`/v1/users/${currentUserId()}`),
 
   feed: (params: { cursor?: string; artist?: string } = {}) => {
     const q = new URLSearchParams({ limit: '40' })
@@ -66,24 +98,27 @@ export const api = {
     return request<TrackPage>(`/v1/tracks?${q}`)
   },
 
-  myTracks: () => request<TrackPage>('/v1/me/tracks?limit=100'),
+  myTracks: () => request<TrackPage>(`/v1/tracks?user_id=${currentUserId()}&limit=100`),
 
-  liked: () => request<TrackPage>('/v1/me/likes?limit=100'),
+  liked: () => request<TrackPage>(`/v1/tracks?liked_by=${currentUserId()}&limit=100`),
 
-  userTracks: (userId: string) => request<TrackPage>(`/v1/users/${userId}/tracks?limit=100`),
+  userTracks: (userId: string) => request<TrackPage>(`/v1/tracks?user_id=${userId}&status=ready&limit=100`),
 
-  like: (id: string) => request<void>(`/v1/tracks/${id}/like`, { method: 'POST' }),
+  like: (id: string) => request<void>(`/v1/users/${currentUserId()}/likes/${id}`, { method: 'PUT' }),
 
-  unlike: (id: string) => request<void>(`/v1/tracks/${id}/like`, { method: 'DELETE' }),
+  unlike: (id: string) => request<void>(`/v1/users/${currentUserId()}/likes/${id}`, { method: 'DELETE' }),
 
   initUpload: (title: string, artist: string, size: number) =>
-    request<UploadSession>('/v1/tracks/upload-init', {
+    request<UploadSession>('/v1/tracks', {
       method: 'POST',
       body: JSON.stringify({ title, artist, size }),
     }),
 
   completeUpload: (id: string) =>
-    request<Track>(`/v1/tracks/${id}/upload-complete`, { method: 'POST' }),
+    request<Track>(`/v1/tracks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'ready' }),
+    }),
 
   putFile: async (url: string, file: File) => {
     const res = await fetch(url, { method: 'PUT', body: file })

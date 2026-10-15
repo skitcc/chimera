@@ -19,6 +19,11 @@ export type TrackPage = {
   limit: number
 }
 
+export type Session = {
+  token: string
+  user_id: string
+}
+
 export type AuthResponse = {
   token: string
   user: User
