@@ -352,7 +352,7 @@ func TestUserServiceIntegration(t *testing.T) {
 			created = f.mustUser(t, "alice@example.com")
 		})
 		r.Act(func(t *testing.T) {
-			updated, err = f.members.Update(f.ctx, created.ID, domain.UserWrite{Email: "New@Example.com", Name: "New"})
+			updated, err = f.members.Update(f.ctx, created.ID, created.ID, domain.UserWrite{Email: "New@Example.com", Name: "New"})
 		})
 		r.Assert(func(t *testing.T) {
 			if err != nil {
@@ -372,7 +372,7 @@ func TestUserServiceIntegration(t *testing.T) {
 		Title:     "delete of a user who owns tracks is refused",
 		Given:     "a user who owns one track",
 		When:      "Delete is called for that user",
-		Then:      "not_found `not found` from the FK violation (known issue KI-1); user and track remain",
+		Then:      "unauthorized `invalid token`: the FK violation (KI-1) is mapped to not_found and then rewritten; user and track remain",
 		Technique: testkit.TechniqueErrorGuessing,
 		Severity:  testkit.SeverityCritical,
 	}, func(t *testing.T, r testkit.Report) {
@@ -384,9 +384,9 @@ func TestUserServiceIntegration(t *testing.T) {
 			user = f.mustUser(t, "alice@example.com")
 			f.insertTrack(t, user.ID, "Song", "Artist", domain.TrackReady, 1)
 		})
-		r.Act(func(t *testing.T) { err = f.members.Delete(f.ctx, user.ID) })
+		r.Act(func(t *testing.T) { err = f.members.Delete(f.ctx, user.ID, user.ID) })
 		r.Assert(func(t *testing.T) {
-			assertCode(t, err, domain.CodeNotFound, "not found")
+			assertCode(t, err, domain.CodeUnauthorized, "invalid token")
 			requireEqual(t, f.count(t, `SELECT count(*) FROM users`), 1)
 			requireEqual(t, f.count(t, `SELECT count(*) FROM tracks`), 1)
 		})
@@ -521,7 +521,7 @@ func TestTrackServiceIntegration(t *testing.T) {
 		var f *appFixture
 		var err error
 		r.Arrange(func(t *testing.T) { f = newAppFixture(t, nil) })
-		r.Act(func(t *testing.T) { _, err = f.catalog.GetByID(f.ctx, nilUUID) })
+		r.Act(func(t *testing.T) { _, err = f.catalog.GetByID(f.ctx, nilUUID, "") })
 		r.Assert(func(t *testing.T) { assertCode(t, err, domain.CodeNotFound, "track not found") })
 	})
 
@@ -742,7 +742,7 @@ func TestTrackServiceIntegration(t *testing.T) {
 			track = f.insertTrack(t, f.mustUser(t, "alice@example.com").ID, "Old", "Artist", domain.TrackReady, 1)
 		})
 		r.Act(func(t *testing.T) {
-			updated, err = f.catalog.Update(f.ctx, track.ID, domain.TrackWrite{Title: "New", Artist: "Artist"})
+			updated, err = f.catalog.Update(f.ctx, track.UserID, track.ID, domain.TrackWrite{Title: "New", Artist: "Artist"})
 		})
 		r.Assert(func(t *testing.T) {
 			if err != nil {
@@ -775,7 +775,7 @@ func TestTrackServiceIntegration(t *testing.T) {
 			track = f.insertTrack(t, user.ID, "Live", "Artist", domain.TrackReady, 1)
 			f.like(t, user.ID, track.ID)
 		})
-		r.Act(func(t *testing.T) { err = f.catalog.Delete(f.ctx, track.ID) })
+		r.Act(func(t *testing.T) { err = f.catalog.Delete(f.ctx, track.UserID, track.ID) })
 		r.Assert(func(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Delete() error = %v", err)
@@ -894,10 +894,10 @@ func TestTrackServiceIntegration(t *testing.T) {
 
 	runService(t, component, testkit.Spec{
 		ID: "IT-UC-TRK-COMPLETE-02", Method: "CompleteUpload",
-		Title:     "complete upload by another user returns unauthorized",
+		Title:     "complete upload by another user returns forbidden",
 		Given:     "a pending track owned by Alice",
 		When:      "CompleteUpload is called by Bob",
-		Then:      "unauthorized `not allowed`; the row stays pending",
+		Then:      "forbidden `not allowed`; the row stays pending",
 		Technique: testkit.TechniqueDecisionTable,
 		Severity:  testkit.SeverityBlocker,
 	}, func(t *testing.T, r testkit.Report) {
@@ -915,7 +915,7 @@ func TestTrackServiceIntegration(t *testing.T) {
 			_, err = f.catalog.CompleteUpload(f.ctx, domain.TrackUploadComplete{TrackID: track.ID, UserID: other.ID})
 		})
 		r.Assert(func(t *testing.T) {
-			assertCode(t, err, domain.CodeUnauthorized, "not allowed")
+			assertCode(t, err, domain.CodeForbidden, "not allowed")
 			requireEqual(t, f.status(t, track.ID), "pending")
 		})
 	})
