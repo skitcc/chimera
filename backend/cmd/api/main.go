@@ -92,7 +92,11 @@ func main() {
 	tokens := infraauth.NewJWT(cfg.Auth)
 	userService := usecase.NewUserService(users, hasher)
 	trackService := usecase.NewTrackService(tracks, likes, objects, cfg.Upload.MaxBytes)
+	authService := usecase.NewAuthService(users, hasher, tokens)
+	followService := usecase.NewFollowService(users, follows)
+	playlistService := usecase.NewPlaylistService(playlists, tracks, users)
 
+	rateLimiter := middleware.NewLimiter(cfg.Auth.RateLimit, cfg.Auth.RateWindow)
 	router := httpapi.NewRouter(httpapi.Dependencies{
 		Log:         log,
 		Tokens:      tokens,
@@ -100,12 +104,12 @@ func main() {
 		Health:      monitor,
 		Routes: v1.New(
 			userService,
-			usecase.NewAuthService(users, hasher, tokens),
+			authService,
 			trackService,
-			usecase.NewFollowService(users, follows),
-			usecase.NewPlaylistService(playlists, tracks, users),
+			followService,
+			playlistService,
 			tokens,
-			middleware.NewLimiter(cfg.Auth.RateLimit, cfg.Auth.RateWindow),
+			rateLimiter,
 			cfg.S3.PresignHost,
 			log,
 		),

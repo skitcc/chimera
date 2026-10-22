@@ -32,7 +32,7 @@ func (c *TrackController) PutLike(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	in := likeInput(r)
+	in := domain.TrackLike{UserID: chi.URLParam(r, "userId"), TrackID: chi.URLParam(r, "trackId")}
 	if err := c.tracks.PutLike(r.Context(), actor, in); err != nil {
 		httpapi.WriteAppError(r.Context(), w, c.log, "put like", err, "user_id", in.UserID, "track_id", in.TrackID)
 		return
@@ -62,14 +62,10 @@ func (c *TrackController) DeleteLike(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	in := likeInput(r)
+	in := domain.TrackLike{UserID: chi.URLParam(r, "userId"), TrackID: chi.URLParam(r, "trackId")}
 	if err := c.tracks.DeleteLike(r.Context(), actor, in); err != nil {
 		httpapi.WriteAppError(r.Context(), w, c.log, "delete like", err, "user_id", in.UserID, "track_id", in.TrackID)
 		return
 	}
 	httpapi.WriteNoContent(w)
-}
-
-func likeInput(r *http.Request) domain.TrackLike {
-	return domain.TrackLike{UserID: chi.URLParam(r, "userId"), TrackID: chi.URLParam(r, "trackId")}
 }
