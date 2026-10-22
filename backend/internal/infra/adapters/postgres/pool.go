@@ -41,8 +41,14 @@ func mapError(err error, fallback string) error {
 			switch pgErr.ConstraintName {
 			case "track_likes_pkey":
 				return domain.Conflict("track already liked")
-			default:
+			case "playlist_tracks_pkey":
+				return domain.Conflict("track already in playlist")
+			case "playlist_tracks_playlist_position_key":
+				return domain.Conflict("playlist position already occupied")
+			case "users_email_key":
 				return domain.Conflict("email already exists")
+			default:
+				return domain.Conflict("unique constraint violated")
 			}
 		case "23503":
 			return domain.NotFound("not found")

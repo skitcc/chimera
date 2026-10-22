@@ -1,205 +1,1017 @@
 basePath: /
 definitions:
-  v1.AuthResponse:
-    properties:
-      token:
-        type: string
-      user:
-        $ref: '#/definitions/v1.UserResponse'
-    type: object
-  v1.ErrorResponse:
+  Error:
     properties:
       code:
+        enum:
+        - invalid
+        - unauthorized
+        - forbidden
+        - not_found
+        - conflict
+        - too_many_requests
+        - internal
         type: string
       message:
         type: string
+    required:
+    - code
+    - message
     type: object
-  v1.LoginRequest:
+  Follow:
     properties:
-      email:
+      created_at:
+        example: "2026-09-25T09:00:00Z"
+        format: date-time
         type: string
-      password:
-        type: string
+      follower:
+        $ref: '#/definitions/User'
+      following:
+        $ref: '#/definitions/User'
+    required:
+    - created_at
+    - follower
+    - following
     type: object
-  v1.RegisterRequest:
-    properties:
-      email:
-        type: string
-      name:
-        type: string
-      password:
-        type: string
-    type: object
-  v1.TrackPageResponse:
+  FollowPage:
     properties:
       items:
         items:
-          $ref: '#/definitions/v1.TrackResponse'
+          $ref: '#/definitions/Follow'
         type: array
       limit:
+        example: 20
+        type: integer
+      next_cursor:
+        example: "20"
+        type: string
+    required:
+    - items
+    - limit
+    type: object
+  FollowsCreate:
+    properties:
+      follower_id:
+        description: Кто подписывается. Должен совпадать с владельцем токена.
+        example: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+        format: uuid
+        type: string
+      following_ids:
+        description: На кого подписаться
+        items:
+          format: uuid
+          type: string
+        maxItems: 100
+        minItems: 1
+        type: array
+        uniqueItems: true
+    required:
+    - follower_id
+    - following_ids
+    type: object
+  Playlist:
+    properties:
+      id:
+        example: 8d3a4e5c-9f6b-4c3d-be0a-333333333333
+        format: uuid
+        type: string
+      is_public:
+        example: true
+        type: boolean
+      owner_id:
+        example: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+        format: uuid
+        type: string
+      title:
+        example: Ночные
+        type: string
+    required:
+    - id
+    - is_public
+    - owner_id
+    - title
+    type: object
+  PlaylistPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/Playlist'
+        type: array
+      limit:
+        example: 20
         type: integer
       next_cursor:
         type: string
+    required:
+    - items
+    - limit
     type: object
-  v1.TrackResponse:
+  PlaylistPatch:
     properties:
-      artist:
-        type: string
-      id:
-        type: string
-      size_bytes:
-        type: integer
-      status:
-        type: string
+      is_public:
+        example: true
+        type: boolean
       title:
+        minLength: 1
+        type: string
+    type: object
+  PlaylistReplace:
+    properties:
+      is_public:
+        example: false
+        type: boolean
+      title:
+        example: Ночные
+        minLength: 1
+        type: string
+    required:
+    - is_public
+    - title
+    type: object
+  PlaylistTrack:
+    properties:
+      position:
+        example: 1
+        minimum: 0
+        type: integer
+      track:
+        $ref: '#/definitions/Track'
+    required:
+    - position
+    - track
+    type: object
+  PlaylistTrackCreate:
+    properties:
+      position:
+        example: 1
+        minimum: 0
+        type: integer
+      track_id:
+        example: 7c2f3d4b-8e5a-4b2c-ad9f-222222222222
+        format: uuid
+        type: string
+    required:
+    - position
+    - track_id
+    type: object
+  PlaylistTrackPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/PlaylistTrack'
+        type: array
+      limit:
+        example: 20
+        type: integer
+      next_cursor:
+        type: string
+    required:
+    - items
+    - limit
+    type: object
+  PlaylistTrackPatch:
+    properties:
+      position:
+        example: 2
+        minimum: 0
+        type: integer
+    required:
+    - position
+    type: object
+  Session:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example
         type: string
       user_id:
+        description: Владелец токена. Подставляется в пути и фильтры вместо текущего
+          пользователя.
+        example: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+        format: uuid
         type: string
+    required:
+    - token
+    - user_id
     type: object
-  v1.TrackUploadInitRequest:
-    properties:
-      artist:
-        type: string
-      size:
-        type: integer
-      title:
-        type: string
-    type: object
-  v1.TrackUploadInitResponse:
-    properties:
-      track:
-        $ref: '#/definitions/v1.TrackResponse'
-      upload_url:
-        type: string
-    type: object
-  v1.TrackWriteRequest:
-    properties:
-      artist:
-        type: string
-      title:
-        type: string
-    type: object
-  v1.UserResponse:
+  SessionCreate:
     properties:
       email:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-    type: object
-  v1.UserWriteRequest:
-    properties:
-      email:
-        type: string
-      name:
+        example: ada@example.com
+        format: email
         type: string
       password:
+        example: long-enough
         type: string
+    required:
+    - email
+    - password
+    type: object
+  Track:
+    properties:
+      artist:
+        description: Строка для поиска, не аккаунт
+        example: Ada
+        type: string
+      id:
+        example: 7c2f3d4b-8e5a-4b2c-ad9f-222222222222
+        format: uuid
+        type: string
+      size_bytes:
+        example: 3200000
+        format: int64
+        minimum: 0
+        type: integer
+      status:
+        enum:
+        - pending
+        - processing
+        - ready
+        example: ready
+        type: string
+      title:
+        example: Night Drive
+        type: string
+      user_id:
+        example: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+        format: uuid
+        type: string
+    required:
+    - artist
+    - id
+    - size_bytes
+    - status
+    - title
+    - user_id
+    type: object
+  TrackCreate:
+    properties:
+      artist:
+        example: Ada
+        type: string
+      size:
+        description: Размер файла в байтах
+        example: 3200000
+        format: int64
+        minimum: 1
+        type: integer
+      title:
+        example: Night Drive
+        minLength: 1
+        type: string
+    required:
+    - artist
+    - size
+    - title
+    type: object
+  TrackPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/Track'
+        type: array
+      limit:
+        example: 20
+        type: integer
+      next_cursor:
+        example: "20"
+        type: string
+    required:
+    - items
+    - limit
+    type: object
+  TrackPatch:
+    properties:
+      artist:
+        type: string
+      status:
+        description: Единственный переход, который задаёт клиент, — публикация загруженного
+          файла.
+        enum:
+        - ready
+        type: string
+      title:
+        example: Night Drive (demo)
+        minLength: 1
+        type: string
+    type: object
+  TrackReplace:
+    properties:
+      artist:
+        example: Ada
+        type: string
+      title:
+        example: Night Drive
+        minLength: 1
+        type: string
+    required:
+    - artist
+    - title
+    type: object
+  TrackUpload:
+    properties:
+      track:
+        $ref: '#/definitions/Track'
+      upload_url:
+        example: https://storage.example/music-raw/7c2f3d4b-8e5a-4b2c-ad9f-222222222222.mp3?X-Amz-Signature=example
+        format: uri
+        type: string
+    required:
+    - track
+    - upload_url
+    type: object
+  User:
+    properties:
+      email:
+        example: ada@example.com
+        format: email
+        type: string
+      id:
+        example: 6b1e2c3a-7d4f-4a1b-9c8e-111111111111
+        format: uuid
+        type: string
+      name:
+        example: Ada
+        type: string
+    required:
+    - email
+    - id
+    - name
+    type: object
+  UserCreate:
+    properties:
+      email:
+        example: ada@example.com
+        format: email
+        type: string
+      name:
+        example: Ada
+        type: string
+      password:
+        example: long-enough
+        minLength: 8
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  UserPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/User'
+        type: array
+      limit:
+        example: 20
+        type: integer
+      next_cursor:
+        example: "20"
+        type: string
+    required:
+    - items
+    - limit
+    type: object
+  UserPatch:
+    properties:
+      email:
+        format: email
+        type: string
+      name:
+        example: Ada Lovelace
+        type: string
+      password:
+        description: Если поле передано, пароль заменяется. Иначе остаётся прежним.
+        minLength: 8
+        type: string
+    type: object
+  UserReplace:
+    properties:
+      email:
+        example: ada@example.com
+        format: email
+        type: string
+      name:
+        example: Ada Lovelace
+        type: string
+    required:
+    - email
+    - name
     type: object
 info:
   contact: {}
-  description: Music streaming backend
-  title: Chimera API
-  version: "1.0"
+  title: Sound Chimera API
+  version: 1.0.0
 paths:
-  /v1/auth/login:
-    post:
-      consumes:
-      - application/json
+  /v1/follows:
+    delete:
+      description: |-
+        Снимает подписки `follower_id` на всех из `following_id`.
+        `follower_id` должен совпадать с владельцем токена, иначе 403.
+        Список передаётся в query, а не в теле: тело у DELETE многие клиенты и прокси отбрасывают.
+
+        - Атомарно и идемпотентно: отсутствующие подписки и несуществующие авторы пропускаются, повтор снова 204.
+        - Без `following_id` — 400: запрос без списка не снимает все подписки.
+        - Повтор внутри списка или больше 100 идентификаторов — 400.
+
+        Для одного автора — `DELETE /v1/follows/{followerId}/{followingId}`.
+      operationId: deleteFollows
       parameters:
-      - description: Login
-        in: body
-        name: body
+      - description: Чьи подписки снимаются. Должен совпадать с владельцем токена.
+        format: uuid
+        in: query
+        name: follower_id
         required: true
-        schema:
-          $ref: '#/definitions/v1.LoginRequest'
+        type: string
+      - collectionFormat: multi
+        description: От кого отписаться. Параметр повторяется на каждого автора —
+          `?following_id=a&following_id=b`.
+        in: query
+        items:
+          type: string
+        name: following_id
+        required: true
+        type: array
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Подписок на авторов из списка нет
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Отписаться от нескольких авторов
+      tags:
+      - follows
+    get:
+      description: |-
+        Нужен хотя бы один фильтр, иначе 400.
+
+        - `follower_id` — на кого подписан пользователь.
+        - `following_id` — кто подписан на пользователя.
+        - Оба сразу — есть ли подписка у этой пары: страница из одной записи или пустая.
+
+        Если указанного пользователя нет — 404.
+      operationId: listFollows
+      parameters:
+      - description: Только подписки этого пользователя
+        format: uuid
+        in: query
+        name: follower_id
+        type: string
+      - description: Только подписки на этого пользователя
+        format: uuid
+        in: query
+        name: following_id
+        type: string
+      - default: 20
+        description: Размер страницы. По умолчанию 20, больше 100 не принимается.
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Курсор следующей страницы из прошлого ответа
+        in: query
+        name: cursor
+        type: string
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Страница подписок
           schema:
-            $ref: '#/definitions/v1.AuthResponse'
+            $ref: '#/definitions/FollowPage'
         "400":
-          description: Bad Request
+          description: Неверное тело, параметр или пустое частичное обновление
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "401":
-          description: Unauthorized
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
         "500":
-          description: Internal Server Error
+          description: Сбой сервера. Клиенту не отдаются детали.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      summary: Login
+            $ref: '#/definitions/Error'
+      summary: Подписки
       tags:
-      - auth
-  /v1/auth/register:
+      - follows
     post:
       consumes:
       - application/json
+      description: |-
+        Создаёт подписки `follower_id` на всех из `following_ids`.
+        `follower_id` должен совпадать с владельцем токена, иначе 403.
+
+        - Атомарно: если хоть одного автора нет — 404, ничего не меняется.
+        - Идемпотентно: уже существующие подписки пропускаются, повтор запроса снова 204.
+        - Пустой список, повтор внутри списка, `follower_id` в списке или больше 100 идентификаторов — 400.
+
+        Для одного автора — `PUT /v1/follows/{followerId}/{followingId}`.
+      operationId: createFollows
       parameters:
-      - description: Register
+      - description: Подписчик и авторы
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/v1.RegisterRequest'
+          $ref: '#/definitions/FollowsCreate'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Подписки на всех из списка есть
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Подписаться на нескольких авторов
+      tags:
+      - follows
+  /v1/follows/{followerId}/{followingId}:
+    delete:
+      description: |-
+        `followerId` должен совпадать с владельцем токена, иначе 403.
+        Идемпотентно: повторное снятие снова 204.
+      operationId: deleteFollow
+      parameters:
+      - description: Кто подписывается
+        format: uuid
+        in: path
+        name: followerId
+        required: true
+        type: string
+      - description: На кого подписываются
+        format: uuid
+        in: path
+        name: followingId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Подписки нет
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Отписаться от автора
+      tags:
+      - follows
+    get:
+      description: 200 — подписка есть, 404 — нет её или нет одного из пользователей.
+      operationId: getFollow
+      parameters:
+      - description: Кто подписывается
+        format: uuid
+        in: path
+        name: followerId
+        required: true
+        type: string
+      - description: На кого подписываются
+        format: uuid
+        in: path
+        name: followingId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Подписка
+          schema:
+            $ref: '#/definitions/Follow'
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      summary: Подписка пары
+      tags:
+      - follows
+    put:
+      description: |-
+        `followerId` должен совпадать с владельцем токена, иначе 403.
+        Идемпотентно: повтор той же пары снова 204. На себя подписаться нельзя — 400.
+      operationId: putFollow
+      parameters:
+      - description: Кто подписывается
+        format: uuid
+        in: path
+        name: followerId
+        required: true
+        type: string
+      - description: На кого подписываются
+        format: uuid
+        in: path
+        name: followingId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Подписка есть
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Подписаться на автора
+      tags:
+      - follows
+  /v1/playlists:
+    get:
+      description: |-
+        Одна коллекция для ленты и плейлистов пользователя, как `GET /v1/tracks`. Фильтры складываются через И.
+
+        - Без фильтров — лента всех публичных плейлистов.
+        - `owner_id` — плейлисты пользователя. Если пользователя нет — 404.
+        - `is_public` — по умолчанию только публичные. Если `owner_id` совпадает с владельцем токена,
+        по умолчанию видны и скрытые. `is_public=false` для чужих плейлистов — 403.
+
+        Если Authorization передан, токен должен быть верным.
+      operationId: listPlaylists
+      parameters:
+      - description: Владелец плейлистов
+        format: uuid
+        in: query
+        name: owner_id
+        type: string
+      - description: Видимость плейлиста. `false` — только для своих плейлистов.
+        in: query
+        name: is_public
+        type: boolean
+      - default: 20
+        description: Размер страницы. По умолчанию 20, больше 100 не принимается.
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Курсор следующей страницы из прошлого ответа
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Страница плейлистов
+          schema:
+            $ref: '#/definitions/PlaylistPage'
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Плейлисты
+      tags:
+      - playlists
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Владелец — владелец токена. Нужны название и флаг публичности.
+        Повтор запроса создаёт ещё один плейлист.
+      operationId: createPlaylist
+      parameters:
+      - description: Название и видимость
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/PlaylistReplace'
       produces:
       - application/json
       responses:
         "201":
-          description: Created
+          description: Плейлист создан
+          headers:
+            Location:
+              description: Адрес созданного ресурса
+              type: string
           schema:
-            $ref: '#/definitions/v1.AuthResponse'
+            $ref: '#/definitions/Playlist'
         "400":
-          description: Bad Request
+          description: Неверное тело, параметр или пустое частичное обновление
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "409":
-          description: Conflict
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
         "500":
-          description: Internal Server Error
+          description: Сбой сервера. Клиенту не отдаются детали.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      summary: Register user
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Создать плейлист
       tags:
-      - auth
-  /v1/me:
-    get:
+      - playlists
+  /v1/playlists/{playlistId}:
+    delete:
+      description: Только владелец. Повтор по уже удалённому плейлисту — 404.
+      operationId: deletePlaylist
+      parameters:
+      - description: Идентификатор плейлиста
+        format: uuid
+        in: path
+        name: playlistId
+        required: true
+        type: string
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "204":
+          description: Плейлист удалён
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
           schema:
-            $ref: '#/definitions/v1.UserResponse'
+            $ref: '#/definitions/Error'
         "401":
-          description: Unauthorized
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
         "404":
-          description: Not Found
+          description: Ресурс не найден или скрыт от этого клиента
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
       security:
-      - BearerAuth: []
-      summary: Current user
+      - bearerAuth: []
+      summary: Удалить плейлист
       tags:
-      - auth
-  /v1/me/likes:
+      - playlists
     get:
+      description: |-
+        Публичный читается без токена. Скрытый виден только владельцу.
+        Чужому скрытому списку отвечаем как отсутствующему.
+        Если Authorization передан, токен должен быть верным.
+      operationId: getPlaylist
       parameters:
+      - description: Идентификатор плейлиста
+        format: uuid
+        in: path
+        name: playlistId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Плейлист
+          schema:
+            $ref: '#/definitions/Playlist'
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Плейлист
+      tags:
+      - playlists
+    patch:
+      consumes:
+      - application/json
+      description: Меняется только переданное поле. Пустое тело не принимается. Только
+        владелец.
+      operationId: updatePlaylist
+      parameters:
+      - description: Идентификатор плейлиста
+        format: uuid
+        in: path
+        name: playlistId
+        required: true
+        type: string
+      - description: Поля плейлиста
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/PlaylistPatch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Плейлист изменён
+          schema:
+            $ref: '#/definitions/Playlist'
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Частично изменить плейлист
+      tags:
+      - playlists
+    put:
+      consumes:
+      - application/json
+      description: Оба поля обязательны. Повтор с тем же телом не меняет результат.
+        Только владелец.
+      operationId: replacePlaylist
+      parameters:
+      - description: Идентификатор плейлиста
+        format: uuid
+        in: path
+        name: playlistId
+        required: true
+        type: string
+      - description: Название и видимость
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/PlaylistReplace'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Плейлист заменён
+          schema:
+            $ref: '#/definitions/Playlist'
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Заменить название и видимость
+      tags:
+      - playlists
+  /v1/playlists/{playlistId}/tracks:
+    get:
+      description: Только готовые треки, в порядке `position`. Доступ как у самого
+        плейлиста.
+      operationId: listPlaylistTracks
+      parameters:
+      - description: Идентификатор плейлиста
+        format: uuid
+        in: path
+        name: playlistId
+        required: true
+        type: string
       - default: 20
-        description: Page size
+        description: Размер страницы. По умолчанию 20, больше 100 не принимается.
         in: query
+        maximum: 100
+        minimum: 1
         name: limit
         type: integer
-      - description: Pagination cursor
+      - description: Курсор следующей страницы из прошлого ответа
         in: query
         name: cursor
         type: string
@@ -207,77 +1019,288 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Страница состава
           schema:
-            $ref: '#/definitions/v1.TrackPageResponse'
+            $ref: '#/definitions/PlaylistTrackPage'
         "400":
-          description: Bad Request
+          description: Неверное тело, параметр или пустое частичное обновление
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
         "401":
-          description: Unauthorized
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
         "500":
-          description: Internal Server Error
+          description: Сбой сервера. Клиенту не отдаются детали.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
       security:
-      - BearerAuth: []
-      summary: My liked tracks
+      - bearerAuth: []
+      summary: Треки плейлиста
       tags:
-      - tracks
-  /v1/me/tracks:
-    get:
-      description: All tracks uploaded by the current user, including drafts.
+      - playlists
+    post:
+      consumes:
+      - application/json
+      description: Только готовый трек. Повтор пары — конфликт. Только владелец плейлиста.
+      operationId: createPlaylistTrack
       parameters:
-      - default: 20
-        description: Page size
-        in: query
-        name: limit
-        type: integer
-      - description: Pagination cursor
-        in: query
-        name: cursor
+      - description: Идентификатор плейлиста
+        format: uuid
+        in: path
+        name: playlistId
+        required: true
+        type: string
+      - description: Трек и позиция
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/PlaylistTrackCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Трек добавлен
+          headers:
+            Location:
+              description: Адрес созданного ресурса
+              type: string
+          schema:
+            $ref: '#/definitions/PlaylistTrack'
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
+        "409":
+          description: Повтор уникальной пары, занятый email или неверный статус трека
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Добавить трек в плейлист
+      tags:
+      - playlists
+  /v1/playlists/{playlistId}/tracks/{trackId}:
+    delete:
+      description: Сам плейлист остаётся. Только владелец плейлиста.
+      operationId: deletePlaylistTrack
+      parameters:
+      - description: Идентификатор плейлиста
+        format: uuid
+        in: path
+        name: playlistId
+        required: true
+        type: string
+      - description: Идентификатор трека
+        format: uuid
+        in: path
+        name: trackId
+        required: true
         type: string
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/v1.TrackPageResponse'
+        "204":
+          description: Трек убран из списка
         "400":
-          description: Bad Request
+          description: Неверное тело, параметр или пустое частичное обновление
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
         "401":
-          description: Unauthorized
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
         "500":
-          description: Internal Server Error
+          description: Сбой сервера. Клиенту не отдаются детали.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
       security:
-      - BearerAuth: []
-      summary: My uploaded tracks
+      - bearerAuth: []
+      summary: Убрать трек из плейлиста
       tags:
-      - tracks
+      - playlists
+    patch:
+      consumes:
+      - application/json
+      description: Меняется только `position`. Повтор с тем же значением снова 200.
+        Только владелец плейлиста.
+      operationId: updatePlaylistTrack
+      parameters:
+      - description: Идентификатор плейлиста
+        format: uuid
+        in: path
+        name: playlistId
+        required: true
+        type: string
+      - description: Идентификатор трека
+        format: uuid
+        in: path
+        name: trackId
+        required: true
+        type: string
+      - description: Новая позиция
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/PlaylistTrackPatch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Позиция изменена
+          schema:
+            $ref: '#/definitions/PlaylistTrack'
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Сменить позицию трека
+      tags:
+      - playlists
+  /v1/sessions:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Открывает сессию и возвращает токен и `user_id` владельца.
+        Неизвестный email и неверный пароль дают один и тот же `unauthorized`.
+      operationId: createSession
+      parameters:
+      - description: Email и пароль
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/SessionCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Сессия открыта
+          schema:
+            $ref: '#/definitions/Session'
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "429":
+          description: Слишком частые регистрация или вход. Ответ не говорит, какая
+            квота сработала.
+          headers:
+            Retry-After:
+              description: Секунды до конца окна
+              type: integer
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      summary: Вход
+      tags:
+      - sessions
   /v1/tracks:
     get:
-      description: Lists ready tracks only.
+      description: |-
+        Одна коллекция для ленты, каталога автора, своих загрузок и любимого. Фильтры складываются через И.
+
+        - `user_id` — треки автора.
+        - `artist` — точное имя без учёта регистра и краевых пробелов.
+        - `liked_by` — любимое пользователя. Только свой `user_id`: без токена 401, чужой — 403.
+        - `status` — по умолчанию только `ready`. Если `user_id` совпадает с владельцем токена,
+        по умолчанию видны все статусы. Статус кроме `ready` для чужих треков — 403.
+
+        Если Authorization передан, токен должен быть верным.
+      operationId: listTracks
       parameters:
-      - description: Exact artist credit (case-insensitive)
+      - description: Автор треков
+        format: uuid
+        in: query
+        name: user_id
+        type: string
+      - description: Точное имя артиста
         in: query
         name: artist
         type: string
-      - default: 20
-        description: Page size
+      - description: Только треки, отмеченные любимыми этим пользователем. Должен
+          совпадать с владельцем токена.
+        format: uuid
         in: query
+        name: liked_by
+        type: string
+      - description: Статус трека. Кроме `ready` — только для своих треков.
+        enum:
+        - pending
+        - processing
+        - ready
+        in: query
+        name: status
+        type: string
+      - default: 20
+        description: Размер страницы. По умолчанию 20, больше 100 не принимается.
+        in: query
+        maximum: 100
+        minimum: 1
         name: limit
         type: integer
-      - description: Pagination cursor
+      - description: Курсор следующей страницы из прошлого ответа
         in: query
         name: cursor
         type: string
@@ -285,458 +1308,323 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Страница треков
           schema:
-            $ref: '#/definitions/v1.TrackPageResponse'
+            $ref: '#/definitions/TrackPage'
         "400":
-          description: Bad Request
+          description: Неверное тело, параметр или пустое частичное обновление
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
         "500":
-          description: Internal Server Error
+          description: Сбой сервера. Клиенту не отдаются детали.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      summary: Track feed
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Треки
       tags:
       - tracks
-  /v1/tracks/{id}:
-    delete:
+      - likes
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Создаёт трек `pending` у владельца токена и временную ссылку на запись объекта.
+        Байты файла в этот запрос не входят. Публикация — `PATCH /v1/tracks/{trackId}` со `status: ready`.
+      operationId: createTrack
       parameters:
-      - description: Track ID
+      - description: Метаданные трека
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/TrackCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Карточка создана
+          headers:
+            Location:
+              description: Адрес созданного ресурса
+              type: string
+          schema:
+            $ref: '#/definitions/TrackUpload'
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Создать трек
+      tags:
+      - tracks
+  /v1/tracks/{trackId}:
+    delete:
+      description: Только владелец. Строки плейлистов и подборок с этим треком уходят,
+        сами списки остаются.
+      operationId: deleteTrack
+      parameters:
+      - description: Идентификатор трека
+        format: uuid
         in: path
-        name: id
+        name: trackId
         required: true
         type: string
+      produces:
+      - application/json
       responses:
         "204":
-          description: No Content
-          schema:
-            type: string
+          description: Трек удалён
         "400":
-          description: Bad Request
+          description: Неверное тело, параметр или пустое частичное обновление
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
         "404":
-          description: Not Found
+          description: Ресурс не найден или скрыт от этого клиента
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
         "500":
-          description: Internal Server Error
+          description: Сбой сервера. Клиенту не отдаются детали.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
       security:
-      - BearerAuth: []
-      summary: Delete track
+      - bearerAuth: []
+      summary: Удалить трек
       tags:
       - tracks
     get:
+      description: |-
+        Без токена виден только `ready`. Владелец с верным токеном видит свой трек в любом статусе.
+        Если заголовок Authorization передан, токен должен быть верным.
+      operationId: getTrack
       parameters:
-      - description: Track ID
+      - description: Идентификатор трека
+        format: uuid
         in: path
-        name: id
+        name: trackId
         required: true
         type: string
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Карточка
           schema:
-            $ref: '#/definitions/v1.TrackResponse'
+            $ref: '#/definitions/Track'
         "400":
-          description: Bad Request
+          description: Неверное тело, параметр или пустое частичное обновление
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
         "404":
-          description: Not Found
+          description: Ресурс не найден или скрыт от этого клиента
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
         "500":
-          description: Internal Server Error
+          description: Сбой сервера. Клиенту не отдаются детали.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      summary: Get track by id
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Карточка трека
+      tags:
+      - tracks
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        Меняются только переданные поля. Пустое тело не принимается. Только владелец.
+
+        `status: ready` подтверждает загрузку: сервер сверяет владельца и размер объекта
+        в хранилище и публикует трек. Если объекта нет, размер не совпал или текущий статус
+        не допускает перехода — 409.
+      operationId: updateTrack
+      parameters:
+      - description: Идентификатор трека
+        format: uuid
+        in: path
+        name: trackId
+        required: true
+        type: string
+      - description: Поля трека или публикация
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/TrackPatch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Карточка изменена
+          schema:
+            $ref: '#/definitions/Track'
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
+        "409":
+          description: Повтор уникальной пары, занятый email или неверный статус трека
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Частично изменить трек или опубликовать его
       tags:
       - tracks
     put:
       consumes:
       - application/json
+      description: Оба поля обязательны. Статус, размер и файл не меняются. Только
+        владелец.
+      operationId: replaceTrack
       parameters:
-      - description: Track ID
+      - description: Идентификатор трека
+        format: uuid
         in: path
-        name: id
+        name: trackId
         required: true
         type: string
-      - description: Track
+      - description: Название и артист
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/v1.TrackWriteRequest'
+          $ref: '#/definitions/TrackReplace'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Карточка заменена
           schema:
-            $ref: '#/definitions/v1.TrackResponse'
+            $ref: '#/definitions/Track'
         "400":
-          description: Bad Request
+          description: Неверное тело, параметр или пустое частичное обновление
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Update track
-      tags:
-      - tracks
-  /v1/tracks/{id}/like:
-    delete:
-      parameters:
-      - description: Track ID
-        in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
         "401":
-          description: Unauthorized
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
         "404":
-          description: Not Found
+          description: Ресурс не найден или скрыт от этого клиента
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
         "500":
-          description: Internal Server Error
+          description: Сбой сервера. Клиенту не отдаются детали.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
       security:
-      - BearerAuth: []
-      summary: Remove a like
+      - bearerAuth: []
+      summary: Заменить название и артиста
       tags:
       - tracks
-    post:
-      parameters:
-      - description: Track ID
-        in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Like a ready track
-      tags:
-      - tracks
-  /v1/tracks/{id}/stream:
+  /v1/tracks/{trackId}/stream:
     get:
+      description: Ответ — переход на временную ссылку чтения. Неготовый трек не отдаётся.
+      operationId: getTrackStream
       parameters:
-      - description: Track ID
+      - description: Идентификатор трека
+        format: uuid
         in: path
-        name: id
+        name: trackId
         required: true
         type: string
+      produces:
+      - application/json
       responses:
         "302":
-          description: Redirect to audio
-          schema:
-            type: string
+          description: Временная ссылка в Location
+          headers:
+            Location:
+              description: Временная ссылка на объект
+              type: string
         "400":
-          description: Bad Request
+          description: Неверное тело, параметр или пустое частичное обновление
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
         "404":
-          description: Not Found
+          description: Ресурс не найден или скрыт от этого клиента
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
         "409":
-          description: Conflict
+          description: Повтор уникальной пары, занятый email или неверный статус трека
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
         "500":
-          description: Internal Server Error
+          description: Сбой сервера. Клиенту не отдаются детали.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      summary: Stream a ready track
-      tags:
-      - tracks
-  /v1/tracks/{id}/upload-complete:
-    post:
-      description: Checks the object in MinIO and publishes the track as ready.
-      parameters:
-      - description: Track ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/v1.TrackResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Finish track upload
-      tags:
-      - tracks
-  /v1/tracks/upload-init:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Track metadata
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/v1.TrackUploadInitRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/v1.TrackUploadInitResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Start track upload
+            $ref: '#/definitions/Error'
+      summary: Аудио трека
       tags:
       - tracks
   /v1/users:
     get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/v1.UserResponse'
-            type: array
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      summary: List users
-      tags:
-      - users
-    post:
-      consumes:
-      - application/json
+      description: Весь справочник по страницам. Подписчики и подписки — в `GET /v1/follows`.
+      operationId: listUsers
       parameters:
-      - description: User
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/v1.UserWriteRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/v1.UserResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Create user
-      tags:
-      - users
-  /v1/users/{id}:
-    delete:
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Delete user
-      tags:
-      - users
-    get:
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/v1.UserResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      summary: Get user by id
-      tags:
-      - users
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: User
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/v1.UserWriteRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/v1.UserResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Update user
-      tags:
-      - users
-  /v1/users/{id}/tracks:
-    get:
-      description: Ready tracks uploaded by the given user.
-      parameters:
-      - description: User ID
-        in: path
-        name: id
-        required: true
-        type: string
       - default: 20
-        description: Page size
+        description: Размер страницы. По умолчанию 20, больше 100 не принимается.
         in: query
+        maximum: 100
+        minimum: 1
         name: limit
         type: integer
-      - description: Pagination cursor
+      - description: Курсор следующей страницы из прошлого ответа
         in: query
         name: cursor
         type: string
@@ -744,24 +1632,365 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Страница профилей
           schema:
-            $ref: '#/definitions/v1.TrackPageResponse'
+            $ref: '#/definitions/UserPage'
         "400":
-          description: Bad Request
+          description: Неверное тело, параметр или пустое частичное обновление
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
+            $ref: '#/definitions/Error'
         "500":
-          description: Internal Server Error
+          description: Сбой сервера. Клиенту не отдаются детали.
           schema:
-            $ref: '#/definitions/v1.ErrorResponse'
-      summary: Tracks uploaded by a user
+            $ref: '#/definitions/Error'
+      summary: Пользователи
       tags:
-      - tracks
+      - users
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Создаёт аккаунт. Пароль не короче 8 символов.
+        Токен здесь не выдаётся: после регистрации клиент открывает сессию через `POST /v1/sessions`.
+      operationId: createUser
+      parameters:
+      - description: Аккаунт
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/UserCreate'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Аккаунт создан
+          headers:
+            Location:
+              description: Адрес созданного ресурса
+              type: string
+          schema:
+            $ref: '#/definitions/User'
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "409":
+          description: Повтор уникальной пары, занятый email или неверный статус трека
+          schema:
+            $ref: '#/definitions/Error'
+        "429":
+          description: Слишком частые регистрация или вход. Ответ не говорит, какая
+            квота сработала.
+          headers:
+            Retry-After:
+              description: Секунды до конца окна
+              type: integer
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      summary: Регистрация
+      tags:
+      - users
+  /v1/users/{userId}:
+    delete:
+      description: Только владелец аккаунта. Повтор по уже удалённому аккаунту — 401,
+        сессии больше нет.
+      operationId: deleteUser
+      parameters:
+      - description: Идентификатор пользователя
+        format: uuid
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Аккаунт удалён
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Удалить аккаунт
+      tags:
+      - users
+    get:
+      description: Публичный профиль. Пароль в ответ не входит.
+      operationId: getUser
+      parameters:
+      - description: Идентификатор пользователя
+        format: uuid
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Профиль
+          schema:
+            $ref: '#/definitions/User'
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      summary: Профиль
+      tags:
+      - users
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        Меняются только переданные поля. Пустое тело не принимается.
+        Пароль меняется только здесь. Только владелец аккаунта.
+      operationId: updateUser
+      parameters:
+      - description: Идентификатор пользователя
+        format: uuid
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Поля профиля
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/UserPatch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Профиль изменён
+          schema:
+            $ref: '#/definitions/User'
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "409":
+          description: Повтор уникальной пары, занятый email или неверный статус трека
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Частично изменить профиль
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Нужны и имя, и email. Пароль этой операцией не меняется. Только
+        владелец аккаунта.
+      operationId: replaceUser
+      parameters:
+      - description: Идентификатор пользователя
+        format: uuid
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Профиль
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/UserReplace'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Профиль заменён
+          schema:
+            $ref: '#/definitions/User'
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "409":
+          description: Повтор уникальной пары, занятый email или неверный статус трека
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Заменить профиль
+      tags:
+      - users
+  /v1/users/{userId}/likes/{trackId}:
+    delete:
+      description: |-
+        `userId` должен совпадать с владельцем токена. Повторное снятие тоже 204.
+        404 только если нет самого трека.
+      operationId: deleteLike
+      parameters:
+      - description: Идентификатор пользователя
+        format: uuid
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Идентификатор трека
+        format: uuid
+        in: path
+        name: trackId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Лайка нет
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Снять отметку
+      tags:
+      - likes
+    put:
+      description: |-
+        `userId` должен совпадать с владельцем токена. Только готовый трек.
+        Идемпотентно: повтор той же пары снова 204.
+      operationId: putLike
+      parameters:
+      - description: Идентификатор пользователя
+        format: uuid
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: Идентификатор трека
+        format: uuid
+        in: path
+        name: trackId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Лайк есть
+        "400":
+          description: Неверное тело, параметр или пустое частичное обновление
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Токена нет или он неверен. При входе сюда же попадает неверный
+            пароль.
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Токен верный, но ресурс принадлежит другому пользователю
+          schema:
+            $ref: '#/definitions/Error'
+        "404":
+          description: Ресурс не найден или скрыт от этого клиента
+          schema:
+            $ref: '#/definitions/Error'
+        "409":
+          description: Повтор уникальной пары, занятый email или неверный статус трека
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: Сбой сервера. Клиенту не отдаются детали.
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Отметить трек любимым
+      tags:
+      - likes
 securityDefinitions:
-  BearerAuth:
-    description: JWT from /v1/auth/login. Paste only the token, or "Bearer <token>".
+  bearerAuth:
+    description: 'Заголовок Authorization: Bearer <token>'
     in: header
     name: Authorization
     type: apiKey
 swagger: "2.0"
+tags:
+- description: Вход
+  name: sessions
+- description: Аккаунты и профили
+  name: users
+- description: Каталог и публикация
+  name: tracks
+- description: Любимое
+  name: likes
+- description: Списки пользователя
+  name: playlists
+- description: Подписки на авторов
+  name: follows

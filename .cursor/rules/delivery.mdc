@@ -1,0 +1,23 @@
+---
+description: Report every finished task and wait for review before commit or push
+alwaysApply: true
+---
+
+# Task delivery
+
+## Commit and push
+
+- Do not commit or push until the user has reviewed the report and explicitly allowed that specific commit or push.
+- "Do it", "fix it", "change it", and "push the branch" are not that permission. Write the report first, then wait for review.
+- Until the review, leave the changes in the working tree. Do not run `git add`, `git commit`, `git push`, merge, or force-push.
+- Do not change git config.
+
+## Report
+
+After every finished task, and before suggesting a commit, write a report in the user's language:
+
+1. **What changed.** Which files and which behavior changed.
+2. **How it works.** The path from input to result: who calls it, what is checked, and which response or side effect comes out.
+3. **How it differs from the previous approach.** Only when the new implementation changes behavior that already existed. State what used to happen, what happens now, and which case changes because of it. Skip this part for something entirely new.
+
+The report must be understandable without reading the diff.

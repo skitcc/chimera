@@ -1,11 +1,22 @@
-// @title Chimera API
-// @version 1.0
-// @description Music streaming backend
+// @title Sound Chimera API
+// @version 1.0.0
 // @BasePath /
-// @securityDefinitions.apikey BearerAuth
+// @tag.name sessions
+// @tag.description Вход
+// @tag.name users
+// @tag.description Аккаунты и профили
+// @tag.name tracks
+// @tag.description Каталог и публикация
+// @tag.name likes
+// @tag.description Любимое
+// @tag.name playlists
+// @tag.description Списки пользователя
+// @tag.name follows
+// @tag.description Подписки на авторов
+// @securityDefinitions.apikey bearerAuth
 // @in header
 // @name Authorization
-// @description JWT from /v1/auth/login. Paste only the token, or "Bearer <token>".
+// @description Заголовок Authorization: Bearer <token>
 package main
 
 import (
@@ -27,6 +38,7 @@ import (
 	"chimera/internal/infra/logger"
 	"chimera/internal/infra/worker"
 	httpapi "chimera/internal/transport/http"
+	"chimera/internal/transport/http/middleware"
 	v1 "chimera/internal/transport/http/v1"
 	"chimera/internal/usecase"
 
@@ -74,25 +86,39 @@ func main() {
 	users := postgres.NewUserRepository(pool)
 	tracks := postgres.NewTrackRepository(pool)
 	likes := postgres.NewTrackLikeRepository(pool)
+	follows := postgres.NewFollowRepository(pool)
+	playlists := postgres.NewPlaylistRepository(pool)
 	hasher := infraauth.NewBcryptHasher()
 	tokens := infraauth.NewJWT(cfg.Auth)
+	userService := usecase.NewUserService(users, hasher)
+	trackService := usecase.NewTrackService(tracks, likes, objects, cfg.Upload.MaxBytes)
+	authService := usecase.NewAuthService(users, hasher, tokens)
+	followService := usecase.NewFollowService(users, follows)
+	playlistService := usecase.NewPlaylistService(playlists, tracks, users)
 
+	rateLimiter := middleware.NewLimiter(cfg.Auth.RateLimit, cfg.Auth.RateWindow)
 	router := httpapi.NewRouter(httpapi.Dependencies{
 		Log:         log,
 		Tokens:      tokens,
 		CORSOrigins: cfg.HTTP.CORSOrigins,
 		Health:      monitor,
 		Routes: v1.New(
-			usecase.NewUserService(users, hasher),
-			usecase.NewAuthService(users, hasher, tokens),
-			usecase.NewTrackService(tracks, likes, objects, cfg.Upload.MaxBytes),
+			userService,
+			authService,
+			trackService,
+			followService,
+			playlistService,
+			tokens,
+			rateLimiter,
+			cfg.S3.PresignHost,
 			log,
 		),
 	})
 
 	server := &http.Server{
-		Addr:    cfg.HTTP.Addr,
-		Handler: router,
+		Addr:              cfg.HTTP.Addr,
+		Handler:           router,
+		ReadHeaderTimeout: cfg.HTTP.ReadHeaderTimeout,
 	}
 
 	log.InfoContext(ctx, "listening",

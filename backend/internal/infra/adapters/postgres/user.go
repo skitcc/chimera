@@ -18,7 +18,7 @@ func NewUserRepository(db db) *UserRepository {
 }
 
 func (r *UserRepository) List(ctx context.Context) ([]domain.User, error) {
-	rows, err := r.db.Query(ctx, `SELECT id::text, email, name FROM users ORDER BY created_at`)
+	rows, err := r.db.Query(ctx, `SELECT id::text, email, name FROM users ORDER BY created_at, id`)
 	if err != nil {
 		return nil, mapError(err, "list users")
 	}
@@ -88,6 +88,23 @@ func (r *UserRepository) Update(ctx context.Context, u domain.User) (domain.User
 	}
 	if err != nil {
 		return domain.User{}, mapError(err, "update user")
+	}
+	return u, nil
+}
+
+func (r *UserRepository) UpdateProfile(ctx context.Context, u domain.User, passwordHash *string) (domain.User, error) {
+	err := r.db.QueryRow(ctx,
+		`UPDATE users
+		 SET email = $2, name = $3, password_hash = COALESCE($4, password_hash)
+		 WHERE id = $1::uuid
+		 RETURNING id::text, email, name`,
+		u.ID, u.Email, u.Name, passwordHash,
+	).Scan(&u.ID, &u.Email, &u.Name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.User{}, domain.NotFound("user not found")
+	}
+	if err != nil {
+		return domain.User{}, mapError(err, "update profile")
 	}
 	return u, nil
 }

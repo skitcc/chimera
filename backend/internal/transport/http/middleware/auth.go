@@ -55,3 +55,21 @@ func RequireAuth(log Logger, tokens TokenParser, writeErr ErrorWriter) func(http
 		})
 	}
 }
+
+func OptionalAuth(log Logger, tokens TokenParser, writeErr ErrorWriter) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			raw := bearerToken(r)
+			if raw == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+			id, err := tokens.Parse(raw)
+			if err != nil {
+				writeErr(r.Context(), w, log, "auth", err)
+				return
+			}
+			next.ServeHTTP(w, r.WithContext(WithUserID(r.Context(), id)))
+		})
+	}
+}

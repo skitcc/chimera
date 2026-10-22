@@ -2,20 +2,40 @@ package v1
 
 import "chimera/internal/domain"
 
-func userToResponse(u domain.User) UserResponse {
-	return UserResponse{ID: u.ID, Email: u.Email, Name: u.Name}
+func userToResponse(u domain.User) User {
+	return User{ID: u.ID, Email: u.Email, Name: u.Name}
 }
 
-func usersToResponse(users []domain.User) []UserResponse {
-	out := make([]UserResponse, 0, len(users))
-	for _, u := range users {
-		out = append(out, userToResponse(u))
+func userPageToResponse(page domain.UserPage) UserPage {
+	items := make([]User, 0, len(page.Items))
+	for _, u := range page.Items {
+		items = append(items, userToResponse(u))
 	}
-	return out
+	return UserPage{Items: items, NextCursor: page.NextCursor, Limit: page.Limit}
 }
 
-func trackToResponse(t domain.Track) TrackResponse {
-	return TrackResponse{
+func sessionToResponse(a domain.AuthResult) Session {
+	return Session{Token: a.Token, UserID: a.User.ID}
+}
+
+func followToResponse(f domain.Follow) Follow {
+	return Follow{
+		Follower:  userToResponse(f.Follower),
+		Following: userToResponse(f.Following),
+		CreatedAt: f.CreatedAt,
+	}
+}
+
+func followPageToResponse(page domain.FollowPage) FollowPage {
+	items := make([]Follow, 0, len(page.Items))
+	for _, f := range page.Items {
+		items = append(items, followToResponse(f))
+	}
+	return FollowPage{Items: items, NextCursor: page.NextCursor, Limit: page.Limit}
+}
+
+func trackToResponse(t domain.Track) Track {
+	return Track{
 		ID:        t.ID,
 		UserID:    t.UserID,
 		Title:     t.Title,
@@ -25,48 +45,44 @@ func trackToResponse(t domain.Track) TrackResponse {
 	}
 }
 
-func trackPageToResponse(p domain.TrackPage) TrackPageResponse {
-	items := make([]TrackResponse, 0, len(p.Items))
+func trackPageToResponse(p domain.TrackPage) TrackPage {
+	items := make([]Track, 0, len(p.Items))
 	for _, t := range p.Items {
 		items = append(items, trackToResponse(t))
 	}
-	return TrackPageResponse{
-		Items:      items,
-		NextCursor: p.NextCursor,
-		Limit:      p.Limit,
+	return TrackPage{Items: items, NextCursor: p.NextCursor, Limit: p.Limit}
+}
+
+func uploadSessionToResponse(s domain.TrackUploadSession) TrackUpload {
+	return TrackUpload{Track: trackToResponse(s.Track), UploadURL: s.UploadURL}
+}
+
+func (r TrackCreate) toDomain(userID string) domain.TrackUploadInit {
+	return domain.TrackUploadInit{UserID: userID, Title: r.Title, Artist: *r.Artist, SizeBytes: r.Size}
+}
+
+func playlistToResponse(playlist domain.Playlist) Playlist {
+	return Playlist{
+		ID: playlist.ID, OwnerID: playlist.OwnerID, Title: playlist.Title, IsPublic: playlist.IsPublic,
 	}
 }
 
-func authToResponse(a domain.AuthResult) AuthResponse {
-	return AuthResponse{
-		Token: a.Token,
-		User:  userToResponse(a.User),
+func playlistPageToResponse(page domain.PlaylistPage) PlaylistPage {
+	items := make([]Playlist, 0, len(page.Items))
+	for _, playlist := range page.Items {
+		items = append(items, playlistToResponse(playlist))
 	}
+	return PlaylistPage{Items: items, NextCursor: page.NextCursor, Limit: page.Limit}
 }
 
-func (r UserWriteRequest) toDomain() domain.UserWrite {
-	return domain.UserWrite{Email: r.Email, Name: r.Name, Password: r.Password}
+func playlistTrackToResponse(item domain.PlaylistTrack) PlaylistTrack {
+	return PlaylistTrack{Position: item.Position, Track: trackToResponse(item.Track)}
 }
 
-func (r TrackWriteRequest) toDomain() domain.TrackWrite {
-	return domain.TrackWrite{Title: r.Title, Artist: r.Artist}
-}
-
-func (r TrackUploadInitRequest) toDomain(userID string) domain.TrackUploadInit {
-	return domain.TrackUploadInit{UserID: userID, Title: r.Title, Artist: r.Artist, SizeBytes: r.Size}
-}
-
-func uploadSessionToResponse(s domain.TrackUploadSession) TrackUploadInitResponse {
-	return TrackUploadInitResponse{
-		Track:     trackToResponse(s.Track),
-		UploadURL: s.UploadURL,
+func playlistTrackPageToResponse(page domain.PlaylistTrackPage) PlaylistTrackPage {
+	items := make([]PlaylistTrack, 0, len(page.Items))
+	for _, item := range page.Items {
+		items = append(items, playlistTrackToResponse(item))
 	}
-}
-
-func (r RegisterRequest) toDomain() domain.RegisterInput {
-	return domain.RegisterInput{Email: r.Email, Password: r.Password, Name: r.Name}
-}
-
-func (r LoginRequest) toDomain() domain.LoginInput {
-	return domain.LoginInput{Email: r.Email, Password: r.Password}
+	return PlaylistTrackPage{Items: items, NextCursor: page.NextCursor, Limit: page.Limit}
 }

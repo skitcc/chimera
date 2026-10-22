@@ -69,7 +69,7 @@ func TestTrackRepositoryList(t *testing.T) {
 		})
 		r.Assert(func(t *testing.T) {
 			assertNoError(t, err)
-			assertEqual(t, gotArgs, []any{string(domain.TrackReady), "user-1", "Artist"})
+			assertEqual(t, gotArgs, []any{string(domain.TrackReady), "user-1", "Artist", nil})
 			assertEqual(t, got, want)
 			assertRowsClosed(t, rows)
 		})
@@ -77,10 +77,10 @@ func TestTrackRepositoryList(t *testing.T) {
 
 	runSpec(t, trackComponent, testkit.Spec{
 		ID: "DA-TRK-LIST-02", Method: method,
-		Title:     "list with empty filter passes nil for all three filter arguments",
+		Title:     "list with empty filter passes nil for every filter argument",
 		Given:     "an empty filter and the database returns zero rows",
 		When:      "List is called",
-		Then:      "the query receives [nil, nil, nil], an empty non-nil slice is returned without error, and the rows are closed",
+		Then:      "the query receives [nil, nil, nil, nil], an empty non-nil slice is returned without error, and the rows are closed",
 		Technique: testkit.TechniqueBoundary,
 		Params:    map[string]string{"filter": "empty"},
 	}, func(t *testing.T, r testkit.Report) {
@@ -101,7 +101,7 @@ func TestTrackRepositoryList(t *testing.T) {
 		r.Act(func(t *testing.T) { got, err = repo.List(context.Background(), domain.TrackFilter{}) })
 		r.Assert(func(t *testing.T) {
 			assertNoError(t, err)
-			assertEqual(t, gotArgs, []any{nil, nil, nil})
+			assertEqual(t, gotArgs, []any{nil, nil, nil, nil})
 			assertEqual(t, got, []domain.Track{})
 			assertRowsClosed(t, rows)
 		})
@@ -115,17 +115,17 @@ func TestTrackRepositoryList(t *testing.T) {
 		{
 			"DA-TRK-LIST-03", "list with only status filter passes nil user and artist",
 			domain.TrackFilter{Status: domain.TrackProcessing},
-			[]any{string(domain.TrackProcessing), nil, nil},
+			[]any{string(domain.TrackProcessing), nil, nil, nil},
 		},
 		{
 			"DA-TRK-LIST-04", "list with only user filter passes nil status and artist",
 			domain.TrackFilter{UserID: "user-1"},
-			[]any{nil, "user-1", nil},
+			[]any{nil, "user-1", nil, nil},
 		},
 		{
 			"DA-TRK-LIST-05", "list with only artist filter passes nil status and user",
 			domain.TrackFilter{Artist: "Artist"},
-			[]any{nil, nil, "Artist"},
+			[]any{nil, nil, "Artist", nil},
 		},
 	}
 
@@ -134,7 +134,7 @@ func TestTrackRepositoryList(t *testing.T) {
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a filter with exactly one non-empty field",
 			When:      "List is called",
-			Then:      "only the set field is sent as a query argument and the other two are nil",
+			Then:      "only the set field is sent as a query argument and the other filters are nil",
 			Technique: testkit.TechniqueDecisionTable,
 			Params: map[string]string{
 				"status":  string(tc.filter.Status),

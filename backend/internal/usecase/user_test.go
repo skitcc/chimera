@@ -25,21 +25,21 @@ func TestUserServiceList(t *testing.T) {
 		Title:     "returns stored users",
 		Given:     "one stored user",
 		When:      "List is called",
-		Then:      "a slice with exactly that user is returned",
+		Then:      "a page with exactly that user and the default limit is returned",
 		Technique: testkit.TechniqueEquivalence,
 	}, func(t *testing.T, r testkit.Report) {
 		var service *UserService
-		var got []domain.User
+		var got domain.UserPage
 		var err error
 		r.Arrange(func(t *testing.T) {
 			var users *fakeUserRepository
 			service, users, _ = newUserFixture()
 			users.users[testUserID] = validUser()
 		})
-		r.Act(func(t *testing.T) { got, err = service.List(context.Background()) })
+		r.Act(func(t *testing.T) { got, err = service.List(context.Background(), domain.PageQuery{}) })
 		r.Assert(func(t *testing.T) {
 			assertNoError(t, err)
-			assertEqual(t, []domain.User{validUser()}, got)
+			assertEqual(t, domain.UserPage{Items: []domain.User{validUser()}, Limit: 20}, got)
 		})
 	})
 
@@ -48,21 +48,21 @@ func TestUserServiceList(t *testing.T) {
 		Title:     "returns repository list error",
 		Given:     "a user repository whose List fails",
 		When:      "List is called",
-		Then:      "the repository error is returned unchanged with a nil slice",
+		Then:      "the repository error is returned unchanged with an empty page",
 		Technique: testkit.TechniqueErrorGuessing,
 	}, func(t *testing.T, r testkit.Report) {
 		var service *UserService
-		var got []domain.User
+		var got domain.UserPage
 		var err error
 		r.Arrange(func(t *testing.T) {
 			var users *fakeUserRepository
 			service, users, _ = newUserFixture()
 			users.listErr = errDependency
 		})
-		r.Act(func(t *testing.T) { got, err = service.List(context.Background()) })
+		r.Act(func(t *testing.T) { got, err = service.List(context.Background(), domain.PageQuery{}) })
 		r.Assert(func(t *testing.T) {
 			assertErrorIs(t, err, errDependency)
-			assertEqual(t, 0, len(got))
+			assertEqual(t, 0, len(got.Items))
 		})
 	})
 }
@@ -301,7 +301,9 @@ func TestUserServiceUpdate(t *testing.T) {
 			service, users, _ = newUserFixture()
 			seedOldUser(users)
 		})
-		r.Act(func(t *testing.T) { got, err = service.Update(context.Background(), testUserID, validUserWrite()) })
+		r.Act(func(t *testing.T) {
+			got, err = service.Update(context.Background(), testUserID, testUserID, validUserWrite())
+		})
 		r.Assert(func(t *testing.T) {
 			assertNoError(t, err)
 			assertEqual(t, validUser(), got)
@@ -328,7 +330,7 @@ func TestUserServiceUpdate(t *testing.T) {
 			old = seedOldUser(users)
 		})
 		r.Act(func(t *testing.T) {
-			_, err = service.Update(context.Background(), "", domain.UserWrite{Email: "invalid"})
+			_, err = service.Update(context.Background(), testUserID, "", domain.UserWrite{Email: "invalid"})
 		})
 		r.Assert(func(t *testing.T) {
 			assertDomainError(t, err, domain.CodeInvalid, "user id is required")
@@ -356,7 +358,7 @@ func TestUserServiceUpdate(t *testing.T) {
 			in = validUserWrite()
 			in.Email = "invalid"
 		})
-		r.Act(func(t *testing.T) { _, err = service.Update(context.Background(), testUserID, in) })
+		r.Act(func(t *testing.T) { _, err = service.Update(context.Background(), testUserID, testUserID, in) })
 		r.Assert(func(t *testing.T) {
 			assertDomainError(t, err, domain.CodeInvalid, "valid email is required")
 			assertEqual(t, old, users.users[testUserID])
@@ -375,7 +377,9 @@ func TestUserServiceUpdate(t *testing.T) {
 		var users *fakeUserRepository
 		var err error
 		r.Arrange(func(t *testing.T) { service, users, _ = newUserFixture() })
-		r.Act(func(t *testing.T) { _, err = service.Update(context.Background(), testUserID, validUserWrite()) })
+		r.Act(func(t *testing.T) {
+			_, err = service.Update(context.Background(), testUserID, testUserID, validUserWrite())
+		})
 		r.Assert(func(t *testing.T) {
 			assertDomainError(t, err, domain.CodeNotFound, "user not found")
 			assertEqual(t, 0, len(users.users))
@@ -398,7 +402,9 @@ func TestUserServiceUpdate(t *testing.T) {
 			service, users, _ = newUserFixture()
 			users.updateErr = errDependency
 		})
-		r.Act(func(t *testing.T) { got, err = service.Update(context.Background(), testUserID, validUserWrite()) })
+		r.Act(func(t *testing.T) {
+			got, err = service.Update(context.Background(), testUserID, testUserID, validUserWrite())
+		})
 		r.Assert(func(t *testing.T) {
 			assertErrorIs(t, err, errDependency)
 			assertEqual(t, domain.User{}, got)
@@ -425,7 +431,7 @@ func TestUserServiceDelete(t *testing.T) {
 			service, users, _ = newUserFixture()
 			seedOldUser(users)
 		})
-		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), testUserID) })
+		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), testUserID, testUserID) })
 		r.Assert(func(t *testing.T) {
 			assertNoError(t, err)
 			assertEqual(t, 0, len(users.users))
@@ -449,7 +455,7 @@ func TestUserServiceDelete(t *testing.T) {
 			service, users, _ = newUserFixture()
 			seedOldUser(users)
 		})
-		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), "") })
+		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), testUserID, "") })
 		r.Assert(func(t *testing.T) {
 			assertDomainError(t, err, domain.CodeInvalid, "user id is required")
 			assertEqual(t, 1, len(users.users))
@@ -458,17 +464,17 @@ func TestUserServiceDelete(t *testing.T) {
 
 	runSpec(t, userComponent, testkit.Spec{
 		ID: "UC-USR-DELETE-03", Method: method,
-		Title:     "propagates not found for unknown user",
+		Title:     "maps a missing account to an invalid token",
 		Given:     "no stored users",
 		When:      "Delete is called with user-1",
-		Then:      "not_found \"user not found\" is returned",
+		Then:      "unauthorized \"invalid token\" is returned",
 		Technique: testkit.TechniqueEquivalence,
 	}, func(t *testing.T, r testkit.Report) {
 		var service *UserService
 		var err error
 		r.Arrange(func(t *testing.T) { service, _, _ = newUserFixture() })
-		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), testUserID) })
-		r.Assert(func(t *testing.T) { assertDomainError(t, err, domain.CodeNotFound, "user not found") })
+		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), testUserID, testUserID) })
+		r.Assert(func(t *testing.T) { assertDomainError(t, err, domain.CodeUnauthorized, "invalid token") })
 	})
 
 	runSpec(t, userComponent, testkit.Spec{
@@ -487,7 +493,7 @@ func TestUserServiceDelete(t *testing.T) {
 			seedOldUser(users)
 			users.deleteErr = errDependency
 		})
-		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), testUserID) })
+		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), testUserID, testUserID) })
 		r.Assert(func(t *testing.T) {
 			assertErrorIs(t, err, errDependency)
 			assertEqual(t, 1, len(users.users))

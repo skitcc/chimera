@@ -54,8 +54,8 @@ func TestTrackLikeRepositoryAdd(t *testing.T) {
 			"23505", "track_likes_pkey", domain.CodeConflict, "track already liked",
 		},
 		{
-			"DA-LIKE-ADD-03", "add maps unique violation on another constraint to email already exists",
-			"23505", "track_likes_other_key", domain.CodeConflict, "email already exists",
+			"DA-LIKE-ADD-03", "add maps unique violation on another constraint to unique constraint violated",
+			"23505", "track_likes_other_key", domain.CodeConflict, "unique constraint violated",
 		},
 		{
 			"DA-LIKE-ADD-04", "add maps foreign key violation to not found",

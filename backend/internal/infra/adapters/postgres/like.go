@@ -42,7 +42,7 @@ func (r *TrackLikeRepository) ListReadyByUser(ctx context.Context, userID string
 		 FROM track_likes l
 		 JOIN tracks t ON t.id = l.track_id
 		 WHERE l.user_id = $1::uuid AND t.status = $2
-		 ORDER BY l.created_at DESC`,
+		 ORDER BY l.created_at DESC, t.id`,
 		userID, string(domain.TrackReady),
 	)
 	if err != nil {

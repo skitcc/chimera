@@ -22,7 +22,7 @@ alwaysApply: true
     - Pattern: `feature/<parent-feature>/<sub-feature>`
     - Merged back into: `feature/<parent-feature>` before final merge to `develop`.
 - **`fix/*` or `bugfix/*`:**
-  - Short-lived branches created from `develop` to fix non-critical bugs.
+  - Short-lived branches created from `develop` or the current working branch to fix a defect in existing behavior.
 - **`hotfix/*`:**
   - Critical production fixes branched directly off `main` and merged into both `main` and `develop`.
 
@@ -30,7 +30,7 @@ alwaysApply: true
 Use lowercase alphanumeric characters and hyphens (`kebab-case`):
 - Features: `feature/auth-jwt`, `feature/track-upload`, `feature/player-ui`
 - Sub-features: `feature/track-upload/waveform-generation`, `feature/player-ui/controls`
-- Fixes: `fix/cursor-pagination-offset`, `fix/login-cors-issue`
+- Fixes: `fix/cursor-pagination-offset`, `bugfix/authz-idor`
 
 ## 3. Commit Message Standards (Conventional Commits)
 All commit messages must follow the Conventional Commits specification:
@@ -50,7 +50,7 @@ All commit messages must follow the Conventional Commits specification:
   - `feat(player): add volume slider and mute toggle`
 
 ## 4. Pull Request & Review Rules
-- Always pull latest changes from `develop` into your feature branch before opening a PR (`git rebase develop` or `git merge develop`).
-- Delete feature branches immediately after successful merge to keep the repository clean.
+- Before a PR, update the branch from the one it will merge into (`git rebase` or `git merge`). `feature/*` merges into `develop`. `fix/*` and `bugfix/*` merge into the branch they were cut from.
+- Delete the branch immediately after a successful merge.
 - Never force-push (`git push --force`) to `develop` or `main`.
 - Never merge branches without user accept

@@ -850,7 +850,7 @@ func TestTrackServiceGetByID(t *testing.T) {
 			service, tracks, _, _ = newTrackFixture()
 			tracks.seed(readyTrack())
 		})
-		r.Act(func(t *testing.T) { got, err = service.GetByID(context.Background(), testTrackID) })
+		r.Act(func(t *testing.T) { got, err = service.GetByID(context.Background(), testTrackID, "") })
 		r.Assert(func(t *testing.T) {
 			assertNoError(t, err)
 			assertEqual(t, readyTrack(), got)
@@ -873,7 +873,7 @@ func TestTrackServiceGetByID(t *testing.T) {
 			service, tracks, _, _ = newTrackFixture()
 			tracks.getErr = errDependency
 		})
-		r.Act(func(t *testing.T) { _, err = service.GetByID(context.Background(), "") })
+		r.Act(func(t *testing.T) { _, err = service.GetByID(context.Background(), "", "") })
 		r.Assert(func(t *testing.T) { assertDomainError(t, err, domain.CodeInvalid, "track id is required") })
 	})
 
@@ -888,7 +888,7 @@ func TestTrackServiceGetByID(t *testing.T) {
 		var service *TrackService
 		var err error
 		r.Arrange(func(t *testing.T) { service, _, _, _ = newTrackFixture() })
-		r.Act(func(t *testing.T) { _, err = service.GetByID(context.Background(), testTrackID) })
+		r.Act(func(t *testing.T) { _, err = service.GetByID(context.Background(), testTrackID, "") })
 		r.Assert(func(t *testing.T) { assertDomainError(t, err, domain.CodeNotFound, "track not found") })
 	})
 
@@ -907,7 +907,7 @@ func TestTrackServiceGetByID(t *testing.T) {
 			service, tracks, _, _ = newTrackFixture()
 			tracks.getErr = errDependency
 		})
-		r.Act(func(t *testing.T) { _, err = service.GetByID(context.Background(), testTrackID) })
+		r.Act(func(t *testing.T) { _, err = service.GetByID(context.Background(), testTrackID, "") })
 		r.Assert(func(t *testing.T) { assertErrorIs(t, err, errDependency) })
 	})
 }
@@ -935,7 +935,7 @@ func TestTrackServiceUpdate(t *testing.T) {
 			want.Artist = "New artist"
 		})
 		r.Act(func(t *testing.T) {
-			got, err = service.Update(context.Background(), testTrackID, domain.TrackWrite{Title: "New title", Artist: "New artist"})
+			got, err = service.Update(context.Background(), testUserID, testTrackID, domain.TrackWrite{Title: "New title", Artist: "New artist"})
 		})
 		r.Assert(func(t *testing.T) {
 			assertNoError(t, err)
@@ -965,7 +965,7 @@ func TestTrackServiceUpdate(t *testing.T) {
 			want.Artist = ""
 		})
 		r.Act(func(t *testing.T) {
-			_, err = service.Update(context.Background(), testTrackID, domain.TrackWrite{Title: "New title"})
+			_, err = service.Update(context.Background(), testUserID, testTrackID, domain.TrackWrite{Title: "New title"})
 		})
 		r.Assert(func(t *testing.T) {
 			assertNoError(t, err)
@@ -989,7 +989,7 @@ func TestTrackServiceUpdate(t *testing.T) {
 			service, tracks, _, _ = newTrackFixture()
 			tracks.seed(readyTrack())
 		})
-		r.Act(func(t *testing.T) { _, err = service.Update(context.Background(), "", domain.TrackWrite{}) })
+		r.Act(func(t *testing.T) { _, err = service.Update(context.Background(), testUserID, "", domain.TrackWrite{}) })
 		r.Assert(func(t *testing.T) {
 			assertDomainError(t, err, domain.CodeInvalid, "track id is required")
 			assertEqual(t, readyTrack(), tracks.tracks[testTrackID])
@@ -1014,7 +1014,7 @@ func TestTrackServiceUpdate(t *testing.T) {
 			tracks.getErr = errDependency
 		})
 		r.Act(func(t *testing.T) {
-			_, err = service.Update(context.Background(), testTrackID, domain.TrackWrite{Artist: "New artist"})
+			_, err = service.Update(context.Background(), testUserID, testTrackID, domain.TrackWrite{Artist: "New artist"})
 		})
 		r.Assert(func(t *testing.T) {
 			assertDomainError(t, err, domain.CodeInvalid, "title is required")
@@ -1035,7 +1035,7 @@ func TestTrackServiceUpdate(t *testing.T) {
 		var err error
 		r.Arrange(func(t *testing.T) { service, tracks, _, _ = newTrackFixture() })
 		r.Act(func(t *testing.T) {
-			_, err = service.Update(context.Background(), testTrackID, domain.TrackWrite{Title: "Title"})
+			_, err = service.Update(context.Background(), testUserID, testTrackID, domain.TrackWrite{Title: "Title"})
 		})
 		r.Assert(func(t *testing.T) {
 			assertDomainError(t, err, domain.CodeNotFound, "track not found")
@@ -1059,7 +1059,7 @@ func TestTrackServiceUpdate(t *testing.T) {
 			tracks.getErr = errDependency
 		})
 		r.Act(func(t *testing.T) {
-			_, err = service.Update(context.Background(), testTrackID, domain.TrackWrite{Title: "Title"})
+			_, err = service.Update(context.Background(), testUserID, testTrackID, domain.TrackWrite{Title: "Title"})
 		})
 		r.Assert(func(t *testing.T) { assertErrorIs(t, err, errDependency) })
 	})
@@ -1081,7 +1081,7 @@ func TestTrackServiceUpdate(t *testing.T) {
 			tracks.updateErrors = []error{errDependency}
 		})
 		r.Act(func(t *testing.T) {
-			_, err = service.Update(context.Background(), testTrackID, domain.TrackWrite{Title: "Title"})
+			_, err = service.Update(context.Background(), testUserID, testTrackID, domain.TrackWrite{Title: "Title"})
 		})
 		r.Assert(func(t *testing.T) {
 			assertErrorIs(t, err, errDependency)
@@ -1108,7 +1108,7 @@ func TestTrackServiceDelete(t *testing.T) {
 			service, tracks, _, _ = newTrackFixture()
 			tracks.seed(readyTrack())
 		})
-		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), testTrackID) })
+		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), testUserID, testTrackID) })
 		r.Assert(func(t *testing.T) {
 			assertNoError(t, err)
 			assertEqual(t, 0, len(tracks.tracks))
@@ -1131,7 +1131,7 @@ func TestTrackServiceDelete(t *testing.T) {
 			service, tracks, _, _ = newTrackFixture()
 			tracks.seed(readyTrack())
 		})
-		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), "") })
+		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), testUserID, "") })
 		r.Assert(func(t *testing.T) {
 			assertDomainError(t, err, domain.CodeInvalid, "track id is required")
 			assertEqual(t, readyTrack(), tracks.tracks[testTrackID])
@@ -1149,7 +1149,7 @@ func TestTrackServiceDelete(t *testing.T) {
 		var service *TrackService
 		var err error
 		r.Arrange(func(t *testing.T) { service, _, _, _ = newTrackFixture() })
-		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), testTrackID) })
+		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), testUserID, testTrackID) })
 		r.Assert(func(t *testing.T) { assertDomainError(t, err, domain.CodeNotFound, "track not found") })
 	})
 
@@ -1169,7 +1169,7 @@ func TestTrackServiceDelete(t *testing.T) {
 			tracks.seed(readyTrack())
 			tracks.deleteErr = errDependency
 		})
-		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), testTrackID) })
+		r.Act(func(t *testing.T) { err = service.Delete(context.Background(), testUserID, testTrackID) })
 		r.Assert(func(t *testing.T) {
 			assertErrorIs(t, err, errDependency)
 			assertEqual(t, readyTrack(), tracks.tracks[testTrackID])
@@ -1460,14 +1460,14 @@ func TestTrackServiceCompleteUpload(t *testing.T) {
 		{
 			id: "UC-TRK-COMPLETE-07", title: "rejects another user's track before checking storage",
 			given: "a pending track owned by user-1 and an object storage whose Stat is set to fail",
-			then:  "unauthorized \"not allowed\" is returned instead of the storage error and the track stays pending",
+			then:  "forbidden \"not allowed\" is returned instead of the storage error and the track stays pending",
 			arrange: func(tracks *fakeTrackRepository, objects *fakeObjectStorage) domain.TrackUploadComplete {
 				tracks.seed(pendingTrack())
 				objects.statErrors = []error{errDependency}
 				return domain.TrackUploadComplete{TrackID: testTrackID, UserID: "user-2"}
 			},
 			technique: testkit.TechniqueDecisionTable, severity: testkit.SeverityCritical,
-			wantCode: domain.CodeUnauthorized, wantMsg: "not allowed", wantStatus: domain.TrackPending,
+			wantCode: domain.CodeForbidden, wantMsg: "not allowed", wantStatus: domain.TrackPending,
 		},
 		{
 			id: "UC-TRK-COMPLETE-08", title: "returns initial object stat error",

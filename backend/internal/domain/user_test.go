@@ -45,6 +45,42 @@ func TestUserIDValidate(t *testing.T) {
 	})
 }
 
+func TestUserIDRequireActor(t *testing.T) {
+	const component, method = "UserID", "RequireActor"
+
+	runSpec(t, component, testkit.Spec{
+		ID: "DOM-USER-ACT-01", Method: method,
+		Title:     "accepts the same actor",
+		Given:     "a user id user-123",
+		When:      "RequireActor is called with user-123",
+		Then:      "no error is returned",
+		Technique: testkit.TechniqueEquivalence,
+		Params:    map[string]string{"id": "user-123", "actor": "user-123"},
+	}, func(t *testing.T, r testkit.Report) {
+		var id domain.UserID
+		var err error
+		r.Arrange(func(t *testing.T) { id = domain.UserID("user-123") })
+		r.Act(func(t *testing.T) { err = id.RequireActor("user-123") })
+		r.Assert(func(t *testing.T) { assertNoError(t, err) })
+	})
+
+	runSpec(t, component, testkit.Spec{
+		ID: "DOM-USER-ACT-02", Method: method,
+		Title:     "rejects another actor",
+		Given:     "a user id user-123",
+		When:      "RequireActor is called with user-456",
+		Then:      `a forbidden error "not allowed" is returned`,
+		Technique: testkit.TechniqueEquivalence,
+		Params:    map[string]string{"id": "user-123", "actor": "user-456"},
+	}, func(t *testing.T, r testkit.Report) {
+		var id domain.UserID
+		var err error
+		r.Arrange(func(t *testing.T) { id = domain.UserID("user-123") })
+		r.Act(func(t *testing.T) { err = id.RequireActor("user-456") })
+		r.Assert(func(t *testing.T) { assertDomainError(t, domain.CodeForbidden, "not allowed", err) })
+	})
+}
+
 func TestUserWriteValidate(t *testing.T) {
 	const component, method = "UserWrite", "Validate"
 
@@ -54,7 +90,6 @@ func TestUserWriteValidate(t *testing.T) {
 	}{
 		{"DOM-USER-VAL-01", "accepts valid write and normalizes email", "a user write whose email has surrounding spaces and mixed case", "  Listener@Example.COM  ", "listener@example.com", testkit.TechniqueEquivalence},
 		{"DOM-USER-VAL-02", "normalizes shortest padded email", "a user write with the shortest padded uppercase email", " A@B.C ", "a@b.c", testkit.TechniqueBoundary},
-		{"DOM-USER-VAL-03", "accepts bare at sign as email", "a user write whose email is a single at sign", "@", "@", testkit.TechniqueErrorGuessing},
 	}
 
 	for _, tc := range validCases {
@@ -99,6 +134,7 @@ func TestUserWriteValidate(t *testing.T) {
 		id, title, email string
 		technique        string
 	}{
+		{"DOM-USER-VAL-03", "rejects a bare at sign", "@", testkit.TechniqueErrorGuessing},
 		{"DOM-USER-VAL-05", "rejects email without at sign", "listener.example.com", testkit.TechniqueEquivalence},
 		{"DOM-USER-VAL-06", "rejects empty email", "", testkit.TechniqueBoundary},
 		{"DOM-USER-VAL-07", "rejects single-character email", "a", testkit.TechniqueBoundary},

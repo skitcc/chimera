@@ -83,7 +83,7 @@ func TestTrackOwnedBy(t *testing.T) {
 			ID: tc.id, Method: method, Title: tc.title,
 			Given:     "a track owned by user owner",
 			When:      "OwnedBy is called with a different caller id",
-			Then:      `an unauthorized error "not allowed" is returned`,
+			Then:      `a forbidden error "not allowed" is returned`,
 			Technique: tc.technique,
 			Severity:  testkit.SeverityCritical,
 			Params:    map[string]string{"track owner": "owner", "caller": tc.caller},
@@ -93,7 +93,7 @@ func TestTrackOwnedBy(t *testing.T) {
 			r.Arrange(func(t *testing.T) { track = testkit.TrackMother().WithUserID("owner").Build() })
 			r.Act(func(t *testing.T) { err = track.OwnedBy(tc.caller) })
 			r.Assert(func(t *testing.T) {
-				assertDomainError(t, domain.CodeUnauthorized, "not allowed", err)
+				assertDomainError(t, domain.CodeForbidden, "not allowed", err)
 			})
 		})
 	}

@@ -198,7 +198,7 @@ func TestAuthServiceLogin(t *testing.T) {
 			id:        "UC-AUTH-LOGIN-03",
 			title:     "rejects whitespace-only email before user lookup",
 			given:     "an email of three spaces while the user repository is set to fail",
-			then:      "invalid \"email is required\" is returned instead of the repository error",
+			then:      "invalid \"valid email is required\" is returned instead of the repository error",
 			technique: testkit.TechniqueBoundary,
 			arrange: func(users *fakeUserRepository, _ *fakePasswordHasher, _ *fakeTokenIssuer) domain.LoginInput {
 				users.getErr = errDependency
@@ -207,7 +207,7 @@ func TestAuthServiceLogin(t *testing.T) {
 				return in
 			},
 			wantCode: domain.CodeInvalid,
-			wantMsg:  "email is required",
+			wantMsg:  "valid email is required",
 		},
 		{
 			id:        "UC-AUTH-LOGIN-04",

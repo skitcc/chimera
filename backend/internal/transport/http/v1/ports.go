@@ -4,36 +4,54 @@ import (
 	"context"
 
 	"chimera/internal/domain"
+	"chimera/internal/transport/http/middleware"
 )
 
 type UserService interface {
-	List(ctx context.Context) ([]domain.User, error)
+	List(ctx context.Context, q domain.PageQuery) (domain.UserPage, error)
 	GetByID(ctx context.Context, id string) (domain.User, error)
 	Create(ctx context.Context, in domain.UserWrite) (domain.User, error)
-	Update(ctx context.Context, id string, in domain.UserWrite) (domain.User, error)
-	Delete(ctx context.Context, id string) error
+	Replace(ctx context.Context, actorID, id string, in domain.UserReplace) (domain.User, error)
+	Patch(ctx context.Context, actorID, id string, in domain.UserPatch) (domain.User, error)
+	Delete(ctx context.Context, actorID, id string) error
 }
 
-type AuthService interface {
-	Register(ctx context.Context, in domain.RegisterInput) (domain.AuthResult, error)
+type SessionService interface {
 	Login(ctx context.Context, in domain.LoginInput) (domain.AuthResult, error)
 }
 
 type TrackService interface {
-	List(ctx context.Context, q domain.TrackFeedQuery) (domain.TrackPage, error)
-	ListByUploader(ctx context.Context, q domain.TrackOwnerQuery) (domain.TrackPage, error)
-	ListLiked(ctx context.Context, q domain.TrackLikeListQuery) (domain.TrackPage, error)
-	GetByID(ctx context.Context, id string) (domain.Track, error)
-	Update(ctx context.Context, id string, in domain.TrackWrite) (domain.Track, error)
-	Delete(ctx context.Context, id string) error
+	Search(ctx context.Context, q domain.TrackListQuery) (domain.TrackPage, error)
+	GetByID(ctx context.Context, id, viewerID string) (domain.Track, error)
 	InitUpload(ctx context.Context, in domain.TrackUploadInit) (domain.TrackUploadSession, error)
-	CompleteUpload(ctx context.Context, in domain.TrackUploadComplete) (domain.Track, error)
 	StreamURL(ctx context.Context, id string) (string, error)
-	Like(ctx context.Context, in domain.TrackLike) error
-	Unlike(ctx context.Context, in domain.TrackLike) error
+	ReplaceOwned(ctx context.Context, actorID, id string, in domain.TrackReplace) (domain.Track, error)
+	PatchOwned(ctx context.Context, actorID, id string, in domain.TrackPatch) (domain.Track, error)
+	DeleteOwned(ctx context.Context, actorID, id string) error
+	PutLike(ctx context.Context, actorID string, in domain.TrackLike) error
+	DeleteLike(ctx context.Context, actorID string, in domain.TrackLike) error
 }
 
-type Logger interface {
-	InfoContext(ctx context.Context, msg string, args ...any)
-	ErrorContext(ctx context.Context, msg string, args ...any)
+type FollowService interface {
+	List(ctx context.Context, q domain.FollowListQuery) (domain.FollowPage, error)
+	Get(ctx context.Context, followerID, followingID string) (domain.Follow, error)
+	Put(ctx context.Context, actorID, followerID, followingID string) error
+	Delete(ctx context.Context, actorID, followerID, followingID string) error
+	CreateMany(ctx context.Context, actorID string, in domain.FollowBatch) error
+	DeleteMany(ctx context.Context, actorID string, in domain.FollowBatch) error
 }
+
+type PlaylistService interface {
+	List(ctx context.Context, q domain.PlaylistListQuery) (domain.PlaylistPage, error)
+	Create(ctx context.Context, ownerID string, in domain.PlaylistReplace) (domain.Playlist, error)
+	Get(ctx context.Context, id, viewerID string) (domain.Playlist, error)
+	Replace(ctx context.Context, actorID, id string, in domain.PlaylistReplace) (domain.Playlist, error)
+	Patch(ctx context.Context, actorID, id string, in domain.PlaylistPatch) (domain.Playlist, error)
+	Delete(ctx context.Context, actorID, id string) error
+	ListTracks(ctx context.Context, id, viewerID string, q domain.PageQuery) (domain.PlaylistTrackPage, error)
+	AddTrack(ctx context.Context, actorID, id string, in domain.PlaylistTrackAdd) (domain.PlaylistTrack, error)
+	MoveTrack(ctx context.Context, actorID, id, trackID string, in domain.PlaylistTrackMove) (domain.PlaylistTrack, error)
+	RemoveTrack(ctx context.Context, actorID, id, trackID string) error
+}
+
+type Logger = middleware.Logger
