@@ -3,6 +3,7 @@ package usecase
 import (
 	"errors"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"chimera/internal/domain"
@@ -17,9 +18,14 @@ const (
 
 var errDependency = errors.New("dependency failed")
 
-func runCase(t *testing.T, name string, body func(*testing.T)) {
+func runSpec(t *testing.T, component string, s testkit.Spec, body func(*testing.T, testkit.Report)) {
 	t.Helper()
-	testkit.Run(t, name, body)
+	s.Layer = testkit.LayerUsecase
+	s.Component = component
+	if s.Kind == "" {
+		s.Kind = testkit.KindClassic
+	}
+	testkit.RunSpec(t, s, body)
 }
 
 func newAuthFixture() (*AuthService, *fakeUserRepository, *fakePasswordHasher, *fakeTokenIssuer) {
@@ -91,6 +97,14 @@ func validTrackUploadInit() domain.TrackUploadInit {
 	}
 }
 
+func validTrackLike() domain.TrackLike {
+	return domain.TrackLike{UserID: testUserID, TrackID: testTrackID}
+}
+
+func validUploadComplete() domain.TrackUploadComplete {
+	return domain.TrackUploadComplete{TrackID: testTrackID, UserID: testUserID}
+}
+
 func assertEqual[T any](t *testing.T, want, got T) {
 	t.Helper()
 	if !reflect.DeepEqual(want, got) {
@@ -110,4 +124,36 @@ func assertErrorCode(t *testing.T, err error, code domain.Code) {
 	if !domain.Is(err, code) {
 		t.Fatalf("want error code %q, got %v", code, err)
 	}
+}
+
+func assertDomainError(t *testing.T, err error, code domain.Code, message string) {
+	t.Helper()
+	app, ok := domain.As(err)
+	if !ok {
+		t.Fatalf("want domain error (%s, %q), got %v", code, message, err)
+	}
+	if app.Code != code || app.Message != message {
+		t.Fatalf("want domain error (%s, %q), got (%s, %q)", code, message, app.Code, app.Message)
+	}
+}
+
+// assertFailure checks wantErr through errors.Is when set, otherwise the exact domain code and message.
+func assertFailure(t *testing.T, err, wantErr error, code domain.Code, message string) {
+	t.Helper()
+	if wantErr != nil {
+		assertErrorIs(t, err, wantErr)
+		return
+	}
+	assertDomainError(t, err, code, message)
+}
+
+func assertNoError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func itoa(n int64) string {
+	return strconv.FormatInt(n, 10)
 }

@@ -2,15 +2,21 @@ package domain_test
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 
 	"chimera/internal/domain"
 	"chimera/internal/testkit"
 )
 
-func runCase(t *testing.T, name string, body func(*testing.T)) {
+func runSpec(t *testing.T, component string, s testkit.Spec, body func(*testing.T, testkit.Report)) {
 	t.Helper()
-	testkit.Run(t, name, body)
+	s.Layer = testkit.LayerDomain
+	s.Component = component
+	if s.Kind == "" {
+		s.Kind = testkit.KindClassic
+	}
+	testkit.RunSpec(t, s, body)
 }
 
 func assertEqual[T comparable](t *testing.T, want, got T) {
@@ -18,6 +24,10 @@ func assertEqual[T comparable](t *testing.T, want, got T) {
 	if got != want {
 		t.Fatalf("want %v, got %v", want, got)
 	}
+}
+
+func itoa(n int) string {
+	return strconv.Itoa(n)
 }
 
 func assertNoError(t *testing.T, err error) {
@@ -35,6 +45,12 @@ func assertErrorCode(t *testing.T, want domain.Code, err error) {
 	if !domain.Is(err, want) {
 		t.Fatalf("expected %q error, got %v", want, err)
 	}
+}
+
+func assertDomainError(t *testing.T, code domain.Code, message string, err error) {
+	t.Helper()
+	assertErrorCode(t, code, err)
+	assertEqual(t, string(code)+": "+message, err.Error())
 }
 
 func assertErrorIs(t *testing.T, want, got error) {

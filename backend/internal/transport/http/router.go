@@ -25,6 +25,7 @@ type Dependencies struct {
 func NewRouter(deps Dependencies) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.CORS(deps.CORSOrigins))
+	r.Use(middleware.RunTrace(deps.Log))
 	r.Use(middleware.RequestLogger(deps.Log))
 
 	r.Get("/live", Live)

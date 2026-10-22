@@ -2,7 +2,10 @@ package s3
 
 import (
 	"context"
+	"net"
+	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -12,35 +15,43 @@ import (
 )
 
 type Store struct {
-	client        *minio.Client
-	presignClient *minio.Client
-	cfg           config.S3
+	client  *minio.Client
+	cfg     config.S3
+	presign *url.URL
 }
 
 func New(cfg config.S3) (*Store, error) {
-	client, err := minio.New(cfg.Endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
-		Secure: cfg.UseSSL,
-		Region: cfg.Region,
+	presign, err := url.Parse(cfg.PresignEndpoint)
+	if err != nil || presign.Host == "" {
+		return nil, domain.Wrap(domain.CodeInternal, "parse s3 presign endpoint", err)
+	}
+
+	// Sign for the host the browser will send. API calls still dial the
+	// internal endpoint, otherwise the signature does not match.
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	if presign.Host != cfg.Endpoint {
+		dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}
+		internal := cfg.Endpoint
+		public := presign.Host
+		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			if addr == public {
+				addr = internal
+			}
+			return dialer.DialContext(ctx, network, addr)
+		}
+	}
+
+	client, err := minio.New(presign.Host, &minio.Options{
+		Creds:     credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
+		Secure:    presign.Scheme == "https",
+		Region:    cfg.Region,
+		Transport: transport,
 	})
 	if err != nil {
 		return nil, domain.Wrap(domain.CodeInternal, "open s3", err)
 	}
 
-	presign, err := url.Parse(cfg.PresignEndpoint)
-	if err != nil {
-		return nil, domain.Wrap(domain.CodeInternal, "parse s3 presign endpoint", err)
-	}
-	presignClient, err := minio.New(presign.Host, &minio.Options{
-		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
-		Secure: presign.Scheme == "https",
-		Region: cfg.Region,
-	})
-	if err != nil {
-		return nil, domain.Wrap(domain.CodeInternal, "open s3 presign client", err)
-	}
-
-	return &Store{client: client, presignClient: presignClient, cfg: cfg}, nil
+	return &Store{client: client, cfg: cfg, presign: presign}, nil
 }
 
 func (s *Store) Ping(ctx context.Context) error {
@@ -66,19 +77,21 @@ func (s *Store) EnsureBucket(ctx context.Context) error {
 }
 
 func (s *Store) PresignPut(ctx context.Context, key string) (string, error) {
-	u, err := s.presignClient.PresignedPutObject(ctx, s.cfg.Bucket, key, s.cfg.PresignTTL)
-	return presignURL(u, err, "presign upload")
+	u, err := s.client.PresignedPutObject(ctx, s.cfg.Bucket, key, s.cfg.PresignTTL)
+	return s.presignURL(u, err, "presign upload")
 }
 
 func (s *Store) PresignGet(ctx context.Context, key string) (string, error) {
-	u, err := s.presignClient.PresignedGetObject(ctx, s.cfg.Bucket, key, s.cfg.PresignTTL, nil)
-	return presignURL(u, err, "presign stream")
+	u, err := s.client.PresignedGetObject(ctx, s.cfg.Bucket, key, s.cfg.PresignTTL, nil)
+	return s.presignURL(u, err, "presign stream")
 }
 
-func presignURL(u *url.URL, err error, fallback string) (string, error) {
+func (s *Store) presignURL(u *url.URL, err error, fallback string) (string, error) {
 	if err != nil {
 		return "", domain.Wrap(domain.CodeInternal, fallback, err)
 	}
+	u.Scheme = s.presign.Scheme
+	u.Host = s.presign.Host
 	return u.String(), nil
 }
 
