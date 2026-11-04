@@ -53,8 +53,9 @@ jobs:
           wait_http "${api}/ready"
           wait_http "${api}/v1/tracks"
           wait_http "${web}/"
-          wait_http "${web}/live"
-          wait_http "${web}/v1/tracks"
+          wait_http "${web}/health"
+          wait_http "${web}/ready"
+          wait_http "${web}/api/v1/tracks"
 
           code=$(curl -sS -o /tmp/register.json -w '%{http_code}' \
             -X POST "${api}/v1/users" \

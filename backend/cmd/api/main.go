@@ -1,6 +1,6 @@
 // @title Sound Chimera API
 // @version 1.0.0
-// @BasePath /
+// @BasePath /api
 // @tag.name sessions
 // @tag.description Вход
 // @tag.name users

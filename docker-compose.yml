@@ -59,15 +59,30 @@ services:
       minio:
         condition: service_healthy
 
+  adminer:
+    image: adminer:4
+    container_name: ${PROJECT_NAME:-chimera}-adminer
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   web:
     build:
-      context: ./frontend
+      context: .
+      dockerfile: gateway/Dockerfile
     container_name: ${PROJECT_NAME:-chimera}-web
+    environment:
+      ADMIN_USER: ${ADMIN_USER}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     ports:
       - "${FRONTEND_PORT:-5173}:80"
     depends_on:
       api:
         condition: service_healthy
+      adminer:
+        condition: service_started
 
 volumes:
   chimera-pg:
