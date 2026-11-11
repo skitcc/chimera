@@ -1,0 +1,105 @@
+{
+  "uuid": "9bd7a8e2-35ed-4e5c-821c-c53718f5f84f",
+  "historyId": "DA-LIKE-REMOVE-02",
+  "testCaseId": "DA-LIKE-REMOVE-02",
+  "testCaseName": "remove of a missing like succeeds without error",
+  "name": "[DA-LIKE-REMOVE-02] remove of a missing like succeeds without error",
+  "fullName": "internal/testkit/report.go/TestTrackLikeRepositoryRemove/remove_of_a_missing_like_succeeds_without_error",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-LIKE-REMOVE-02` |\n| **Component** | `TrackLikeRepository.Remove` |\n| **Given** | the delete reports command tag DELETE 0 |\n| **When** | Remove is called for a like that does not exist |\n| **Then** | no error is returned because Remove ignores the affected row count |\n| **Technique** | boundary-value analysis |\n| **Test double style** | stub |\n| **Go test** | `TestTrackLikeRepositoryRemove/remove_of_a_missing_like_succeeds_without_error` |\n| **Source** | `internal/infra/adapters/postgres/like_test.go:121` |\n\nSpecification: `backend/TEST_SPEC.md`, section `TrackLikeRepository.Remove`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/like_test.go:121"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-LIKE-REMOVE-02"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "TrackLikeRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "Remove"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "TrackLikeRepository"
+    },
+    {
+      "name": "story",
+      "value": "Remove"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "boundary-value analysis"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "rows affected",
+      "value": "0"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308424,
+      "stop": 1794424308424
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308424,
+      "stop": 1794424308424
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308424,
+      "stop": 1794424308424
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424308424,
+  "stop": 1794424308424
+}

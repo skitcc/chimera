@@ -1,0 +1,105 @@
+{
+  "uuid": "b19f5ee3-a249-4e8b-a52d-75c796c6cfcf",
+  "historyId": "DA-TRK-LIST-06",
+  "testCaseId": "DA-TRK-LIST-06",
+  "testCaseName": "list wraps a query failure as internal list tracks error",
+  "name": "[DA-TRK-LIST-06] list wraps a query failure as internal list tracks error",
+  "fullName": "internal/testkit/report.go/TestTrackRepositoryList/list_wraps_a_query_failure_as_internal_list_tracks_error",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-TRK-LIST-06` |\n| **Component** | `TrackRepository.List` |\n| **Given** | the database query fails with a driver error |\n| **When** | List is called |\n| **Then** | an internal domain error with message \"list tracks\" wrapping the driver error and nil tracks are returned |\n| **Technique** | error guessing |\n| **Test double style** | stub |\n| **Go test** | `TestTrackRepositoryList/list_wraps_a_query_failure_as_internal_list_tracks_error` |\n| **Source** | `internal/infra/adapters/postgres/track_test.go:164` |\n\nSpecification: `backend/TEST_SPEC.md`, section `TrackRepository.List`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/track_test.go:164"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-TRK-LIST-06"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "TrackRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "List"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "TrackRepository"
+    },
+    {
+      "name": "story",
+      "value": "List"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "error guessing"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "driver error",
+      "value": "query failed"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825914,
+      "stop": 1794422825914
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825914,
+      "stop": 1794422825914
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825914,
+      "stop": 1794422825914
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794422825914,
+  "stop": 1794422825914
+}

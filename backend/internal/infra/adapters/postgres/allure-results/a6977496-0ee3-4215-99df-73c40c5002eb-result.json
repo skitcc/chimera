@@ -1,0 +1,113 @@
+{
+  "uuid": "a6977496-0ee3-4215-99df-73c40c5002eb",
+  "historyId": "DA-USR-CREATE-01",
+  "testCaseId": "DA-USR-CREATE-01",
+  "testCaseName": "create sends email name and password hash and returns the generated id",
+  "name": "[DA-USR-CREATE-01] create sends email name and password hash and returns the generated id",
+  "fullName": "internal/testkit/report.go/TestUserRepositoryCreate/create_sends_email_name_and_password_hash_and_returns_the_generated_id",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-USR-CREATE-01` |\n| **Component** | `UserRepository.Create` |\n| **Given** | a user without id and the database returns the inserted row with id user-1 |\n| **When** | Create is called with password hash \"hash\" |\n| **Then** | the insert receives [one@example.com, One, hash] and the user with id user-1 is returned |\n| **Technique** | equivalence partitioning |\n| **Test double style** | stub |\n| **Go test** | `TestUserRepositoryCreate/create_sends_email_name_and_password_hash_and_returns_the_generated_id` |\n| **Source** | `internal/infra/adapters/postgres/user_test.go:332` |\n\nSpecification: `backend/TEST_SPEC.md`, section `UserRepository.Create`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/user_test.go:332"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-USR-CREATE-01"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "UserRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "Create"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "UserRepository"
+    },
+    {
+      "name": "story",
+      "value": "Create"
+    },
+    {
+      "name": "severity",
+      "value": "critical"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "equivalence partitioning"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "email",
+      "value": "one@example.com"
+    },
+    {
+      "name": "name",
+      "value": "One"
+    },
+    {
+      "name": "password hash",
+      "value": "hash"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422826908,
+      "stop": 1794422826908
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422826908,
+      "stop": 1794422826908
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422826908,
+      "stop": 1794422826909
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794422826908,
+  "stop": 1794422826909
+}

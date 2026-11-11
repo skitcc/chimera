@@ -1,0 +1,105 @@
+{
+  "uuid": "0a89b59e-ea90-4db6-833f-83a513ecbedb",
+  "historyId": "DA-USR-LIST-01",
+  "testCaseId": "DA-USR-LIST-01",
+  "testCaseName": "list returns every scanned user in row order and closes rows",
+  "name": "[DA-USR-LIST-01] list returns every scanned user in row order and closes rows",
+  "fullName": "internal/testkit/report.go/TestUserRepositoryList/list_returns_every_scanned_user_in_row_order_and_closes_rows",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-USR-LIST-01` |\n| **Component** | `UserRepository.List` |\n| **Given** | the database returns two user rows |\n| **When** | List is called |\n| **Then** | both users are returned in the same order, no error is returned, and the rows are closed |\n| **Technique** | equivalence partitioning |\n| **Test double style** | stub |\n| **Go test** | `TestUserRepositoryList/list_returns_every_scanned_user_in_row_order_and_closes_rows` |\n| **Source** | `internal/infra/adapters/postgres/user_test.go:20` |\n\nSpecification: `backend/TEST_SPEC.md`, section `UserRepository.List`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/user_test.go:20"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-USR-LIST-01"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "UserRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "List"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "UserRepository"
+    },
+    {
+      "name": "story",
+      "value": "List"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "equivalence partitioning"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "rows",
+      "value": "2"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309386,
+      "stop": 1794424309386
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309386,
+      "stop": 1794424309386
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309386,
+      "stop": 1794424309386
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424309386,
+  "stop": 1794424309386
+}

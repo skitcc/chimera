@@ -39,7 +39,10 @@ until pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; do
 	sleep 1
 done
 
-exists=$(psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 -v role="$POSTGRES_REPLICATION_USER" -tAc "SELECT 1 FROM pg_roles WHERE rolname = :'role'" | tr -d '[:space:]')
+exists=$(psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 -v role="$POSTGRES_REPLICATION_USER" -tA <<'SQL'
+SELECT 1 FROM pg_roles WHERE rolname = :'role'
+SQL
+)
 if [ "$exists" = "1" ]; then
 	verb=ALTER
 else

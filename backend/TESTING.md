@@ -386,7 +386,7 @@ PostgreSQL не покажет: они идут по мосту Docker с `eth0`
 с RustFS — порт 9000. В логе стенда SQL печатается блоком `--- SQL ---`.
 
 Открыть `demo.pcap` в Wireshark. Фильтр `http`, затем Follow → HTTP Stream на
-запросе `POST /v1/auth/register`. Фильтр `pgsql` показывает запросы к
+запросе `POST /v1/users`. Фильтр `pgsql` показывает запросы к
 PostgreSQL. API слушает 8080, RustFS — 9000, поэтому в `http.txt` tshark
 заранее вызван с decode-as для этих портов. В Wireshark то же самое:
 Analyze → Decode As → TCP 8080 и TCP 9000 как HTTP.

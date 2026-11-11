@@ -1,0 +1,105 @@
+{
+  "uuid": "04e0df13-7e3d-42bf-9434-389fcb52aef9",
+  "historyId": "DA-USR-GET-01",
+  "testCaseId": "DA-USR-GET-01",
+  "testCaseName": "get by id sends the id and returns the scanned user",
+  "name": "[DA-USR-GET-01] get by id sends the id and returns the scanned user",
+  "fullName": "internal/testkit/report.go/TestUserRepositoryGetByID/get_by_id_sends_the_id_and_returns_the_scanned_user",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-USR-GET-01` |\n| **Component** | `UserRepository.GetByID` |\n| **Given** | the database returns a row for user-1 |\n| **When** | GetByID is called with user-1 |\n| **Then** | the query receives [user-1] and the scanned user is returned without error |\n| **Technique** | equivalence partitioning |\n| **Test double style** | stub |\n| **Go test** | `TestUserRepositoryGetByID/get_by_id_sends_the_id_and_returns_the_scanned_user` |\n| **Source** | `internal/infra/adapters/postgres/user_test.go:165` |\n\nSpecification: `backend/TEST_SPEC.md`, section `UserRepository.GetByID`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/user_test.go:165"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-USR-GET-01"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "UserRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "GetByID"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "UserRepository"
+    },
+    {
+      "name": "story",
+      "value": "GetByID"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "equivalence partitioning"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "id",
+      "value": "user-1"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309639,
+      "stop": 1794424309639
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309639,
+      "stop": 1794424309639
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309639,
+      "stop": 1794424309639
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424309639,
+  "stop": 1794424309639
+}

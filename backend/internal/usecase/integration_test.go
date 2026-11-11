@@ -369,12 +369,11 @@ func TestUserServiceIntegration(t *testing.T) {
 
 	runService(t, component, testkit.Spec{
 		ID: "IT-UC-USR-DELETE-01", Method: "Delete",
-		Title:     "delete of a user who owns tracks is refused",
+		Title:     "delete of a user removes owned tracks",
 		Given:     "a user who owns one track",
 		When:      "Delete is called for that user",
-		Then:      "unauthorized `invalid token`: the FK violation (KI-1) is mapped to not_found and then rewritten; user and track remain",
-		Technique: testkit.TechniqueErrorGuessing,
-		Severity:  testkit.SeverityCritical,
+		Then:      "the call succeeds; users and tracks are empty because tracks.user_id is ON DELETE CASCADE",
+		Technique: testkit.TechniqueState,
 	}, func(t *testing.T, r testkit.Report) {
 		var f *appFixture
 		var user domain.User
@@ -386,9 +385,11 @@ func TestUserServiceIntegration(t *testing.T) {
 		})
 		r.Act(func(t *testing.T) { err = f.members.Delete(f.ctx, user.ID, user.ID) })
 		r.Assert(func(t *testing.T) {
-			assertCode(t, err, domain.CodeUnauthorized, "invalid token")
-			requireEqual(t, f.count(t, `SELECT count(*) FROM users`), 1)
-			requireEqual(t, f.count(t, `SELECT count(*) FROM tracks`), 1)
+			if err != nil {
+				t.Fatalf("Delete() error = %v", err)
+			}
+			requireEqual(t, f.count(t, `SELECT count(*) FROM users`), 0)
+			requireEqual(t, f.count(t, `SELECT count(*) FROM tracks`), 0)
 		})
 	})
 }

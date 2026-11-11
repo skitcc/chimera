@@ -125,20 +125,24 @@ event=
 
 body=$(json_file --arg email "$artist_email" --arg password "$password" --arg name "Demo Artist" \
 	'{email:$email, password:$password, name:$name}')
-step 02 POST "$api/v1/auth/register" 201 "" "$body"
-artist_token=$(jq -er .token "$out/responses/02.body")
+step 02 POST "$api/v1/users" 201 "" "$body"
+artist_id=$(jq -er .id "$out/responses/02.body")
+jq -er --arg email "$artist_email" --arg id "$artist_id" \
+	'select(.email == $email and .id == $id)' "$out/responses/02.body" >/dev/null
 
 body=$(json_file --arg email "$artist_email" --arg password "$password" \
 	'{email:$email, password:$password}')
-step 03 POST "$api/v1/auth/login" 200 "" "$body"
+step 03 POST "$api/v1/sessions" 201 "" "$body"
 artist_token=$(jq -er .token "$out/responses/03.body")
+jq -er --arg id "$artist_id" 'select(.user_id == $id and .token != "")' "$out/responses/03.body" >/dev/null
 
-step 04 GET "$api/v1/me" 200 "$artist_token"
-jq -er --arg email "$artist_email" 'select(.email == $email)' "$out/responses/04.body" >/dev/null
+step 04 GET "$api/v1/users/${artist_id}" 200 "$artist_token"
+jq -er --arg email "$artist_email" --arg id "$artist_id" \
+	'select(.email == $email and .id == $id)' "$out/responses/04.body" >/dev/null
 
 body=$(json_file --arg title "$title" --arg artist "$artist_name" --argjson size "$size" \
 	'{title:$title, artist:$artist, size:$size}')
-step 05 POST "$api/v1/tracks/upload-init" 201 "$artist_token" "$body"
+step 05 POST "$api/v1/tracks" 201 "$artist_token" "$body"
 track=$(jq -er .track.id "$out/responses/05.body")
 upload=$(jq -er .upload_url "$out/responses/05.body")
 jq -er 'select(.track.status == "pending")' "$out/responses/05.body" >/dev/null
@@ -148,7 +152,8 @@ step 06 PUT "$upload" '200|204' "" "$audio"
 step 07 GET "$api/v1/tracks?limit=100&artist=${artist_name}" 200
 jq -er --arg id "$track" 'select(([.items[]?.id] | index($id)) == null)' "$out/responses/07.body" >/dev/null
 
-step 08 POST "$api/v1/tracks/${track}/upload-complete" 200 "$artist_token"
+body=$(json_file '{status:"ready"}')
+step 08 PATCH "$api/v1/tracks/${track}" 200 "$artist_token" "$body"
 jq -er 'select(.status == "ready")' "$out/responses/08.body" >/dev/null
 
 step 09 GET "$api/v1/tracks?limit=100&artist=${artist_name}" 200
@@ -156,31 +161,36 @@ jq -er --arg id "$track" 'select(any(.items[]; .id == $id and .status == "ready"
 
 body=$(json_file --arg email "$listener_email" --arg password "$password" --arg name "Demo Listener" \
 	'{email:$email, password:$password, name:$name}')
-step 10 POST "$api/v1/auth/register" 201 "" "$body"
-listener_token=$(jq -er .token "$out/responses/10.body")
+step 10 POST "$api/v1/users" 201 "" "$body"
+listener_id=$(jq -er .id "$out/responses/10.body")
 
-step 11 POST "$api/v1/tracks/${track}/like" 401
-jq -er 'select(.code == "unauthorized")' "$out/responses/11.body" >/dev/null
+body=$(json_file --arg email "$listener_email" --arg password "$password" \
+	'{email:$email, password:$password}')
+step 11 POST "$api/v1/sessions" 201 "" "$body"
+listener_token=$(jq -er .token "$out/responses/11.body")
+jq -er --arg id "$listener_id" 'select(.user_id == $id and .token != "")' "$out/responses/11.body" >/dev/null
 
-step 12 POST "$api/v1/tracks/${track}/like" 204 "$listener_token"
+step 12 PUT "$api/v1/users/${listener_id}/likes/${track}" 401
+jq -er 'select(.code == "unauthorized")' "$out/responses/12.body" >/dev/null
 
-step 13 POST "$api/v1/tracks/${track}/like" 409 "$listener_token"
-jq -er 'select(.code == "conflict" and .message == "track already liked")' "$out/responses/13.body" >/dev/null
+step 13 PUT "$api/v1/users/${listener_id}/likes/${track}" 204 "$listener_token"
 
-step 14 GET "$api/v1/me/likes?limit=100" 200 "$listener_token"
-jq -er --arg id "$track" 'select(any(.items[]; .id == $id))' "$out/responses/14.body" >/dev/null
+step 14 PUT "$api/v1/users/${listener_id}/likes/${track}" 204 "$listener_token"
 
-step 15 GET "$api/v1/tracks/${track}/stream" 302
-location=$(header_value Location "$out/responses/15.headers")
+step 15 GET "$api/v1/tracks?limit=100&liked_by=${listener_id}" 200 "$listener_token"
+jq -er --arg id "$track" 'select(any(.items[]; .id == $id))' "$out/responses/15.body" >/dev/null
+
+step 16 GET "$api/v1/tracks/${track}/stream" 302
+location=$(header_value Location "$out/responses/16.headers")
 if [ -z "$location" ]; then
 	echo 'stream response has no Location' >&2
 	exit 1
 fi
 
-step 16 GET "$location" 200
-cmp -s "$audio" "$out/responses/16.body"
+step 17 GET "$location" 200
+cmp -s "$audio" "$out/responses/17.body"
 
-step 17 DELETE "$api/v1/tracks/${track}/like" 204 "$listener_token"
+step 18 DELETE "$api/v1/users/${listener_id}/likes/${track}" 204 "$listener_token"
 
-step 18 GET "$api/v1/me/likes?limit=100" 200 "$listener_token"
-jq -er --arg id "$track" 'select(([.items[]?.id] | index($id)) == null)' "$out/responses/18.body" >/dev/null
+step 19 GET "$api/v1/tracks?limit=100&liked_by=${listener_id}" 200 "$listener_token"
+jq -er --arg id "$track" 'select(([.items[]?.id] | index($id)) == null)' "$out/responses/19.body" >/dev/null

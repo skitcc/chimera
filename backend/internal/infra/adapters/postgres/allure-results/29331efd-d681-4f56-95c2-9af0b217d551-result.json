@@ -1,0 +1,109 @@
+{
+  "uuid": "29331efd-d681-4f56-95c2-9af0b217d551",
+  "historyId": "DA-USR-UPDATE-03",
+  "testCaseId": "DA-USR-UPDATE-03",
+  "testCaseName": "update maps unique violation on users_email_key to email already exists",
+  "name": "[DA-USR-UPDATE-03] update maps unique violation on users_email_key to email already exists",
+  "fullName": "internal/testkit/report.go/TestUserRepositoryUpdate/update_maps_unique_violation_on_users_email_key_to_email_already_exists",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-USR-UPDATE-03` |\n| **Component** | `UserRepository.Update` |\n| **Given** | the update fails with SQLSTATE 23505 on constraint users_email_key |\n| **When** | Update is called with an email owned by another user |\n| **Then** | a conflict domain error with message \"email already exists\" is returned |\n| **Technique** | decision-table testing |\n| **Test double style** | stub |\n| **Go test** | `TestUserRepositoryUpdate/update_maps_unique_violation_on_users_email_key_to_email_already_exists` |\n| **Source** | `internal/infra/adapters/postgres/user_test.go:473` |\n\nSpecification: `backend/TEST_SPEC.md`, section `UserRepository.Update`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/user_test.go:473"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-USR-UPDATE-03"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "UserRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "Update"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "UserRepository"
+    },
+    {
+      "name": "story",
+      "value": "Update"
+    },
+    {
+      "name": "severity",
+      "value": "critical"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "decision-table testing"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "constraint",
+      "value": "users_email_key"
+    },
+    {
+      "name": "sqlstate",
+      "value": "23505"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424310011,
+      "stop": 1794424310011
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424310011,
+      "stop": 1794424310011
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424310011,
+      "stop": 1794424310011
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424310011,
+  "stop": 1794424310011
+}

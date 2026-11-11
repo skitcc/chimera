@@ -1,0 +1,113 @@
+{
+  "uuid": "b5e9eb74-523c-4326-a5db-d8fabd78c6f8",
+  "historyId": "DA-USR-UPDATE-01",
+  "testCaseId": "DA-USR-UPDATE-01",
+  "testCaseName": "update sends id email and name and returns the updated user",
+  "name": "[DA-USR-UPDATE-01] update sends id email and name and returns the updated user",
+  "fullName": "internal/testkit/report.go/TestUserRepositoryUpdate/update_sends_id_email_and_name_and_returns_the_updated_user",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-USR-UPDATE-01` |\n| **Component** | `UserRepository.Update` |\n| **Given** | the database returns the updated row for user-1 |\n| **When** | Update is called with the new email and name |\n| **Then** | the update receives [user-1, updated@example.com, Updated] and the updated user is returned |\n| **Technique** | equivalence partitioning |\n| **Test double style** | stub |\n| **Go test** | `TestUserRepositoryUpdate/update_sends_id_email_and_name_and_returns_the_updated_user` |\n| **Source** | `internal/infra/adapters/postgres/user_test.go:420` |\n\nSpecification: `backend/TEST_SPEC.md`, section `UserRepository.Update`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/user_test.go:420"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-USR-UPDATE-01"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "UserRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "Update"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "UserRepository"
+    },
+    {
+      "name": "story",
+      "value": "Update"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "equivalence partitioning"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "email",
+      "value": "updated@example.com"
+    },
+    {
+      "name": "id",
+      "value": "user-1"
+    },
+    {
+      "name": "name",
+      "value": "Updated"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309960,
+      "stop": 1794424309960
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309960,
+      "stop": 1794424309960
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309960,
+      "stop": 1794424309960
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424309960,
+  "stop": 1794424309960
+}

@@ -1,0 +1,105 @@
+{
+  "uuid": "036ca802-51bb-4354-9cc2-f9204fe43663",
+  "historyId": "DA-PGX-USR-GET-01",
+  "testCaseId": "DA-PGX-USR-GET-01",
+  "testCaseName": "get by id issues the exact user lookup query and returns the row",
+  "name": "[DA-PGX-USR-GET-01] get by id issues the exact user lookup query and returns the row",
+  "fullName": "internal/testkit/report.go/TestUserRepositoryPGXMock/get_by_id_issues_the_exact_user_lookup_query_and_returns_the_row",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-PGX-USR-GET-01` |\n| **Component** | `UserRepository.GetByID` |\n| **Given** | pgxmock expects the users-by-id SELECT with argument user-1 and returns one row |\n| **When** | GetByID is called with user-1 |\n| **Then** | the user {user-1, listener@example.com, Listener} is returned without error and all expectations are met |\n| **Technique** | equivalence partitioning |\n| **Test double style** | pgxmock |\n| **Go test** | `TestUserRepositoryPGXMock/get_by_id_issues_the_exact_user_lookup_query_and_returns_the_row` |\n| **Source** | `internal/infra/adapters/postgres/pgxmock_test.go:36` |\n\nSpecification: `backend/TEST_SPEC.md`, section `UserRepository.GetByID`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/pgxmock_test.go:36"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-PGX-USR-GET-01"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "UserRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "GetByID"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "UserRepository"
+    },
+    {
+      "name": "story",
+      "value": "GetByID"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "pgxmock"
+    },
+    {
+      "name": "testTechnique",
+      "value": "equivalence partitioning"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "id",
+      "value": "user-1"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308593,
+      "stop": 1794424308593
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308593,
+      "stop": 1794424308593
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308593,
+      "stop": 1794424308593
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424308593,
+  "stop": 1794424308593
+}

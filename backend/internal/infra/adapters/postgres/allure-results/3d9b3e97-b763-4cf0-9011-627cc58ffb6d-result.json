@@ -1,0 +1,109 @@
+{
+  "uuid": "3d9b3e97-b763-4cf0-9011-627cc58ffb6d",
+  "historyId": "DA-LIKE-ADD-04",
+  "testCaseId": "DA-LIKE-ADD-04",
+  "testCaseName": "add maps foreign key violation to not found",
+  "name": "[DA-LIKE-ADD-04] add maps foreign key violation to not found",
+  "fullName": "internal/testkit/report.go/TestTrackLikeRepositoryAdd/add_maps_foreign_key_violation_to_not_found",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-LIKE-ADD-04` |\n| **Component** | `TrackLikeRepository.Add` |\n| **Given** | the insert fails with SQLSTATE 23503 on constraint track_likes_track_id_fkey |\n| **When** | Add is called |\n| **Then** | a not_found domain error with message \"not found\" is returned |\n| **Technique** | decision-table testing |\n| **Test double style** | stub |\n| **Go test** | `TestTrackLikeRepositoryAdd/add_maps_foreign_key_violation_to_not_found` |\n| **Source** | `internal/infra/adapters/postgres/like_test.go:67` |\n\nSpecification: `backend/TEST_SPEC.md`, section `TrackLikeRepository.Add`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/like_test.go:67"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-LIKE-ADD-04"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "TrackLikeRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "Add"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "TrackLikeRepository"
+    },
+    {
+      "name": "story",
+      "value": "Add"
+    },
+    {
+      "name": "severity",
+      "value": "critical"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "decision-table testing"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "constraint",
+      "value": "track_likes_track_id_fkey"
+    },
+    {
+      "name": "sqlstate",
+      "value": "23503"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308356,
+      "stop": 1794424308356
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308356,
+      "stop": 1794424308356
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308356,
+      "stop": 1794424308356
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424308356,
+  "stop": 1794424308356
+}

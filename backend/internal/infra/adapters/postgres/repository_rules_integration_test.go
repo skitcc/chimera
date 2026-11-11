@@ -206,12 +206,11 @@ func TestUserRepositoryRulesIntegration(t *testing.T) {
 
 	runIntegration(t, component, testkit.Spec{
 		ID: "IT-DA-USR-DELETE-02", Method: "Delete",
-		Title:     "delete of a user who owns a track is refused",
+		Title:     "delete of a user cascades owned tracks",
 		Given:     "a user who owns one track",
 		When:      "Delete is called for that user",
-		Then:      "FK tracks.user_id (no cascade) fails with SQLSTATE 23503, mapped to not_found `not found` (known issue KI-1); the user row stays",
-		Technique: testkit.TechniqueErrorGuessing,
-		Severity:  testkit.SeverityCritical,
+		Then:      "tracks.user_id ON DELETE CASCADE removes the track; the user row is gone",
+		Technique: testkit.TechniqueState,
 	}, func(t *testing.T, r testkit.Report) {
 		var f *postgresFixture
 		var user domain.User
@@ -223,8 +222,11 @@ func TestUserRepositoryRulesIntegration(t *testing.T) {
 		})
 		r.Act(func(t *testing.T) { err = f.users.Delete(f.ctx, user.ID) })
 		r.Assert(func(t *testing.T) {
-			assertDomainError(t, err, domain.CodeNotFound, "not found")
-			assertEqual(t, countRows(t, f, `SELECT count(*) FROM users WHERE id = $1::uuid`, user.ID), 1)
+			if err != nil {
+				t.Fatalf("Delete() error = %v", err)
+			}
+			assertEqual(t, countRows(t, f, `SELECT count(*) FROM users WHERE id = $1::uuid`, user.ID), 0)
+			assertEqual(t, countRows(t, f, `SELECT count(*) FROM tracks`), 0)
 		})
 	})
 

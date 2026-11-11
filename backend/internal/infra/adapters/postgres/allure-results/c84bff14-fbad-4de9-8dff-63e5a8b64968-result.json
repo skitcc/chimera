@@ -1,0 +1,113 @@
+{
+  "uuid": "c84bff14-fbad-4de9-8dff-63e5a8b64968",
+  "historyId": "DA-TRK-LIST-01",
+  "testCaseId": "DA-TRK-LIST-01",
+  "testCaseName": "list with all filters sends status user and artist and returns scanned tracks",
+  "name": "[DA-TRK-LIST-01] list with all filters sends status user and artist and returns scanned tracks",
+  "fullName": "internal/testkit/report.go/TestTrackRepositoryList/list_with_all_filters_sends_status_user_and_artist_and_returns_scanned_tracks",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-TRK-LIST-01` |\n| **Component** | `TrackRepository.List` |\n| **Given** | a filter with status ready, user user-1, artist Artist and the database returns two track rows |\n| **When** | List is called |\n| **Then** | the query receives [ready, user-1, Artist], both tracks are returned in order, and the rows are closed |\n| **Technique** | decision-table testing |\n| **Test double style** | stub |\n| **Go test** | `TestTrackRepositoryList/list_with_all_filters_sends_status_user_and_artist_and_returns_scanned_tracks` |\n| **Source** | `internal/infra/adapters/postgres/track_test.go:40` |\n\nSpecification: `backend/TEST_SPEC.md`, section `TrackRepository.List`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/track_test.go:40"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-TRK-LIST-01"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "TrackRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "List"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "TrackRepository"
+    },
+    {
+      "name": "story",
+      "value": "List"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "decision-table testing"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "artist",
+      "value": "Artist"
+    },
+    {
+      "name": "status",
+      "value": "ready"
+    },
+    {
+      "name": "user id",
+      "value": "user-1"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825754,
+      "stop": 1794422825754
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825754,
+      "stop": 1794422825754
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825754,
+      "stop": 1794422825754
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794422825754,
+  "stop": 1794422825754
+}

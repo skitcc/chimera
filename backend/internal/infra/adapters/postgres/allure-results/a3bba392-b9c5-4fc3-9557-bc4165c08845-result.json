@@ -1,0 +1,109 @@
+{
+  "uuid": "a3bba392-b9c5-4fc3-9557-bc4165c08845",
+  "historyId": "DA-USR-DELETE-02",
+  "testCaseId": "DA-USR-DELETE-02",
+  "testCaseName": "delete maps zero affected rows to user not found",
+  "name": "[DA-USR-DELETE-02] delete maps zero affected rows to user not found",
+  "fullName": "internal/testkit/report.go/TestUserRepositoryDelete/delete_maps_zero_affected_rows_to_user_not_found",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-USR-DELETE-02` |\n| **Component** | `UserRepository.Delete` |\n| **Given** | the delete reports command tag DELETE 0 |\n| **When** | Delete is called with a missing id |\n| **Then** | a not_found domain error with message \"user not found\" is returned |\n| **Technique** | boundary-value analysis |\n| **Test double style** | stub |\n| **Go test** | `TestUserRepositoryDelete/delete_maps_zero_affected_rows_to_user_not_found` |\n| **Source** | `internal/infra/adapters/postgres/user_test.go:527` |\n\nSpecification: `backend/TEST_SPEC.md`, section `UserRepository.Delete`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/user_test.go:527"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-USR-DELETE-02"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "UserRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "Delete"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "UserRepository"
+    },
+    {
+      "name": "story",
+      "value": "Delete"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "boundary-value analysis"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "id",
+      "value": "missing"
+    },
+    {
+      "name": "rows affected",
+      "value": "0"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424310062,
+      "stop": 1794424310062
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424310062,
+      "stop": 1794424310062
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424310062,
+      "stop": 1794424310062
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424310062,
+  "stop": 1794424310062
+}
