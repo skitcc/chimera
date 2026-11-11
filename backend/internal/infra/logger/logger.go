@@ -16,7 +16,7 @@ func New(cfg config.Config) *slog.Logger {
 	if cfg.Mode == config.ModeProduction {
 		h = slog.NewJSONHandler(os.Stdout, opts)
 	}
-	return slog.New(runHandler{h}).With("mode", string(cfg.Mode))
+	return slog.New(runHandler{h}).With("mode", string(cfg.Mode), "instance", cfg.Instance)
 }
 
 // runHandler adds run_id and step from the context to every record, so all

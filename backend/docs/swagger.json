@@ -5,7 +5,7 @@
         "contact": {},
         "version": "1.0.0"
     },
-    "basePath": "/",
+    "basePath": "/api",
     "paths": {
         "/v1/follows": {
             "get": {

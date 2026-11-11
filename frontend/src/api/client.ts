@@ -43,7 +43,7 @@ function currentUserId(): string {
 }
 
 export function streamUrl(id: string) {
-  return `${base}/v1/tracks/${id}/stream`
+  return `${base}/api/v1/tracks/${id}/stream`
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -69,18 +69,18 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 async function login(email: string, password: string): Promise<AuthResponse> {
-  const created = await request<Session>('/v1/sessions', {
+  const created = await request<Session>('/api/v1/sessions', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   })
   setUserId(created.user_id)
-  const user = await request<User>(`/v1/users/${created.user_id}`)
+  const user = await request<User>(`/api/v1/users/${created.user_id}`)
   return { token: created.token, user }
 }
 
 export const api = {
   register: async (email: string, password: string, name: string) => {
-    await request<User>('/v1/users', {
+    await request<User>('/api/v1/users', {
       method: 'POST',
       body: JSON.stringify({ email, password, name }),
     })
@@ -89,33 +89,33 @@ export const api = {
 
   login,
 
-  me: () => request<User>(`/v1/users/${currentUserId()}`),
+  me: () => request<User>(`/api/v1/users/${currentUserId()}`),
 
   feed: (params: { cursor?: string; artist?: string } = {}) => {
     const q = new URLSearchParams({ limit: '40' })
     if (params.cursor) q.set('cursor', params.cursor)
     if (params.artist) q.set('artist', params.artist)
-    return request<TrackPage>(`/v1/tracks?${q}`)
+    return request<TrackPage>(`/api/v1/tracks?${q}`)
   },
 
-  myTracks: () => request<TrackPage>(`/v1/tracks?user_id=${currentUserId()}&limit=100`),
+  myTracks: () => request<TrackPage>(`/api/v1/tracks?user_id=${currentUserId()}&limit=100`),
 
-  liked: () => request<TrackPage>(`/v1/tracks?liked_by=${currentUserId()}&limit=100`),
+  liked: () => request<TrackPage>(`/api/v1/tracks?liked_by=${currentUserId()}&limit=100`),
 
-  userTracks: (userId: string) => request<TrackPage>(`/v1/tracks?user_id=${userId}&status=ready&limit=100`),
+  userTracks: (userId: string) => request<TrackPage>(`/api/v1/tracks?user_id=${userId}&status=ready&limit=100`),
 
-  like: (id: string) => request<void>(`/v1/users/${currentUserId()}/likes/${id}`, { method: 'PUT' }),
+  like: (id: string) => request<void>(`/api/v1/users/${currentUserId()}/likes/${id}`, { method: 'PUT' }),
 
-  unlike: (id: string) => request<void>(`/v1/users/${currentUserId()}/likes/${id}`, { method: 'DELETE' }),
+  unlike: (id: string) => request<void>(`/api/v1/users/${currentUserId()}/likes/${id}`, { method: 'DELETE' }),
 
   initUpload: (title: string, artist: string, size: number) =>
-    request<UploadSession>('/v1/tracks', {
+    request<UploadSession>('/api/v1/tracks', {
       method: 'POST',
       body: JSON.stringify({ title, artist, size }),
     }),
 
   completeUpload: (id: string) =>
-    request<Track>(`/v1/tracks/${id}`, {
+    request<Track>(`/api/v1/tracks/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'ready' }),
     }),

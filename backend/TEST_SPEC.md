@@ -344,6 +344,8 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | 23505 на любом другом ограничении | conflict `email already exists` (KI-5) |
 | 23503 | not_found `not found` (KI-1) |
 | 22P02 (некорректный UUID) | invalid `invalid id` |
+| 42501 (нет права на запись) | forbidden `read only` |
+| 25006 (реплика только для чтения) | forbidden `read only` |
 | всё остальное | internal, текст называет операцию, причина сохраняется |
 
 Модульные кейсы (`stub`, `pgxmock`) проверяют аргументы SQL, чтение строки и
