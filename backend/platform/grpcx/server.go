@@ -6,10 +6,13 @@ import (
 	"runtime/debug"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/filters"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
@@ -20,6 +23,8 @@ import (
 const (
 	mdRunID   = "x-run-id"
 	mdRunStep = "x-run-step"
+	// MDInstance is the response header naming the pod that served a call.
+	MDInstance = "x-chimera-instance"
 )
 
 // LivenessService is the health service name for liveness probes. It stays SERVING
@@ -39,14 +44,33 @@ type Server struct {
 	log    Logger
 }
 
+type ServerConfig struct {
+	// Instance goes into the x-chimera-instance response header.
+	Instance string
+	// MaxConnectionAge closes client connections after this age, so clients
+	// resolve the headless Service again and spread over new pods.
+	MaxConnectionAge time.Duration
+	// Interceptors run inside the built-in ones, after errors are logged.
+	Interceptors []grpc.UnaryServerInterceptor
+}
+
 // NewServer returns a gRPC server with recovery, run id propagation, request
 // logging and application error mapping. The standard health service starts NOT_SERVING.
-func NewServer(log Logger) *Server {
-	srv := grpc.NewServer(grpc.ChainUnaryInterceptor(
+func NewServer(log Logger, cfg ServerConfig) *Server {
+	chain := append([]grpc.UnaryServerInterceptor{
 		recoverInterceptor(log),
+		instanceInterceptor(cfg.Instance),
 		runInterceptor,
 		errorInterceptor(log),
-	))
+	}, cfg.Interceptors...)
+	srv := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithFilter(filters.Not(filters.HealthCheck())))),
+		grpc.ChainUnaryInterceptor(chain...),
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionAge:      cfg.MaxConnectionAge,
+			MaxConnectionAgeGrace: cfg.MaxConnectionAge,
+		}),
+	)
 	hs := health.NewServer()
 	hs.SetServingStatus("", healthpb.HealthCheckResponse_NOT_SERVING)
 	hs.SetServingStatus(LivenessService, healthpb.HealthCheckResponse_SERVING)
@@ -98,6 +122,13 @@ func recoverInterceptor(log Logger) grpc.UnaryServerInterceptor {
 				err = status.Error(codes.Internal, "internal error")
 			}
 		}()
+		return next(ctx, req)
+	}
+}
+
+func instanceInterceptor(instance string) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, next grpc.UnaryHandler) (any, error) {
+		_ = grpc.SetHeader(ctx, metadata.Pairs(MDInstance, instance))
 		return next(ctx, req)
 	}
 }

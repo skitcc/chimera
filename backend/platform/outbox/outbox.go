@@ -2,7 +2,7 @@
 //
 // Every producing service has this table in its own database:
 //
-//	outbox(id bigserial, topic, record_key, event_type, event_id uuid, payload bytea, created_at, sent_at)
+//	outbox(id bigserial, topic, record_key, event_type, event_id uuid, payload bytea, trace_context, created_at, sent_at)
 package outbox
 
 import (
@@ -12,6 +12,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -20,6 +25,8 @@ import (
 	"chimera/platform/kafka"
 	"chimera/platform/pg"
 )
+
+var tracer = otel.Tracer("chimera/platform/outbox")
 
 // NewEvent starts an envelope with a fresh event id. The caller sets the payload.
 func NewEvent(producer, eventType string) *eventsv1.Envelope {
@@ -32,16 +39,19 @@ func NewEvent(producer, eventType string) *eventsv1.Envelope {
 }
 
 // Write stores event in the outbox within db, which must be the transaction
-// that changes the entity, so the row and the event commit together.
+// that changes the entity, so the row and the event commit together. The trace of
+// ctx goes with the event, so its consumers continue the request's trace.
 func Write(ctx context.Context, db pg.DB, topic, key string, event *eventsv1.Envelope) error {
 	payload, err := proto.Marshal(event)
 	if err != nil {
 		return apperr.Wrap(apperr.CodeInternal, "encode event", err)
 	}
+	carrier := propagation.MapCarrier{}
+	otel.GetTextMapPropagator().Inject(ctx, carrier)
 	if _, err := db.Exec(ctx,
-		`INSERT INTO outbox (topic, record_key, event_type, event_id, payload)
-		 VALUES ($1, $2, $3, $4::uuid, $5)`,
-		topic, key, event.GetType(), event.GetEventId(), payload,
+		`INSERT INTO outbox (topic, record_key, event_type, event_id, payload, trace_context)
+		 VALUES ($1, $2, $3, $4::uuid, $5, $6)`,
+		topic, key, event.GetType(), event.GetEventId(), payload, carrier.Get(kafka.HeaderTraceParent),
 	); err != nil {
 		return apperr.Wrap(apperr.CodeInternal, "write outbox", err)
 	}
@@ -107,6 +117,7 @@ type row struct {
 	eventType string
 	eventID   string
 	payload   []byte
+	trace     string
 }
 
 // Flush publishes one batch of unsent rows in id order and marks the published
@@ -120,20 +131,27 @@ func (r *Relay) Flush(ctx context.Context) (int, error) {
 			return err
 		}
 		recs := make([]kafka.Record, 0, len(rows))
+		spans := make([]trace.Span, 0, len(rows))
 		for _, row := range rows {
-			recs = append(recs, kafka.Record{
-				Topic: row.topic,
-				Key:   row.key,
-				Value: row.payload,
-				Headers: map[string]string{
-					kafka.HeaderID:          row.eventID,
-					kafka.HeaderType:        row.eventType,
-					kafka.HeaderSource:      r.source,
-					kafka.HeaderContentType: kafka.ContentType,
-				},
-			})
+			headers := propagation.MapCarrier{
+				kafka.HeaderID:          row.eventID,
+				kafka.HeaderType:        row.eventType,
+				kafka.HeaderSource:      r.source,
+				kafka.HeaderContentType: kafka.ContentType,
+			}
+			spanCtx, span := r.publishSpan(ctx, row)
+			otel.GetTextMapPropagator().Inject(spanCtx, headers)
+			spans = append(spans, span)
+			recs = append(recs, kafka.Record{Topic: row.topic, Key: row.key, Value: row.payload, Headers: headers})
 		}
 		errs := r.publisher.Publish(ctx, recs)
+		for i, span := range spans {
+			if errs[i] != nil {
+				span.RecordError(errs[i])
+				span.SetStatus(codes.Error, "publish failed")
+			}
+			span.End()
+		}
 		ids := make([]int64, 0, len(rows))
 		var publishErr error
 		for i, row := range rows {
@@ -162,9 +180,24 @@ func (r *Relay) Flush(ctx context.Context) (int, error) {
 	return sent, err
 }
 
+// publishSpan continues the trace of the request that wrote the row, so the
+// consumer's span hangs under the publish and the request in one trace.
+func (r *Relay) publishSpan(ctx context.Context, row row) (context.Context, trace.Span) {
+	parent := otel.GetTextMapPropagator().Extract(ctx, propagation.MapCarrier{kafka.HeaderTraceParent: row.trace})
+	return tracer.Start(parent, row.topic+" publish",
+		trace.WithSpanKind(trace.SpanKindProducer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "kafka"),
+			attribute.String("messaging.destination.name", row.topic),
+			attribute.String("messaging.message.id", row.eventID),
+			attribute.String("chimera.event.type", row.eventType),
+		),
+	)
+}
+
 func (r *Relay) lock(ctx context.Context, tx pgx.Tx) ([]row, error) {
 	q, err := tx.Query(ctx,
-		`SELECT id, topic, record_key, event_type, event_id::text, payload
+		`SELECT id, topic, record_key, event_type, event_id::text, payload, trace_context
 		 FROM outbox
 		 WHERE sent_at IS NULL
 		 ORDER BY id
@@ -177,7 +210,7 @@ func (r *Relay) lock(ctx context.Context, tx pgx.Tx) ([]row, error) {
 	var rows []row
 	for q.Next() {
 		var x row
-		if err := q.Scan(&x.id, &x.topic, &x.key, &x.eventType, &x.eventID, &x.payload); err != nil {
+		if err := q.Scan(&x.id, &x.topic, &x.key, &x.eventType, &x.eventID, &x.payload, &x.trace); err != nil {
 			return nil, apperr.Wrap(apperr.CodeInternal, "scan outbox", err)
 		}
 		rows = append(rows, x)
