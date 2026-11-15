@@ -1,0 +1,129 @@
+package usecase
+
+import (
+	"context"
+
+	"chimera/identity/internal/domain"
+)
+
+type UserService struct {
+	users    UserRepository
+	profiles ProfileRepository
+	hasher   PasswordHasher
+}
+
+func NewUserService(users UserRepository, profiles ProfileRepository, hasher PasswordHasher) *UserService {
+	return &UserService{users: users, profiles: profiles, hasher: hasher}
+}
+
+func (s *UserService) List(ctx context.Context, q domain.PageQuery) (domain.UserPage, error) {
+	if err := q.Validate(); err != nil {
+		return domain.UserPage{}, err
+	}
+	users, err := s.users.List(ctx)
+	if err != nil {
+		return domain.UserPage{}, err
+	}
+	return q.PageUsers(users), nil
+}
+
+func (s *UserService) GetByID(ctx context.Context, id string) (domain.User, error) {
+	if err := domain.UserID(id).Validate(); err != nil {
+		return domain.User{}, err
+	}
+	return s.users.GetByID(ctx, id)
+}
+
+func (s *UserService) BatchGet(ctx context.Context, ids domain.UserIDs) ([]domain.User, error) {
+	if err := ids.Validate(); err != nil {
+		return nil, err
+	}
+	return s.users.GetMany(ctx, ids)
+}
+
+func (s *UserService) Create(ctx context.Context, in domain.UserWrite) (domain.User, error) {
+	if err := in.ValidateCreate(); err != nil {
+		return domain.User{}, err
+	}
+	hash, err := s.hasher.Hash(in.Password)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return s.users.Create(ctx, in.User(""), hash)
+}
+
+func (s *UserService) Update(ctx context.Context, actorID, id string, in domain.UserWrite) (domain.User, error) {
+	if err := domain.UserID(id).Validate(); err != nil {
+		return domain.User{}, err
+	}
+	if err := domain.UserID(id).RequireActor(actorID); err != nil {
+		return domain.User{}, err
+	}
+	if err := in.Validate(); err != nil {
+		return domain.User{}, err
+	}
+	return s.users.Update(ctx, in.User(id))
+}
+
+func (s *UserService) Delete(ctx context.Context, actorID, id string) error {
+	if err := domain.UserID(id).Validate(); err != nil {
+		return err
+	}
+	if err := domain.UserID(id).RequireActor(actorID); err != nil {
+		return err
+	}
+	return currentUserError(s.users.Delete(ctx, id))
+}
+
+func (s *UserService) Replace(ctx context.Context, actorID, userID string, in domain.UserReplace) (domain.User, error) {
+	if err := domain.UserID(userID).Validate(); err != nil {
+		return domain.User{}, err
+	}
+	if err := domain.UserID(userID).RequireActor(actorID); err != nil {
+		return domain.User{}, err
+	}
+	if err := in.Validate(); err != nil {
+		return domain.User{}, err
+	}
+	user, err := s.profiles.UpdateProfile(ctx, domain.User{ID: userID, Email: in.Email, Name: in.Name}, nil)
+	return user, currentUserError(err)
+}
+
+func (s *UserService) Patch(ctx context.Context, actorID, userID string, in domain.UserPatch) (domain.User, error) {
+	if err := domain.UserID(userID).Validate(); err != nil {
+		return domain.User{}, err
+	}
+	if err := domain.UserID(userID).RequireActor(actorID); err != nil {
+		return domain.User{}, err
+	}
+	if err := in.Validate(); err != nil {
+		return domain.User{}, err
+	}
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		return domain.User{}, currentUserError(err)
+	}
+	if in.Email != nil {
+		user.Email = *in.Email
+	}
+	if in.Name != nil {
+		user.Name = *in.Name
+	}
+	var hash *string
+	if in.Password != nil {
+		value, err := s.hasher.Hash(*in.Password)
+		if err != nil {
+			return domain.User{}, err
+		}
+		hash = &value
+	}
+	user, err = s.profiles.UpdateProfile(ctx, user, hash)
+	return user, currentUserError(err)
+}
+
+func currentUserError(err error) error {
+	if domain.Is(err, domain.CodeNotFound) {
+		return domain.Unauthorized("invalid token")
+	}
+	return err
+}
