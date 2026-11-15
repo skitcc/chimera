@@ -61,6 +61,7 @@ broken: «integration tests did not start», а прежние результа�
 | Модульные тесты бизнес-логики | нет | `<service>/internal/usecase` | фейки с состоянием (classic), моки и шпионы (london) | `UC-` |
 | Модульные тесты доступа к данным | нет | `<service>/internal/infra/postgres` | строки `stubDB`, pgxmock | `DA-`, `DA-PGX-` |
 | Модульные тесты Gateway | нет | `gateway/internal/...` | фейковые gRPC-клиенты | без spec ID |
+| Модульные тесты платформы | нет | `platform/...` | pgxmock-пул для маршрута чтения, локальный gRPC для повторов и заголовка пода | без spec ID |
 | Интеграция бизнес-логики | `integration` | `<service>/internal/usecase` | настоящий PostgreSQL, фейковое хранилище объектов | `IT-UC-` |
 | Интеграция доступа к данным | `integration` | `<service>/internal/infra/postgres` | настоящий PostgreSQL | `IT-DA-` |
 | Сквозной демо-сценарий | `e2e` | `e2e` | своя копия всей системы в Compose: четыре сервиса, PostgreSQL, RustFS, Kafka | `E2E-` |
@@ -123,6 +124,10 @@ broken: «integration tests did not start», а прежние результа�
   контейнеров сохраняется в `e2e-out/chimera-e2e-<id>.log`, проект удаляется
   вместе с томами. `E2E_KEEP_STACK=1` его оставляет. Нужен файл `.env` в
   корне репозитория.
+- `k8s-e2e` гоняет тот же сценарий против edge в minikube: `E2E_API_URL`
+  равен `http://<ingress>/api`, edge снимает префикс `/api`. Список после
+  записи опрашивается, пока строка не появится: чтение может попасть на реплику.
+  У каждого ответа `/v1` проверяются `X-Request-Id` (trace id) и `X-Chimera-Instance`.
 - `demo-capture` поднимает корневой `docker-compose.yml` разработчика, повторяет
   сценарий через `scripts/demo-requests.sh` (curl и jq в контейнере
   `nicolaka/netshoot`) и пишет захват трафика в `e2e-out/`. Это снимок трафика
