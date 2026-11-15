@@ -1,20 +1,51 @@
+x-runtime: &runtime
+  APP_MODE: ${APP_MODE}
+  LOG_LEVEL: ${LOG_LEVEL}
+  HEALTH_CHECK_INTERVAL: ${HEALTH_CHECK_INTERVAL}
+  HEALTH_CHECK_TIMEOUT: ${HEALTH_CHECK_TIMEOUT}
+
+x-grpc-server: &grpc-server
+  GRPC_ADDR: :9090
+  SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT}
+
+x-postgres-pool: &postgres-pool
+  POSTGRES_MIN_CONNS: ${POSTGRES_MIN_CONNS}
+  POSTGRES_MAX_CONNS: ${POSTGRES_MAX_CONNS}
+  POSTGRES_MAX_CONN_IDLE: ${POSTGRES_MAX_CONN_IDLE}
+  POSTGRES_MAX_CONN_LIFETIME: ${POSTGRES_MAX_CONN_LIFETIME}
+
+x-kafka-client: &kafka-client
+  KAFKA_BROKERS: kafka:9092
+  OUTBOX_POLL_INTERVAL: ${OUTBOX_POLL_INTERVAL}
+  OUTBOX_BATCH_SIZE: ${OUTBOX_BATCH_SIZE}
+
+x-ready-infra: &ready-infra
+  postgres:
+    condition: service_healthy
+  kafka-init:
+    condition: service_completed_successfully
+
 services:
   postgres:
-    image: postgres:latest
+    image: ${POSTGRES_IMAGE:-postgres:17-alpine}
     container_name: ${PROJECT_NAME:-chimera}-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_DB: postgres
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD}
+      CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD}
+      SOCIAL_DB_PASSWORD: ${SOCIAL_DB_PASSWORD}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - chimera-pg:/var/lib/postgresql
+      - chimera-services-pg:/var/lib/postgresql/data
+      - ./deploy/postgres/init-databases.sh:/docker-entrypoint-initdb.d/10-databases.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d postgres"]
       interval: 2s
       timeout: 5s
-      retries: 20
+      retries: 30
 
   minio:
     image: ${MINIO_IMAGE:-rustfs/rustfs:latest@sha256:8cc9801755448b71a786705ce76692c77e14936cccd87cf2fc31842e58f4d1ff}
@@ -40,35 +71,165 @@ services:
       retries: 20
       start_period: 10s
 
-  api:
+  kafka:
+    image: ${KAFKA_IMAGE:-apache/kafka:3.9.1}
+    container_name: ${PROJECT_NAME:-chimera}-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9094,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://127.0.0.1:${KAFKA_PORT:-9094}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports:
+      - "${KAFKA_PORT:-9094}:9094"
+    volumes:
+      - chimera-kafka:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 10s
+
+  kafka-init:
+    image: ${KAFKA_IMAGE:-apache/kafka:3.9.1}
+    container_name: ${PROJECT_NAME:-chimera}-kafka-init
+    entrypoint: ["/bin/sh", "/create-topics.sh"]
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      KAFKA_TOPIC_PARTITIONS: ${KAFKA_TOPIC_PARTITIONS:-3}
+      KAFKA_TOPIC_REPLICAS: 1
+    volumes:
+      - ./deploy/kafka/create-topics.sh:/create-topics.sh:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: "no"
+
+  keygen:
+    build:
+      context: ./deploy/keygen
+    container_name: ${PROJECT_NAME:-chimera}-keygen
+    environment:
+      KEY_OWNER_UID: "10001"
+    volumes:
+      - chimera-jwt-private:/keys/private
+      - chimera-jwt-public:/keys/public
+    restart: "no"
+
+  identity:
     build:
       context: ./backend
-    container_name: ${PROJECT_NAME:-chimera}-api
-    env_file:
-      - .env
+      dockerfile: identity/Dockerfile
+    container_name: ${PROJECT_NAME:-chimera}-identity
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      <<: [*runtime, *grpc-server, *postgres-pool, *kafka-client]
+      DATABASE_URL: postgres://identity:${IDENTITY_DB_PASSWORD}@postgres:5432/identity?sslmode=disable
+      JWT_PRIVATE_KEY_FILE: /keys/jwt.pem
+      JWT_TTL: ${JWT_TTL}
+    volumes:
+      - chimera-jwt-private:/keys:ro
+    depends_on:
+      <<: *ready-infra
+      keygen:
+        condition: service_completed_successfully
+
+  catalog:
+    build:
+      context: ./backend
+      dockerfile: catalog/Dockerfile
+    container_name: ${PROJECT_NAME:-chimera}-catalog
+    environment:
+      <<: [*runtime, *grpc-server, *postgres-pool, *kafka-client]
+      DATABASE_URL: postgres://catalog:${CATALOG_DB_PASSWORD}@postgres:5432/catalog?sslmode=disable
       S3_ENDPOINT: http://minio:9000
-      S3_PRESIGN_ENDPOINT: http://127.0.0.1:${MINIO_API_PORT:-9000}
+      S3_PRESIGN_ENDPOINT: ${S3_PRESIGN_ENDPOINT}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_REGION: ${S3_REGION}
+      S3_PRESIGN_TTL: ${S3_PRESIGN_TTL}
+      TRACK_MAX_BYTES: ${TRACK_MAX_BYTES}
+    depends_on:
+      <<: *ready-infra
+      minio:
+        condition: service_healthy
+
+  social:
+    build:
+      context: ./backend
+      dockerfile: social/Dockerfile
+    container_name: ${PROJECT_NAME:-chimera}-social
+    environment:
+      <<: [*runtime, *grpc-server, *postgres-pool]
+      DATABASE_URL: postgres://social:${SOCIAL_DB_PASSWORD}@postgres:5432/social?sslmode=disable
+      KAFKA_BROKERS: kafka:9092
+      IDENTITY_GRPC_ADDR: identity:9090
+      CATALOG_GRPC_ADDR: catalog:9090
+      GRPC_CLIENT_TIMEOUT: ${GRPC_CLIENT_TIMEOUT}
+    depends_on:
+      <<: *ready-infra
+      identity:
+        condition: service_healthy
+      catalog:
+        condition: service_healthy
+
+  gateway:
+    build:
+      context: ./backend
+      dockerfile: gateway/Dockerfile
+    container_name: ${PROJECT_NAME:-chimera}-gateway
+    environment:
+      <<: *runtime
+      HTTP_ADDR: :8080
+      HTTP_SHUTDOWN_TIMEOUT: ${HTTP_SHUTDOWN_TIMEOUT}
+      HTTP_READ_HEADER_TIMEOUT: ${HTTP_READ_HEADER_TIMEOUT}
       HTTP_CORS_ORIGIN: http://127.0.0.1:${FRONTEND_PORT:-5173},http://localhost:${FRONTEND_PORT:-5173}
+      JWT_PUBLIC_KEY_FILE: /keys/jwt.pub
+      AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT}
+      AUTH_RATE_WINDOW: ${AUTH_RATE_WINDOW}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES}
+      IDENTITY_GRPC_ADDR: identity:9090
+      CATALOG_GRPC_ADDR: catalog:9090
+      SOCIAL_GRPC_ADDR: social:9090
+      GRPC_CLIENT_TIMEOUT: ${GRPC_CLIENT_TIMEOUT}
+      STREAM_HOST: ${STREAM_HOST}
     ports:
       - "${API_PORT:-8080}:8080"
+    volumes:
+      - chimera-jwt-public:/keys:ro
     depends_on:
-      postgres:
+      identity:
         condition: service_healthy
-      minio:
+      catalog:
+        condition: service_healthy
+      social:
         condition: service_healthy
 
   web:
     build:
       context: ./frontend
     container_name: ${PROJECT_NAME:-chimera}-web
+    environment:
+      API_UPSTREAM: gateway:8080
     ports:
       - "${FRONTEND_PORT:-5173}:80"
     depends_on:
-      api:
+      gateway:
         condition: service_healthy
 
 volumes:
-  chimera-pg:
+  chimera-services-pg:
   chimera-objects:
+  chimera-kafka:
+  chimera-jwt-private:
+  chimera-jwt-public:
