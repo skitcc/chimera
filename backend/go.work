@@ -1,0 +1,12 @@
+go 1.26.0
+
+use (
+	./catalog
+	./contracts
+	./e2e
+	./gateway
+	./identity
+	./platform
+	./social
+	./testkit
+)
