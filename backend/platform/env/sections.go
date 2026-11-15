@@ -2,12 +2,15 @@ package env
 
 import (
 	"errors"
+	"os"
 	"time"
 )
 
 type Base struct {
 	Mode     Mode
 	LogLevel string
+	// Instance names this process in logs, metrics and the X-Chimera-Instance header.
+	Instance string
 }
 
 type Postgres struct {
@@ -40,7 +43,14 @@ func LoadBase() (Base, error) {
 	if err != nil {
 		return Base{}, err
 	}
-	return Base{Mode: mode, LogLevel: Optional("LOG_LEVEL")}, nil
+	instance := Optional("INSTANCE_NAME")
+	if instance == "" {
+		instance, err = os.Hostname()
+		if err != nil {
+			return Base{}, err
+		}
+	}
+	return Base{Mode: mode, LogLevel: Optional("LOG_LEVEL"), Instance: instance}, nil
 }
 
 func LoadPostgres(health Health) (Postgres, error) {

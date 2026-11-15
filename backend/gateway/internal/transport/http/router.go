@@ -20,14 +20,18 @@ type Dependencies struct {
 	Routes      Routes
 	CORSOrigins []string
 	Health      Readiness
+	Instance    string
 }
 
 func NewRouter(deps Dependencies) http.Handler {
 	r := chi.NewRouter()
+	metrics := middleware.NewMetrics(deps.Instance)
+	r.Use(middleware.Instance(deps.Instance))
+	r.Use(metrics.Middleware)
 	r.Use(middleware.CORS(deps.CORSOrigins))
 	r.Use(middleware.RunTrace(deps.Log))
 	r.Use(middleware.RequestLogger(deps.Log))
-
+	r.Get("/metrics", metrics.ServeHTTP)
 	r.Get("/live", Live)
 	r.Get("/ready", Ready(deps.Health))
 	r.Get("/swagger/*", httpSwagger.WrapHandler)

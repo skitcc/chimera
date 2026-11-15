@@ -1,6 +1,6 @@
 // @title Sound Chimera API
 // @version 1.0.0
-// @BasePath /
+// @BasePath /api
 // @tag.name sessions
 // @tag.description Вход
 // @tag.name users
@@ -113,6 +113,7 @@ func run(ctx context.Context, log *slog.Logger, cfg config.Config) error {
 		Tokens:      verifier,
 		CORSOrigins: cfg.HTTP.CORSOrigins,
 		Health:      monitor,
+		Instance:    cfg.Base.Instance,
 		Routes: v1.New(
 			users,
 			users,
