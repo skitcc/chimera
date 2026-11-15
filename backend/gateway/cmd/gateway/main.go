@@ -33,6 +33,7 @@ import (
 	catalogv1 "chimera/contracts/gen/catalog/v1"
 	identityv1 "chimera/contracts/gen/identity/v1"
 	socialv1 "chimera/contracts/gen/social/v1"
+	"chimera/contracts/rpc"
 	"chimera/gateway/internal/clients"
 	"chimera/gateway/internal/config"
 	"chimera/gateway/internal/infra/auth"
@@ -43,6 +44,7 @@ import (
 	"chimera/platform/grpcx"
 	"chimera/platform/health"
 	"chimera/platform/logger"
+	"chimera/platform/telemetry"
 	"chimera/platform/worker"
 
 	_ "chimera/gateway/docs"
@@ -60,7 +62,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	log := logger.New(service, cfg.Base.Mode, cfg.Base.LogLevel)
+	log := logger.New(service, cfg.Base)
 	ctx, stop := signal.NotifyContext(root, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -72,6 +74,13 @@ func main() {
 }
 
 func run(ctx context.Context, log *slog.Logger, cfg config.Config) error {
+	tel, err := telemetry.Start(ctx, service, cfg.Base)
+	if err != nil {
+		return err
+	}
+	defer tel.Flush(log, cfg.HTTP.ShutdownTimeout)
+	tel.Serve(ctx, log, cfg.Base.MetricsAddr, cfg.Health.Timeout)
+
 	key, err := auth.LoadPublicKey(cfg.Auth.PublicKeyFile)
 	if err != nil {
 		return err
@@ -88,7 +97,7 @@ func run(ctx context.Context, log *slog.Logger, cfg config.Config) error {
 	conns := make(map[string]*grpc.ClientConn, len(upstreams))
 	checks := make([]health.Check, 0, len(upstreams))
 	for _, u := range upstreams {
-		conn, err := grpcx.Dial(u.addr, cfg.Upstreams.Timeout)
+		conn, err := grpcx.Dial(u.addr, cfg.Upstreams.Client, log, rpc.RepeatUnsafe...)
 		if err != nil {
 			return err
 		}
@@ -109,11 +118,13 @@ func run(ctx context.Context, log *slog.Logger, cfg config.Config) error {
 
 	verifier := auth.NewVerifier(key)
 	router := httpapi.NewRouter(httpapi.Dependencies{
-		Log:         log,
-		Tokens:      verifier,
-		CORSOrigins: cfg.HTTP.CORSOrigins,
-		Health:      monitor,
-		Instance:    cfg.Base.Instance,
+		Log:            log,
+		Tokens:         verifier,
+		CORSOrigins:    cfg.HTTP.CORSOrigins,
+		Health:         monitor,
+		Instance:       cfg.Base.Instance,
+		Metrics:        tel.Registerer,
+		MetricsHandler: tel.MetricsHandler(),
 		Routes: v1.New(
 			users,
 			users,
@@ -131,6 +142,7 @@ func run(ctx context.Context, log *slog.Logger, cfg config.Config) error {
 		Addr:              cfg.HTTP.Addr,
 		Handler:           router,
 		ReadHeaderTimeout: cfg.HTTP.ReadHeaderTimeout,
+		WriteTimeout:      cfg.HTTP.WriteTimeout,
 	}
 
 	errc := make(chan error, 1)

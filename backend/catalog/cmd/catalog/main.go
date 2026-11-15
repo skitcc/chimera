@@ -8,11 +8,13 @@ import (
 	"os/signal"
 	"syscall"
 
+	"google.golang.org/grpc"
+
 	"chimera/catalog/internal/config"
 	"chimera/catalog/internal/infra/postgres"
 	"chimera/catalog/internal/infra/s3"
-	grpcapi "chimera/catalog/internal/transport/grpc"
 	"chimera/catalog/internal/transport/events"
+	grpcapi "chimera/catalog/internal/transport/grpc"
 	"chimera/catalog/internal/usecase"
 	"chimera/catalog/migrations"
 	topics "chimera/contracts/events"
@@ -24,6 +26,8 @@ import (
 	"chimera/platform/logger"
 	"chimera/platform/outbox"
 	"chimera/platform/pg"
+	"chimera/platform/readpref"
+	"chimera/platform/telemetry"
 	"chimera/platform/worker"
 )
 
@@ -37,6 +41,7 @@ const (
 func main() {
 	root := context.Background()
 	healthcheck := flag.Bool("healthcheck", false, "probe the local gRPC health service and exit")
+	replayDLQ := flag.Bool("replay-dlq", false, "move the records of the consumed topics' DLQs back and exit")
 	flag.Parse()
 	env.LoadDotEnv(".")
 
@@ -52,9 +57,18 @@ func main() {
 		return
 	}
 
-	log := logger.New(service, cfg.Base.Mode, cfg.Base.LogLevel)
+	log := logger.New(service, cfg.Base)
 	ctx, stop := signal.NotifyContext(root, os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if *replayDLQ {
+		moved, err := kafka.ReplayDLQ(ctx, cfg.Kafka, []string{topics.TopicUser, topics.TopicTrack}, cfg.Health.Timeout, log)
+		if err != nil {
+			log.ErrorContext(ctx, "dlq replay failed", "moved", moved, "error", err)
+			os.Exit(1)
+		}
+		log.InfoContext(ctx, "dlq replay finished", "moved", moved)
+		return
+	}
 
 	if err := run(ctx, log, cfg); err != nil {
 		log.ErrorContext(ctx, "catalog stopped", "error", err)
@@ -64,14 +78,27 @@ func main() {
 }
 
 func run(ctx context.Context, log *slog.Logger, cfg config.Config) error {
-	pool, err := pg.Connect(ctx, log, cfg.Postgres, cfg.Health)
+	tel, err := telemetry.Start(ctx, service, cfg.Base)
 	if err != nil {
 		return err
 	}
-	defer pool.Close()
-	if err := pg.Migrate(pool, migrations.FS, "."); err != nil {
+	defer tel.Flush(log, cfg.GRPC.ShutdownTimeout)
+	tel.Serve(ctx, log, cfg.Base.MetricsAddr, cfg.Health.Timeout)
+
+	primary, err := pg.Connect(ctx, log, cfg.Postgres, cfg.Health)
+	if err != nil {
 		return err
 	}
+	defer primary.Close()
+	if err := pg.Migrate(primary, migrations.FS, "."); err != nil {
+		return err
+	}
+	pools, err := pg.OpenPools(ctx, log, primary, cfg.Postgres, cfg.Health)
+	if err != nil {
+		return err
+	}
+	defer pools.Close()
+	go pools.WatchReplica(ctx, cfg.Health.Interval, cfg.Health.Timeout)
 
 	objects, err := connectS3(ctx, log, cfg)
 	if err != nil {
@@ -84,7 +111,7 @@ func run(ctx context.Context, log *slog.Logger, cfg config.Config) error {
 	}
 	defer producer.Close()
 
-	tracks := postgres.NewTrackRepository(pool)
+	tracks := postgres.NewTrackRepository(pools)
 	trackService := usecase.NewTrackService(tracks, objects, cfg.TrackMaxBytes)
 	handlers := events.NewHandlers(usecase.NewCleanupService(tracks, objects))
 
@@ -99,13 +126,17 @@ func run(ctx context.Context, log *slog.Logger, cfg config.Config) error {
 	}
 	defer objectConsumer.Close()
 
-	srv := grpcx.NewServer(log)
+	srv := grpcx.NewServer(log, grpcx.ServerConfig{
+		Instance:         cfg.Base.Instance,
+		MaxConnectionAge: cfg.GRPC.MaxConnectionAge,
+		Interceptors:     []grpc.UnaryServerInterceptor{readpref.Interceptor(grpcapi.ReplicaMethods...)},
+	})
 	catalogv1.RegisterCatalogServiceServer(srv, grpcapi.NewServer(trackService))
 
-	// Kafka is not a readiness dependency: the outbox and consumer offsets
-	// carry the work over a broker outage.
+	// Kafka and the replica are not readiness dependencies: the outbox and consumer
+	// offsets carry the work over a broker outage, and reads fall back to the primary.
 	checks := []health.Check{
-		{Name: "postgres", Ping: pool.Ping},
+		{Name: "postgres", Ping: primary.Ping},
 		{Name: "s3", Ping: objects.Ping},
 	}
 	workers := worker.New(ctx, len(checks))
@@ -114,7 +145,7 @@ func run(ctx context.Context, log *slog.Logger, cfg config.Config) error {
 	monitor.Watch(srv.SetReady)
 	go monitor.Run(ctx)
 
-	relay := outbox.NewRelay(pool, producer, log, service, cfg.Kafka.OutboxPollInterval, cfg.Kafka.OutboxBatchSize)
+	relay := outbox.NewRelay(pools.Write(), producer, log, service, cfg.Kafka.OutboxPollInterval, cfg.Kafka.OutboxBatchSize)
 	go relay.Run(ctx)
 	go userConsumer.Run(ctx)
 	go objectConsumer.Run(ctx)

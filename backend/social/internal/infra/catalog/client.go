@@ -4,8 +4,9 @@ package catalog
 import (
 	"context"
 
-	commonv1 "chimera/contracts/gen/common/v1"
 	catalogv1 "chimera/contracts/gen/catalog/v1"
+	commonv1 "chimera/contracts/gen/common/v1"
+	"chimera/platform/readpref"
 	"chimera/social/internal/domain"
 )
 
@@ -32,7 +33,7 @@ func (c *Client) GetTracks(ctx context.Context, ids []string) ([]domain.Track, e
 	if len(ids) == 0 {
 		return []domain.Track{}, nil
 	}
-	res, err := c.api.BatchGetTracks(ctx, &catalogv1.BatchGetTracksRequest{Ids: ids})
+	res, err := c.api.BatchGetTracks(ctx, &catalogv1.BatchGetTracksRequest{Ids: ids, Consistency: consistency(ctx)})
 	if err != nil {
 		return nil, err
 	}
@@ -75,4 +76,13 @@ func fromTracks(tracks []*catalogv1.Track) []domain.Track {
 		})
 	}
 	return out
+}
+
+// consistency asks Catalog for the primary while Social serves a write, so a check
+// that guards the write never sees a lagging replica.
+func consistency(ctx context.Context) commonv1.Consistency {
+	if readpref.IsPrimary(ctx) {
+		return commonv1.Consistency_CONSISTENCY_STRONG
+	}
+	return commonv1.Consistency_CONSISTENCY_EVENTUAL
 }

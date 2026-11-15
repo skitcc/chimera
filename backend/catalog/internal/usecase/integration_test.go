@@ -3,6 +3,7 @@
 package usecase
 
 import (
+	"chimera/platform/pg"
 	"context"
 	"errors"
 	"reflect"
@@ -22,7 +23,7 @@ const (
 	integrationMaxBytes = int64(1024)
 	integrationSize     = int64(128)
 	nilUUID             = "00000000-0000-0000-0000-000000000000"
-	resetTables         = `TRUNCATE outbox, processed_events, deleted_users, tracks RESTART IDENTITY CASCADE`
+	resetTables         = `TRUNCATE idempotency_keys, outbox, processed_events, deleted_users, tracks RESTART IDENTITY CASCADE`
 )
 
 type seededUser struct {
@@ -64,7 +65,7 @@ func newAppFixture(t *testing.T, objects ObjectStorage) *appFixture {
 	ctx := context.Background()
 	pool := testkit.Open(t, migrations.FS, resetTables)
 
-	tracks := postgres.NewTrackRepository(pool)
+	tracks := postgres.NewTrackRepository(pg.Single(pool))
 	if objects == nil {
 		objects = storedObject{size: integrationSize}
 	}

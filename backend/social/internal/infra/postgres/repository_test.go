@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"chimera/platform/pg"
 	"context"
 	"errors"
 	"fmt"
@@ -199,3 +200,14 @@ func assertRowsClosed(t *testing.T, rows *stubRows) {
 	}
 }
 
+func newTrackLikeRepository(db pg.TxDB) *TrackLikeRepository {
+	return NewTrackLikeRepository(pg.Single(db))
+}
+
+func newFollowRepository(db pg.TxDB) *FollowRepository {
+	return NewFollowRepository(pg.Single(db))
+}
+
+func newPlaylistRepository(db pg.TxDB) *PlaylistRepository {
+	return NewPlaylistRepository(pg.Single(db))
+}

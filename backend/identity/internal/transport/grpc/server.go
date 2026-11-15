@@ -4,9 +4,20 @@ package grpc
 import (
 	"context"
 
+	commonv1 "chimera/contracts/gen/common/v1"
 	identityv1 "chimera/contracts/gen/identity/v1"
 	"chimera/identity/internal/domain"
+	"chimera/platform/idempotency"
+	"chimera/platform/readpref"
 )
+
+// ReplicaMethods may read a replica. CreateSession is not here: a login right
+// after registration or a password change must see the primary.
+var ReplicaMethods = []string{
+	identityv1.IdentityService_GetUser_FullMethodName,
+	identityv1.IdentityService_BatchGetUsers_FullMethodName,
+	identityv1.IdentityService_ListUsers_FullMethodName,
+}
 
 type UserService interface {
 	List(ctx context.Context, q domain.PageQuery) (domain.UserPage, error)
@@ -41,6 +52,10 @@ func (s *Server) CreateSession(ctx context.Context, req *identityv1.CreateSessio
 }
 
 func (s *Server) CreateUser(ctx context.Context, req *identityv1.CreateUserRequest) (*identityv1.CreateUserResponse, error) {
+	ctx, err := idempotency.With(ctx, req.GetIdempotencyKey())
+	if err != nil {
+		return nil, err
+	}
 	user, err := s.users.Create(ctx, domain.UserWrite{
 		Email:    req.GetEmail(),
 		Name:     req.GetName(),
@@ -53,7 +68,7 @@ func (s *Server) CreateUser(ctx context.Context, req *identityv1.CreateUserReque
 }
 
 func (s *Server) GetUser(ctx context.Context, req *identityv1.GetUserRequest) (*identityv1.GetUserResponse, error) {
-	user, err := s.users.GetByID(ctx, req.GetId())
+	user, err := s.users.GetByID(withConsistency(ctx, req.GetConsistency()), req.GetId())
 	if err != nil {
 		return nil, err
 	}
@@ -121,4 +136,12 @@ func toUsers(users []domain.User) []*identityv1.User {
 		out = append(out, toUser(u))
 	}
 	return out
+}
+
+// withConsistency sends a STRONG read to the primary.
+func withConsistency(ctx context.Context, c commonv1.Consistency) context.Context {
+	if c == commonv1.Consistency_CONSISTENCY_STRONG {
+		return readpref.Primary(ctx)
+	}
+	return ctx
 }

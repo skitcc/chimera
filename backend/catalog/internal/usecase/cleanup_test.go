@@ -70,7 +70,9 @@ func TestCleanupServiceRemoveUserTracks(t *testing.T) {
 			var store *fakeCleanupStore
 			var err error
 			r.Arrange(func(t *testing.T) { store = &fakeCleanupStore{} })
-			r.Act(func(t *testing.T) { err = NewCleanupService(store, store).RemoveUserTracks(context.Background(), tc.in) })
+			r.Act(func(t *testing.T) {
+				err = NewCleanupService(store, store).RemoveUserTracks(context.Background(), tc.in)
+			})
 			r.Assert(func(t *testing.T) {
 				assertDomainError(t, err, domain.CodeInvalid, tc.message)
 				assertEqual(t, 0, len(store.deletions))
@@ -93,7 +95,9 @@ func TestCleanupServiceRemoveObject(t *testing.T) {
 		var store *fakeCleanupStore
 		var err error
 		r.Arrange(func(t *testing.T) { store = &fakeCleanupStore{} })
-		r.Act(func(t *testing.T) { err = NewCleanupService(store, store).RemoveObject(context.Background(), "track-1.mp3") })
+		r.Act(func(t *testing.T) {
+			err = NewCleanupService(store, store).RemoveObject(context.Background(), "track-1.mp3")
+		})
 		r.Assert(func(t *testing.T) {
 			assertNoError(t, err)
 			assertEqual(t, []string{"track-1.mp3"}, store.removed)

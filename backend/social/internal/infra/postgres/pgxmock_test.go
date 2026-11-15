@@ -47,7 +47,7 @@ func TestTrackLikeRepositoryPGXMock(t *testing.T) {
 			db.ExpectExec(`INSERT INTO track_likes`).
 				WithArgs("user-1", "track-1").
 				WillReturnError(dbErr)
-			repo = NewTrackLikeRepository(db)
+			repo = newTrackLikeRepository(db)
 		})
 		r.Act(func(t *testing.T) { err = repo.Add(context.Background(), "user-1", "track-1") })
 		r.Assert(func(t *testing.T) {

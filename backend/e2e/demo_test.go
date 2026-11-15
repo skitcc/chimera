@@ -141,10 +141,11 @@ func TestDemoScenario(t *testing.T) {
 		})
 
 		step("08 feed shows ready track", func(t *testing.T) {
-			track, ok := api.tracks(t, "/v1/tracks?limit=100&artist="+artistName, "").find(trackID)
-			if !ok || track.Status != "ready" {
-				t.Fatalf("ready track %s missing from the feed", trackID)
-			}
+			// ListTracks may read a replica, so the row can arrive a moment after the write.
+			eventually(t, "ready track in the feed", func() bool {
+				track, ok := api.tracks(t, "/v1/tracks?limit=100&artist="+artistName, "").find(trackID)
+				return ok && track.Status == "ready"
+			})
 		})
 
 		step("09 register listener", func(t *testing.T) {
@@ -179,9 +180,9 @@ func TestDemoScenario(t *testing.T) {
 		likedPath := func() string { return "/v1/tracks?limit=100&liked_by=" + listener.UserID }
 
 		step("14 liked list", func(t *testing.T) {
-			if !api.tracks(t, likedPath(), listener.Token).has(trackID) {
-				t.Fatalf("liked list misses %s", trackID)
-			}
+			eventually(t, "liked track in the list", func() bool {
+				return api.tracks(t, likedPath(), listener.Token).has(trackID)
+			})
 		})
 
 		step("15 stream redirect", func(t *testing.T) {
@@ -314,6 +315,14 @@ func (c *client) doURL(t *testing.T, method, rawURL, token string, body []byte) 
 		t.Fatalf("%s %s: %v", method, rawURL, err)
 	}
 	defer res.Body.Close()
+	if strings.HasPrefix(rawURL, c.base+"/v1/") {
+		if got := res.Header.Get("X-Request-Id"); len(got) != 32 {
+			t.Fatalf("X-Request-Id %q", got)
+		}
+		if res.Header.Get("X-Chimera-Instance") == "" {
+			t.Fatal("X-Chimera-Instance is empty")
+		}
+	}
 	raw, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatalf("read body: %v", err)

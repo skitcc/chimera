@@ -3,12 +3,14 @@ package postgres
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
 
 	"chimera/catalog/internal/domain"
 	"chimera/contracts/events"
 	eventsv1 "chimera/contracts/gen/events/v1"
+	"chimera/platform/idempotency"
 	"chimera/platform/outbox"
 	"chimera/platform/pg"
 )
@@ -18,11 +20,20 @@ const (
 	trackCols = `id::text, user_id::text, title, artist, object_key, size_bytes, status`
 )
 
-type TrackRepository struct {
-	db pg.TxDB
+// Pools routes each statement to the primary or a replica.
+type Pools interface {
+	Write() pg.TxDB
+	Read(ctx context.Context) pg.DB
+	Find(ctx context.Context, fn func(pg.DB) error) error
 }
 
-func NewTrackRepository(db pg.TxDB) *TrackRepository {
+// TrackRepository serves the feed and lookups from a replica; writes and the
+// lookups of a request that writes (see readpref) use the primary.
+type TrackRepository struct {
+	db Pools
+}
+
+func NewTrackRepository(db Pools) *TrackRepository {
 	return &TrackRepository{db: db}
 }
 
@@ -73,7 +84,7 @@ func (r *TrackRepository) List(ctx context.Context, filter domain.TrackFilter) (
 		ids = append([]string{}, filter.IDs...)
 	}
 
-	rows, err := r.db.Query(ctx,
+	rows, err := r.db.Read(ctx).Query(ctx,
 		`SELECT `+trackCols+`
 		 FROM tracks
 		 WHERE ($1::text IS NULL OR status = $1)
@@ -90,7 +101,12 @@ func (r *TrackRepository) List(ctx context.Context, filter domain.TrackFilter) (
 }
 
 func (r *TrackRepository) GetByID(ctx context.Context, id string) (domain.Track, error) {
-	t, err := scanTrack(r.db.QueryRow(ctx, `SELECT `+trackCols+` FROM tracks WHERE id = $1::uuid`, id))
+	var t domain.Track
+	err := r.db.Find(ctx, func(db pg.DB) error {
+		var err error
+		t, err = scanTrack(db.QueryRow(ctx, `SELECT `+trackCols+` FROM tracks WHERE id = $1::uuid`, id))
+		return err
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Track{}, domain.NotFound("track not found")
 	}
@@ -101,7 +117,7 @@ func (r *TrackRepository) GetByID(ctx context.Context, id string) (domain.Track,
 }
 
 func (r *TrackRepository) GetMany(ctx context.Context, ids []string) ([]domain.Track, error) {
-	rows, err := r.db.Query(ctx,
+	rows, err := r.db.Read(ctx).Query(ctx,
 		`SELECT `+trackCols+` FROM tracks WHERE id = ANY($1::uuid[]) ORDER BY created_at, id`, ids)
 	if err != nil {
 		return nil, mapError(err, "get tracks")
@@ -109,9 +125,47 @@ func (r *TrackRepository) GetMany(ctx context.Context, ids []string) ([]domain.T
 	return collectTracks(rows)
 }
 
-// Create refuses owners whose UserDeleted event Catalog has already applied.
+const opCreateTrack = "catalog.CreateTrack"
+
+// Create refuses owners whose UserDeleted event Catalog has already applied. With
+// an idempotency key in ctx a repeat returns the track the first call created.
 func (r *TrackRepository) Create(ctx context.Context, t domain.Track) (domain.Track, error) {
-	t, err := scanTrack(r.db.QueryRow(ctx,
+	if idempotency.From(ctx) == "" {
+		return insertTrack(ctx, r.db.Write(), t)
+	}
+	var created domain.Track
+	err := pg.InTx(ctx, r.db.Write(), func(tx pgx.Tx) error {
+		replay, err := idempotency.Claim(ctx, tx, opCreateTrack, t.UserID,
+			t.Title, t.Artist, strconv.FormatInt(t.SizeBytes, 10))
+		if err != nil {
+			return err
+		}
+		if replay != "" {
+			created, err = getTrack(ctx, tx, replay)
+			return err
+		}
+		created, err = insertTrack(ctx, tx, t)
+		if err != nil {
+			return err
+		}
+		return idempotency.Complete(ctx, tx, opCreateTrack, t.UserID, created.ID)
+	})
+	return created, err
+}
+
+func getTrack(ctx context.Context, db pg.DB, id string) (domain.Track, error) {
+	t, err := scanTrack(db.QueryRow(ctx, `SELECT `+trackCols+` FROM tracks WHERE id = $1::uuid`, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Track{}, domain.NotFound("track not found")
+	}
+	if err != nil {
+		return domain.Track{}, mapError(err, "get track")
+	}
+	return t, nil
+}
+
+func insertTrack(ctx context.Context, db pg.DB, t domain.Track) (domain.Track, error) {
+	t, err := scanTrack(db.QueryRow(ctx,
 		`INSERT INTO tracks (id, user_id, title, artist, object_key, size_bytes, status)
 		 SELECT i, $1::uuid, $2, $3, i::text || '.mp3', $4, $5
 		 FROM (SELECT gen_random_uuid() AS i) s
@@ -129,7 +183,7 @@ func (r *TrackRepository) Create(ctx context.Context, t domain.Track) (domain.Tr
 }
 
 func (r *TrackRepository) Update(ctx context.Context, t domain.Track) (domain.Track, error) {
-	t, err := scanTrack(r.db.QueryRow(ctx,
+	t, err := scanTrack(r.db.Write().QueryRow(ctx,
 		`UPDATE tracks SET user_id = $2::uuid, title = $3, artist = $4, object_key = $5, size_bytes = $6, status = $7
 		 WHERE id = $1::uuid
 		 RETURNING `+trackCols,
@@ -147,7 +201,7 @@ func (r *TrackRepository) Update(ctx context.Context, t domain.Track) (domain.Tr
 // Delete removes the track and writes TrackDeleted to the outbox in the same
 // transaction. Social drops likes and playlist entries, catalog-objects drops the audio.
 func (r *TrackRepository) Delete(ctx context.Context, id string) error {
-	return pg.InTx(ctx, r.db, func(tx pgx.Tx) error {
+	return pg.InTx(ctx, r.db.Write(), func(tx pgx.Tx) error {
 		var d domain.DeletedTrack
 		err := tx.QueryRow(ctx,
 			`DELETE FROM tracks WHERE id = $1::uuid RETURNING id::text, user_id::text, object_key`, id,
@@ -163,7 +217,7 @@ func (r *TrackRepository) Delete(ctx context.Context, id string) error {
 }
 
 func (r *TrackRepository) DeleteByUser(ctx context.Context, d domain.UserDeletion) error {
-	return pg.InTx(ctx, r.db, func(tx pgx.Tx) error {
+	return pg.InTx(ctx, r.db.Write(), func(tx pgx.Tx) error {
 		fresh, err := pg.MarkProcessed(ctx, tx, d.EventID)
 		if err != nil || !fresh {
 			return err

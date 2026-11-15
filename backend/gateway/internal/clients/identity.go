@@ -5,6 +5,7 @@ import (
 
 	identityv1 "chimera/contracts/gen/identity/v1"
 	"chimera/gateway/internal/domain"
+	"chimera/platform/idempotency"
 )
 
 // Identity serves /v1/sessions and /v1/users.
@@ -45,7 +46,12 @@ func (c *Identity) GetByID(ctx context.Context, id string) (domain.User, error) 
 }
 
 func (c *Identity) Create(ctx context.Context, in domain.UserWrite) (domain.User, error) {
-	resp, err := c.client.CreateUser(ctx, &identityv1.CreateUserRequest{Email: in.Email, Name: in.Name, Password: in.Password})
+	resp, err := c.client.CreateUser(ctx, &identityv1.CreateUserRequest{
+		Email:          in.Email,
+		Name:           in.Name,
+		Password:       in.Password,
+		IdempotencyKey: idempotency.From(ctx),
+	})
 	if err != nil {
 		return domain.User{}, err
 	}

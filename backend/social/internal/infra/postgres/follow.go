@@ -3,17 +3,16 @@ package postgres
 import (
 	"context"
 
-	"chimera/platform/pg"
 	"chimera/social/internal/domain"
 )
 
 const notDeleted = `NOT EXISTS (SELECT 1 FROM deleted_users d WHERE d.user_id IN ($1::uuid, f.id))`
 
 type FollowRepository struct {
-	db pg.DB
+	db Pools
 }
 
-func NewFollowRepository(db pg.DB) *FollowRepository {
+func NewFollowRepository(db Pools) *FollowRepository {
 	return &FollowRepository{db: db}
 }
 
@@ -23,7 +22,7 @@ func (r *FollowRepository) Add(ctx context.Context, followerID, followingID stri
 }
 
 func (r *FollowRepository) Remove(ctx context.Context, followerID, followingID string) error {
-	_, err := r.db.Exec(ctx,
+	_, err := r.db.Write().Exec(ctx,
 		`DELETE FROM user_follows WHERE follower_id = $1::uuid AND following_id = $2::uuid`,
 		followerID, followingID,
 	)
@@ -34,7 +33,7 @@ func (r *FollowRepository) Remove(ctx context.Context, followerID, followingID s
 }
 
 func (r *FollowRepository) AddMany(ctx context.Context, followerID string, followingIDs []string) error {
-	_, err := r.db.Exec(ctx,
+	_, err := r.db.Write().Exec(ctx,
 		`INSERT INTO user_follows (follower_id, following_id)
 		 SELECT $1::uuid, f.id FROM unnest($2::uuid[]) AS f(id)
 		 WHERE `+notDeleted+`
@@ -48,7 +47,7 @@ func (r *FollowRepository) AddMany(ctx context.Context, followerID string, follo
 }
 
 func (r *FollowRepository) RemoveMany(ctx context.Context, followerID string, followingIDs []string) error {
-	_, err := r.db.Exec(ctx,
+	_, err := r.db.Write().Exec(ctx,
 		`DELETE FROM user_follows WHERE follower_id = $1::uuid AND following_id = ANY($2::uuid[])`,
 		followerID, followingIDs,
 	)
@@ -68,7 +67,7 @@ func (r *FollowRepository) List(ctx context.Context, filter domain.FollowFilter)
 		followingID = filter.FollowingID
 	}
 
-	rows, err := r.db.Query(ctx,
+	rows, err := r.db.Read(ctx).Query(ctx,
 		`SELECT follower_id::text, following_id::text, created_at
 		 FROM user_follows
 		 WHERE ($1::uuid IS NULL OR follower_id = $1)

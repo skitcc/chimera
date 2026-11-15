@@ -7,15 +7,18 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"chimera/gateway/internal/transport/http/middleware"
 )
 
-func TestMetricsRecordsInstance(t *testing.T) {
-	m := middleware.NewMetrics("api-read-1")
+func TestMetricsRecordsRoutePattern(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	m := middleware.NewMetrics(reg)
 	r := chi.NewRouter()
 	r.Use(m.Middleware)
-	r.Get("/metrics", m.ServeHTTP)
+	r.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 	r.Get("/v1/tracks", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -34,9 +37,6 @@ func TestMetricsRecordsInstance(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, "chimera_http_requests_total{") {
 		t.Fatalf("counter missing: %s", body)
-	}
-	if !strings.Contains(body, `instance="api-read-1"`) {
-		t.Fatalf("instance missing: %s", body)
 	}
 	if !strings.Contains(body, `path="/v1/tracks"`) {
 		t.Fatalf("path missing: %s", body)

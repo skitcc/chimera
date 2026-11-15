@@ -1,15 +1,11 @@
 package config
 
-import (
-	"time"
-
-	"chimera/platform/env"
-)
+import "chimera/platform/env"
 
 type Upstreams struct {
 	CatalogAddr  string
 	IdentityAddr string
-	Timeout      time.Duration
+	Client       env.GRPCClient
 }
 
 type Config struct {
@@ -39,7 +35,7 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	// Social only consumes, so it has no outbox settings.
-	brokers, err := env.List("KAFKA_BROKERS")
+	kafka, err := env.LoadKafkaConsumer()
 	if err != nil {
 		return Config{}, err
 	}
@@ -51,7 +47,7 @@ func Load() (Config, error) {
 		Base:      base,
 		GRPC:      grpcCfg,
 		Postgres:  pg,
-		Kafka:     env.Kafka{Brokers: brokers},
+		Kafka:     kafka,
 		Health:    health,
 		Upstreams: upstreams,
 	}, nil
@@ -66,9 +62,9 @@ func loadUpstreams() (Upstreams, error) {
 	if err != nil {
 		return Upstreams{}, err
 	}
-	timeout, err := env.Duration("GRPC_CLIENT_TIMEOUT")
+	client, err := env.LoadGRPCClient()
 	if err != nil {
 		return Upstreams{}, err
 	}
-	return Upstreams{CatalogAddr: catalog, IdentityAddr: identity, Timeout: timeout}, nil
+	return Upstreams{CatalogAddr: catalog, IdentityAddr: identity, Client: client}, nil
 }

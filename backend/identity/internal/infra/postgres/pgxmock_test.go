@@ -51,7 +51,7 @@ func TestUserRepositoryPGXMock(t *testing.T) {
 				WithArgs("user-1").
 				WillReturnRows(pgxmock.NewRows([]string{"id", "email", "name"}).
 					AddRow("user-1", "listener@example.com", "Listener"))
-			repo = NewUserRepository(db)
+			repo = newUserRepository(db)
 		})
 		r.Act(func(t *testing.T) { got, err = repo.GetByID(context.Background(), "user-1") })
 		r.Assert(func(t *testing.T) {
@@ -78,7 +78,7 @@ func TestUserRepositoryPGXMock(t *testing.T) {
 			db.ExpectQuery(regexp.QuoteMeta(userByIDSQL)).
 				WithArgs("missing").
 				WillReturnError(pgx.ErrNoRows)
-			repo = NewUserRepository(db)
+			repo = newUserRepository(db)
 		})
 		r.Act(func(t *testing.T) { _, err = repo.GetByID(context.Background(), "missing") })
 		r.Assert(func(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 
 	socialv1 "chimera/contracts/gen/social/v1"
 	"chimera/gateway/internal/domain"
+	"chimera/platform/idempotency"
 )
 
 // Follows serves /v1/follows.
@@ -95,7 +96,12 @@ func (c *Playlists) List(ctx context.Context, q domain.PlaylistListQuery) (domai
 }
 
 func (c *Playlists) Create(ctx context.Context, ownerID string, in domain.PlaylistReplace) (domain.Playlist, error) {
-	resp, err := c.client.CreatePlaylist(ctx, &socialv1.CreatePlaylistRequest{ActorId: ownerID, Title: in.Title, IsPublic: in.IsPublic})
+	resp, err := c.client.CreatePlaylist(ctx, &socialv1.CreatePlaylistRequest{
+		ActorId:        ownerID,
+		Title:          in.Title,
+		IsPublic:       in.IsPublic,
+		IdempotencyKey: idempotency.From(ctx),
+	})
 	if err != nil {
 		return domain.Playlist{}, err
 	}

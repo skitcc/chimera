@@ -3,6 +3,7 @@
 package usecase
 
 import (
+	"chimera/platform/pg"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -23,7 +24,7 @@ import (
 
 const (
 	nilUUID     = "00000000-0000-0000-0000-000000000000"
-	resetTables = `TRUNCATE outbox, users RESTART IDENTITY CASCADE`
+	resetTables = `TRUNCATE idempotency_keys, outbox, users RESTART IDENTITY CASCADE`
 )
 
 type appFixture struct {
@@ -43,7 +44,7 @@ func newAppFixture(t *testing.T) *appFixture {
 		t.Fatalf("generate key: %v", err)
 	}
 
-	users := postgres.NewUserRepository(pool)
+	users := postgres.NewUserRepository(pg.Single(pool))
 	hasher := infraauth.NewBcryptHasher()
 	return &appFixture{
 		ctx:     ctx,

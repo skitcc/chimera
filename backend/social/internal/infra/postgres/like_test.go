@@ -30,7 +30,7 @@ func TestTrackLikeRepositoryAdd(t *testing.T) {
 		var repo *TrackLikeRepository
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackLikeRepository(stubDB{
+			repo = newTrackLikeRepository(stubDB{
 				execFn: func(_ context.Context, _ string, args ...any) (pgconn.CommandTag, error) {
 					gotArgs = args
 					return pgconn.NewCommandTag("INSERT 0 1"), nil
@@ -72,7 +72,7 @@ func TestTrackLikeRepositoryAdd(t *testing.T) {
 			var repo *TrackLikeRepository
 			var err error
 			r.Arrange(func(t *testing.T) {
-				repo = NewTrackLikeRepository(stubDB{
+				repo = newTrackLikeRepository(stubDB{
 					execFn: func(context.Context, string, ...any) (pgconn.CommandTag, error) {
 						return pgconn.CommandTag{}, &pgconn.PgError{Code: tc.sqlstate, ConstraintName: tc.constraint}
 					},
@@ -96,7 +96,7 @@ func TestTrackLikeRepositoryAdd(t *testing.T) {
 		var repo *TrackLikeRepository
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackLikeRepository(stubDB{
+			repo = newTrackLikeRepository(stubDB{
 				execFn: func(context.Context, string, ...any) (pgconn.CommandTag, error) {
 					return pgconn.NewCommandTag("INSERT 0 0"), nil
 				},
@@ -123,7 +123,7 @@ func TestTrackLikeRepositoryRemove(t *testing.T) {
 		var repo *TrackLikeRepository
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackLikeRepository(stubDB{
+			repo = newTrackLikeRepository(stubDB{
 				execFn: func(_ context.Context, _ string, args ...any) (pgconn.CommandTag, error) {
 					gotArgs = args
 					return pgconn.NewCommandTag("DELETE 1"), nil
@@ -149,7 +149,7 @@ func TestTrackLikeRepositoryRemove(t *testing.T) {
 		var repo *TrackLikeRepository
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackLikeRepository(stubDB{
+			repo = newTrackLikeRepository(stubDB{
 				execFn: func(context.Context, string, ...any) (pgconn.CommandTag, error) {
 					return pgconn.NewCommandTag("DELETE 0"), nil
 				},
@@ -171,7 +171,7 @@ func TestTrackLikeRepositoryRemove(t *testing.T) {
 		var repo *TrackLikeRepository
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackLikeRepository(stubDB{
+			repo = newTrackLikeRepository(stubDB{
 				execFn: func(context.Context, string, ...any) (pgconn.CommandTag, error) {
 					return pgconn.CommandTag{}, &pgconn.PgError{Code: "22P02"}
 				},
@@ -194,7 +194,7 @@ func TestTrackLikeRepositoryRemove(t *testing.T) {
 		var repo *TrackLikeRepository
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackLikeRepository(stubDB{
+			repo = newTrackLikeRepository(stubDB{
 				execFn: func(context.Context, string, ...any) (pgconn.CommandTag, error) {
 					return pgconn.CommandTag{}, dbErr
 				},
@@ -207,7 +207,6 @@ func TestTrackLikeRepositoryRemove(t *testing.T) {
 		})
 	})
 }
-
 
 func TestTrackLikeRepositoryListTrackIDs(t *testing.T) {
 	const method = "ListTrackIDs"
@@ -227,7 +226,7 @@ func TestTrackLikeRepositoryListTrackIDs(t *testing.T) {
 		var err error
 		r.Arrange(func(t *testing.T) {
 			rows = newStubRows([]any{"track-2"}, []any{"track-1"})
-			repo = NewTrackLikeRepository(stubDB{
+			repo = newTrackLikeRepository(stubDB{
 				queryFn: func(_ context.Context, _ string, args ...any) (pgx.Rows, error) {
 					gotArgs = args
 					return rows, nil
@@ -255,7 +254,7 @@ func TestTrackLikeRepositoryListTrackIDs(t *testing.T) {
 		var got []string
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackLikeRepository(stubDB{
+			repo = newTrackLikeRepository(stubDB{
 				queryFn: func(context.Context, string, ...any) (pgx.Rows, error) { return newStubRows(), nil },
 			})
 		})
@@ -280,7 +279,7 @@ func TestTrackLikeRepositoryListTrackIDs(t *testing.T) {
 		r.Arrange(func(t *testing.T) {
 			rows = newStubRows([]any{"track-1"})
 			rows.scanErrAt = 0
-			repo = NewTrackLikeRepository(stubDB{
+			repo = newTrackLikeRepository(stubDB{
 				queryFn: func(context.Context, string, ...any) (pgx.Rows, error) { return rows, nil },
 			})
 		})

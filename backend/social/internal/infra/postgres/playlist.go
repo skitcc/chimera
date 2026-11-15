@@ -3,9 +3,11 @@ package postgres
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
 
+	"chimera/platform/idempotency"
 	"chimera/platform/pg"
 	"chimera/social/internal/domain"
 )
@@ -13,10 +15,10 @@ import (
 const playlistCols = `id::text, owner_id::text, title, is_public`
 
 type PlaylistRepository struct {
-	db pg.TxDB
+	db Pools
 }
 
-func NewPlaylistRepository(db pg.TxDB) *PlaylistRepository {
+func NewPlaylistRepository(db Pools) *PlaylistRepository {
 	return &PlaylistRepository{db: db}
 }
 
@@ -26,9 +28,47 @@ func scanPlaylist(row scanner) (domain.Playlist, error) {
 	return playlist, err
 }
 
-// Create refuses owners whose UserDeleted event Social has already applied.
+const opCreatePlaylist = "social.CreatePlaylist"
+
+// Create refuses owners whose UserDeleted event Social has already applied. With
+// an idempotency key in ctx a repeat returns the playlist the first call created.
 func (r *PlaylistRepository) Create(ctx context.Context, playlist domain.Playlist) (domain.Playlist, error) {
-	playlist, err := scanPlaylist(r.db.QueryRow(ctx,
+	if idempotency.From(ctx) == "" {
+		return insertPlaylist(ctx, r.db.Write(), playlist)
+	}
+	var created domain.Playlist
+	err := pg.InTx(ctx, r.db.Write(), func(tx pgx.Tx) error {
+		replay, err := idempotency.Claim(ctx, tx, opCreatePlaylist, playlist.OwnerID,
+			playlist.Title, strconv.FormatBool(playlist.IsPublic))
+		if err != nil {
+			return err
+		}
+		if replay != "" {
+			created, err = getPlaylist(ctx, tx, replay)
+			return err
+		}
+		created, err = insertPlaylist(ctx, tx, playlist)
+		if err != nil {
+			return err
+		}
+		return idempotency.Complete(ctx, tx, opCreatePlaylist, playlist.OwnerID, created.ID)
+	})
+	return created, err
+}
+
+func getPlaylist(ctx context.Context, db pg.DB, id string) (domain.Playlist, error) {
+	playlist, err := scanPlaylist(db.QueryRow(ctx, `SELECT `+playlistCols+` FROM playlists WHERE id = $1::uuid`, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Playlist{}, domain.NotFound("playlist not found")
+	}
+	if err != nil {
+		return domain.Playlist{}, mapError(err, "get playlist")
+	}
+	return playlist, nil
+}
+
+func insertPlaylist(ctx context.Context, db pg.DB, playlist domain.Playlist) (domain.Playlist, error) {
+	playlist, err := scanPlaylist(db.QueryRow(ctx,
 		`INSERT INTO playlists (owner_id, title, is_public)
 		 SELECT $1::uuid, $2, $3
 		 WHERE NOT EXISTS (SELECT 1 FROM deleted_users WHERE user_id = $1::uuid)
@@ -45,9 +85,14 @@ func (r *PlaylistRepository) Create(ctx context.Context, playlist domain.Playlis
 }
 
 func (r *PlaylistRepository) GetByID(ctx context.Context, id string) (domain.Playlist, error) {
-	playlist, err := scanPlaylist(r.db.QueryRow(ctx,
-		`SELECT `+playlistCols+` FROM playlists WHERE id = $1::uuid`, id,
-	))
+	var playlist domain.Playlist
+	err := r.db.Find(ctx, func(db pg.DB) error {
+		var err error
+		playlist, err = scanPlaylist(db.QueryRow(ctx,
+			`SELECT `+playlistCols+` FROM playlists WHERE id = $1::uuid`, id,
+		))
+		return err
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Playlist{}, domain.NotFound("playlist not found")
 	}
@@ -58,7 +103,7 @@ func (r *PlaylistRepository) GetByID(ctx context.Context, id string) (domain.Pla
 }
 
 func (r *PlaylistRepository) Update(ctx context.Context, playlist domain.Playlist) (domain.Playlist, error) {
-	playlist, err := scanPlaylist(r.db.QueryRow(ctx,
+	playlist, err := scanPlaylist(r.db.Write().QueryRow(ctx,
 		`UPDATE playlists SET title = $2, is_public = $3
 		 WHERE id = $1::uuid
 		 RETURNING `+playlistCols,
@@ -74,7 +119,7 @@ func (r *PlaylistRepository) Update(ctx context.Context, playlist domain.Playlis
 }
 
 func (r *PlaylistRepository) Delete(ctx context.Context, id string) error {
-	tag, err := r.db.Exec(ctx, `DELETE FROM playlists WHERE id = $1::uuid`, id)
+	tag, err := r.db.Write().Exec(ctx, `DELETE FROM playlists WHERE id = $1::uuid`, id)
 	if err != nil {
 		return mapError(err, "delete playlist")
 	}
@@ -94,7 +139,7 @@ func (r *PlaylistRepository) List(ctx context.Context, filter domain.PlaylistFil
 		isPublic = *filter.IsPublic
 	}
 
-	rows, err := r.db.Query(ctx,
+	rows, err := r.db.Read(ctx).Query(ctx,
 		`SELECT `+playlistCols+`
 		 FROM playlists
 		 WHERE ($1::uuid IS NULL OR owner_id = $1)
@@ -122,7 +167,7 @@ func (r *PlaylistRepository) List(ctx context.Context, filter domain.PlaylistFil
 }
 
 func (r *PlaylistRepository) ListEntries(ctx context.Context, playlistID string) ([]domain.PlaylistEntry, error) {
-	rows, err := r.db.Query(ctx,
+	rows, err := r.db.Read(ctx).Query(ctx,
 		`SELECT position, track_id::text FROM playlist_tracks
 		 WHERE playlist_id = $1::uuid
 		 ORDER BY position`,
@@ -150,7 +195,7 @@ func (r *PlaylistRepository) ListEntries(ctx context.Context, playlistID string)
 // AddTrack refuses tracks whose TrackDeleted event Social has already applied.
 func (r *PlaylistRepository) AddTrack(ctx context.Context, playlistID string, in domain.PlaylistTrackAdd) (domain.PlaylistEntry, error) {
 	var entry domain.PlaylistEntry
-	err := pg.InTx(ctx, r.db, func(tx pgx.Tx) error {
+	err := pg.InTx(ctx, r.db.Write(), func(tx pgx.Tx) error {
 		count, err := lockPlaylist(ctx, tx, playlistID)
 		if err != nil {
 			return err
@@ -185,7 +230,7 @@ func (r *PlaylistRepository) AddTrack(ctx context.Context, playlistID string, in
 
 func (r *PlaylistRepository) MoveTrack(ctx context.Context, playlistID, trackID string, position int) (domain.PlaylistEntry, error) {
 	var entry domain.PlaylistEntry
-	err := pg.InTx(ctx, r.db, func(tx pgx.Tx) error {
+	err := pg.InTx(ctx, r.db.Write(), func(tx pgx.Tx) error {
 		count, err := lockPlaylist(ctx, tx, playlistID)
 		if err != nil {
 			return err
@@ -238,7 +283,7 @@ func shiftAround(ctx context.Context, tx pgx.Tx, playlistID, trackID string, old
 }
 
 func (r *PlaylistRepository) RemoveTrack(ctx context.Context, playlistID, trackID string) error {
-	return pg.InTx(ctx, r.db, func(tx pgx.Tx) error {
+	return pg.InTx(ctx, r.db.Write(), func(tx pgx.Tx) error {
 		if _, err := lockPlaylist(ctx, tx, playlistID); err != nil {
 			return err
 		}

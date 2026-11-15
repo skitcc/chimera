@@ -13,7 +13,7 @@ import (
 	"chimera/social/migrations"
 )
 
-const resetSQL = `TRUNCATE processed_events, deleted_users, deleted_tracks, playlist_tracks, playlists, user_follows, track_likes`
+const resetSQL = `TRUNCATE idempotency_keys, processed_events, deleted_users, deleted_tracks, playlist_tracks, playlists, user_follows, track_likes`
 
 type postgresFixture struct {
 	ctx     context.Context
@@ -28,7 +28,7 @@ func newPostgresFixture(t *testing.T) *postgresFixture {
 	return &postgresFixture{
 		ctx:     context.Background(),
 		pool:    pool,
-		likes:   NewTrackLikeRepository(pool),
+		likes:   newTrackLikeRepository(pool),
 		cleanup: NewCleanupRepository(pool),
 	}
 }

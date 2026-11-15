@@ -97,6 +97,10 @@ func loadS3() (s3.Config, error) {
 	if err != nil {
 		return s3.Config{}, err
 	}
+	timeout, err := env.Duration("S3_TIMEOUT")
+	if err != nil {
+		return s3.Config{}, err
+	}
 	return s3.Config{
 		Endpoint:        host,
 		PresignEndpoint: presign,
@@ -105,6 +109,7 @@ func loadS3() (s3.Config, error) {
 		Bucket:          bucket,
 		Region:          region,
 		PresignTTL:      ttl,
+		Timeout:         timeout,
 	}, nil
 }
 

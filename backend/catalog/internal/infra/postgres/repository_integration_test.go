@@ -15,7 +15,7 @@ import (
 
 const (
 	missingUUID = "00000000-0000-0000-0000-000000000000"
-	resetTables = `TRUNCATE outbox, processed_events, deleted_users, tracks RESTART IDENTITY CASCADE`
+	resetTables = `TRUNCATE idempotency_keys, outbox, processed_events, deleted_users, tracks RESTART IDENTITY CASCADE`
 )
 
 type postgresFixture struct {
@@ -35,7 +35,7 @@ func newPostgresFixture(t *testing.T) *postgresFixture {
 	return &postgresFixture{
 		ctx:    context.Background(),
 		pool:   pool,
-		tracks: NewTrackRepository(pool),
+		tracks: newTrackRepository(pool),
 	}
 }
 
@@ -232,4 +232,3 @@ func TestTrackRepositoryIntegration(t *testing.T) {
 		})
 	})
 }
-

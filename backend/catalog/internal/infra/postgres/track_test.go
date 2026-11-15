@@ -55,7 +55,7 @@ func TestTrackRepositoryList(t *testing.T) {
 		var err error
 		r.Arrange(func(t *testing.T) {
 			rows = newStubRows(trackValues(want[0]), trackValues(want[1]))
-			repo = NewTrackRepository(stubDB{
+			repo = newTrackRepository(stubDB{
 				queryFn: func(_ context.Context, _ string, args ...any) (pgx.Rows, error) {
 					gotArgs = args
 					return rows, nil
@@ -93,7 +93,7 @@ func TestTrackRepositoryList(t *testing.T) {
 		var err error
 		r.Arrange(func(t *testing.T) {
 			rows = newStubRows()
-			repo = NewTrackRepository(stubDB{
+			repo = newTrackRepository(stubDB{
 				queryFn: func(_ context.Context, _ string, args ...any) (pgx.Rows, error) {
 					gotArgs = args
 					return rows, nil
@@ -148,7 +148,7 @@ func TestTrackRepositoryList(t *testing.T) {
 			var repo *TrackRepository
 			var err error
 			r.Arrange(func(t *testing.T) {
-				repo = NewTrackRepository(stubDB{
+				repo = newTrackRepository(stubDB{
 					queryFn: func(_ context.Context, _ string, args ...any) (pgx.Rows, error) {
 						gotArgs = args
 						return newStubRows(), nil
@@ -177,7 +177,7 @@ func TestTrackRepositoryList(t *testing.T) {
 		var got []domain.Track
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackRepository(stubDB{
+			repo = newTrackRepository(stubDB{
 				queryFn: func(context.Context, string, ...any) (pgx.Rows, error) { return nil, dbErr },
 			})
 		})
@@ -205,7 +205,7 @@ func TestTrackRepositoryList(t *testing.T) {
 		r.Arrange(func(t *testing.T) {
 			rows = newStubRows(trackValues(want[0]))
 			rows.scanErrAt = 0
-			repo = NewTrackRepository(stubDB{
+			repo = newTrackRepository(stubDB{
 				queryFn: func(context.Context, string, ...any) (pgx.Rows, error) { return rows, nil },
 			})
 		})
@@ -233,7 +233,7 @@ func TestTrackRepositoryList(t *testing.T) {
 		r.Arrange(func(t *testing.T) {
 			rows = newStubRows()
 			rows.err = rowsErr
-			repo = NewTrackRepository(stubDB{
+			repo = newTrackRepository(stubDB{
 				queryFn: func(context.Context, string, ...any) (pgx.Rows, error) { return rows, nil },
 			})
 		})
@@ -272,7 +272,7 @@ func TestTrackRepositoryGetByID(t *testing.T) {
 		var got domain.Track
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackRepository(stubDB{
+			repo = newTrackRepository(stubDB{
 				queryRowFn: func(_ context.Context, _ string, args ...any) pgx.Row {
 					gotArgs = args
 					return stubRow{values: trackValues(want)}
@@ -300,7 +300,7 @@ func TestTrackRepositoryGetByID(t *testing.T) {
 		var got domain.Track
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackRepository(stubDB{
+			repo = newTrackRepository(stubDB{
 				queryRowFn: func(context.Context, string, ...any) pgx.Row { return stubRow{err: pgx.ErrNoRows} },
 			})
 		})
@@ -323,7 +323,7 @@ func TestTrackRepositoryGetByID(t *testing.T) {
 		var repo *TrackRepository
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackRepository(stubDB{
+			repo = newTrackRepository(stubDB{
 				queryRowFn: func(context.Context, string, ...any) pgx.Row {
 					return stubRow{err: &pgconn.PgError{Code: "22P02"}}
 				},
@@ -362,7 +362,7 @@ func TestTrackRepositoryCreate(t *testing.T) {
 		var got domain.Track
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackRepository(stubDB{
+			repo = newTrackRepository(stubDB{
 				queryRowFn: func(_ context.Context, _ string, args ...any) pgx.Row {
 					gotArgs = args
 					return stubRow{values: trackValues(want)}
@@ -391,7 +391,7 @@ func TestTrackRepositoryCreate(t *testing.T) {
 		var got domain.Track
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackRepository(stubDB{
+			repo = newTrackRepository(stubDB{
 				queryRowFn: func(context.Context, string, ...any) pgx.Row {
 					return stubRow{err: pgx.ErrNoRows}
 				},
@@ -431,7 +431,7 @@ func TestTrackRepositoryUpdate(t *testing.T) {
 		var got domain.Track
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackRepository(stubDB{
+			repo = newTrackRepository(stubDB{
 				queryRowFn: func(_ context.Context, _ string, args ...any) pgx.Row {
 					gotArgs = args
 					return stubRow{values: trackValues(want)}
@@ -464,7 +464,7 @@ func TestTrackRepositoryUpdate(t *testing.T) {
 		var repo *TrackRepository
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackRepository(stubDB{
+			repo = newTrackRepository(stubDB{
 				queryRowFn: func(_ context.Context, _ string, args ...any) pgx.Row {
 					gotArgs = args
 					return stubRow{values: trackValues(want)}
@@ -492,7 +492,7 @@ func TestTrackRepositoryUpdate(t *testing.T) {
 		var got domain.Track
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackRepository(stubDB{
+			repo = newTrackRepository(stubDB{
 				queryRowFn: func(context.Context, string, ...any) pgx.Row { return stubRow{err: pgx.ErrNoRows} },
 			})
 		})
@@ -516,7 +516,7 @@ func TestTrackRepositoryUpdate(t *testing.T) {
 		var repo *TrackRepository
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewTrackRepository(stubDB{
+			repo = newTrackRepository(stubDB{
 				queryRowFn: func(context.Context, string, ...any) pgx.Row {
 					return stubRow{err: &pgconn.PgError{Code: "23503", ConstraintName: "tracks_user_id_fkey"}}
 				},
@@ -551,11 +551,11 @@ func TestTrackRepositoryDelete(t *testing.T) {
 				WillReturnRows(pgxmock.NewRows([]string{"id", "user_id", "object_key"}).
 					AddRow("track-1", "user-1", "track-1.mp3"))
 			db.ExpectExec(regexp.QuoteMeta(outboxSQL)).
-				WithArgs("catalog.track.v1", "track-1", "chimera.catalog.track.deleted.v1", pgxmock.AnyArg(), pgxmock.AnyArg()).
+				WithArgs("catalog.track.v1", "track-1", "chimera.catalog.track.deleted.v1", pgxmock.AnyArg(), pgxmock.AnyArg(), "").
 				WillReturnResult(pgxmock.NewResult("INSERT", 1))
 			db.ExpectCommit()
 			db.ExpectRollback()
-			repo = NewTrackRepository(db)
+			repo = newTrackRepository(db)
 		})
 		r.Act(func(t *testing.T) { err = repo.Delete(context.Background(), "track-1") })
 		r.Assert(func(t *testing.T) {
@@ -581,7 +581,7 @@ func TestTrackRepositoryDelete(t *testing.T) {
 			db.ExpectBegin()
 			db.ExpectQuery(regexp.QuoteMeta(deleteSQL)).WithArgs("missing").WillReturnError(pgx.ErrNoRows)
 			db.ExpectRollback()
-			repo = NewTrackRepository(db)
+			repo = newTrackRepository(db)
 		})
 		r.Act(func(t *testing.T) { err = repo.Delete(context.Background(), "missing") })
 		r.Assert(func(t *testing.T) {
@@ -608,7 +608,7 @@ func TestTrackRepositoryDelete(t *testing.T) {
 			db.ExpectQuery(regexp.QuoteMeta(deleteSQL)).WithArgs("invalid").
 				WillReturnError(&pgconn.PgError{Code: "22P02"})
 			db.ExpectRollback()
-			repo = NewTrackRepository(db)
+			repo = newTrackRepository(db)
 		})
 		r.Act(func(t *testing.T) { err = repo.Delete(context.Background(), "invalid") })
 		r.Assert(func(t *testing.T) {

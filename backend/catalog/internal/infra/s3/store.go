@@ -23,6 +23,8 @@ type Config struct {
 	Bucket          string
 	Region          string
 	PresignTTL      time.Duration
+	// Timeout bounds dialing and waiting for response headers of an API call.
+	Timeout time.Duration
 }
 
 type Store struct {
@@ -40,9 +42,10 @@ func New(cfg Config) (*Store, error) {
 	// Sign for the host the browser will send. API calls still dial the
 	// internal endpoint, otherwise the signature does not match.
 	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.ResponseHeaderTimeout = cfg.Timeout
 	public := dialAddr(presign)
 	if public != cfg.Endpoint {
-		dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}
+		dialer := &net.Dialer{Timeout: cfg.Timeout, KeepAlive: 30 * time.Second}
 		internal := cfg.Endpoint
 		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 			if addr == public {
@@ -93,10 +96,21 @@ func (s *Store) EnsureBucket(ctx context.Context) error {
 	if ok {
 		return nil
 	}
-	if err := s.client.MakeBucket(ctx, s.cfg.Bucket, minio.MakeBucketOptions{Region: s.cfg.Region}); err != nil {
-		return domain.Wrap(domain.CodeInternal, "create s3 bucket", err)
+	err = s.client.MakeBucket(ctx, s.cfg.Bucket, minio.MakeBucketOptions{Region: s.cfg.Region})
+	if err == nil || bucketCreatedElsewhere(err) {
+		return nil
 	}
-	return nil
+	return domain.Wrap(domain.CodeInternal, "create s3 bucket", err)
+}
+
+// bucketCreatedElsewhere reports that another Catalog instance won the race to
+// create the bucket between BucketExists and MakeBucket.
+func bucketCreatedElsewhere(err error) bool {
+	switch minio.ToErrorResponse(err).Code {
+	case "BucketAlreadyOwnedByYou", "BucketAlreadyExists":
+		return true
+	}
+	return false
 }
 
 func (s *Store) PresignPut(ctx context.Context, key string) (string, error) {

@@ -10,8 +10,20 @@ import (
 	commonv1 "chimera/contracts/gen/common/v1"
 	identityv1 "chimera/contracts/gen/identity/v1"
 	socialv1 "chimera/contracts/gen/social/v1"
+	"chimera/platform/idempotency"
 	"chimera/social/internal/domain"
 )
+
+// ReplicaMethods may read a replica. Mutations read the primary, and the
+// Catalog and Identity checks they make ask for CONSISTENCY_STRONG.
+var ReplicaMethods = []string{
+	socialv1.SocialService_ListLikedTracks_FullMethodName,
+	socialv1.SocialService_ListFollows_FullMethodName,
+	socialv1.SocialService_GetFollow_FullMethodName,
+	socialv1.SocialService_ListPlaylists_FullMethodName,
+	socialv1.SocialService_GetPlaylist_FullMethodName,
+	socialv1.SocialService_ListPlaylistTracks_FullMethodName,
+}
 
 type LikeService interface {
 	PutLike(ctx context.Context, actorID string, in domain.TrackLike) error
@@ -159,6 +171,10 @@ func (s *Server) ListPlaylists(ctx context.Context, req *socialv1.ListPlaylistsR
 }
 
 func (s *Server) CreatePlaylist(ctx context.Context, req *socialv1.CreatePlaylistRequest) (*socialv1.CreatePlaylistResponse, error) {
+	ctx, err := idempotency.With(ctx, req.GetIdempotencyKey())
+	if err != nil {
+		return nil, err
+	}
 	playlist, err := s.playlists.Create(ctx, req.GetActorId(), domain.PlaylistReplace{
 		Title:    req.GetTitle(),
 		IsPublic: req.GetIsPublic(),

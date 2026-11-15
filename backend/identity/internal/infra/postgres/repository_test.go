@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"chimera/platform/pg"
 	"context"
 	"errors"
 	"fmt"
@@ -201,4 +202,8 @@ func assertRowsClosed(t *testing.T, rows *stubRows) {
 
 func userValues(u domain.User) []any {
 	return []any{u.ID, u.Email, u.Name}
+}
+
+func newUserRepository(db pg.TxDB) *UserRepository {
+	return NewUserRepository(pg.Single(db))
 }

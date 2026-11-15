@@ -4,7 +4,9 @@ package identity
 import (
 	"context"
 
+	commonv1 "chimera/contracts/gen/common/v1"
 	identityv1 "chimera/contracts/gen/identity/v1"
+	"chimera/platform/readpref"
 	"chimera/social/internal/domain"
 )
 
@@ -17,7 +19,7 @@ func New(api identityv1.IdentityServiceClient) *Client {
 }
 
 func (c *Client) GetUser(ctx context.Context, id string) (domain.User, error) {
-	res, err := c.api.GetUser(ctx, &identityv1.GetUserRequest{Id: id})
+	res, err := c.api.GetUser(ctx, &identityv1.GetUserRequest{Id: id, Consistency: consistency(ctx)})
 	if err != nil {
 		return domain.User{}, err
 	}
@@ -41,4 +43,13 @@ func (c *Client) GetUsers(ctx context.Context, ids []string) ([]domain.User, err
 
 func fromUser(u *identityv1.User) domain.User {
 	return domain.User{ID: u.GetId(), Email: u.GetEmail(), Name: u.GetName()}
+}
+
+// consistency asks Identity for the primary while Social serves a write, so a check
+// that guards the write never sees a lagging replica.
+func consistency(ctx context.Context) commonv1.Consistency {
+	if readpref.IsPrimary(ctx) {
+		return commonv1.Consistency_CONSISTENCY_STRONG
+	}
+	return commonv1.Consistency_CONSISTENCY_EVENTUAL
 }

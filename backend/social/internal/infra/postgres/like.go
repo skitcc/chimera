@@ -7,17 +7,24 @@ import (
 	"chimera/social/internal/domain"
 )
 
-type TrackLikeRepository struct {
-	db pg.DB
+// Pools routes each statement to the primary or a replica.
+type Pools interface {
+	Write() pg.TxDB
+	Read(ctx context.Context) pg.DB
+	Find(ctx context.Context, fn func(pg.DB) error) error
 }
 
-func NewTrackLikeRepository(db pg.DB) *TrackLikeRepository {
+type TrackLikeRepository struct {
+	db Pools
+}
+
+func NewTrackLikeRepository(db Pools) *TrackLikeRepository {
 	return &TrackLikeRepository{db: db}
 }
 
 // Add refuses users and tracks whose deletion Social has already applied.
 func (r *TrackLikeRepository) Add(ctx context.Context, userID, trackID string) error {
-	tag, err := r.db.Exec(ctx,
+	tag, err := r.db.Write().Exec(ctx,
 		`INSERT INTO track_likes (user_id, track_id)
 		 SELECT $1::uuid, $2::uuid
 		 WHERE NOT EXISTS (SELECT 1 FROM deleted_users WHERE user_id = $1::uuid)
@@ -34,7 +41,7 @@ func (r *TrackLikeRepository) Add(ctx context.Context, userID, trackID string) e
 }
 
 func (r *TrackLikeRepository) Remove(ctx context.Context, userID, trackID string) error {
-	_, err := r.db.Exec(ctx,
+	_, err := r.db.Write().Exec(ctx,
 		`DELETE FROM track_likes WHERE user_id = $1::uuid AND track_id = $2::uuid`,
 		userID, trackID,
 	)
@@ -45,7 +52,7 @@ func (r *TrackLikeRepository) Remove(ctx context.Context, userID, trackID string
 }
 
 func (r *TrackLikeRepository) ListTrackIDs(ctx context.Context, userID string) ([]string, error) {
-	rows, err := r.db.Query(ctx,
+	rows, err := r.db.Read(ctx).Query(ctx,
 		`SELECT track_id::text FROM track_likes WHERE user_id = $1::uuid ORDER BY created_at DESC, track_id`,
 		userID,
 	)

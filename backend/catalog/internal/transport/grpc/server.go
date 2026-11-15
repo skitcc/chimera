@@ -6,7 +6,18 @@ import (
 
 	"chimera/catalog/internal/domain"
 	catalogv1 "chimera/contracts/gen/catalog/v1"
+	commonv1 "chimera/contracts/gen/common/v1"
+	"chimera/platform/idempotency"
+	"chimera/platform/readpref"
 )
+
+// ReplicaMethods may read a replica. The owner checks of mutations read the primary.
+var ReplicaMethods = []string{
+	catalogv1.CatalogService_ListTracks_FullMethodName,
+	catalogv1.CatalogService_GetTrack_FullMethodName,
+	catalogv1.CatalogService_BatchGetTracks_FullMethodName,
+	catalogv1.CatalogService_GetStreamURL_FullMethodName,
+}
 
 type TrackService interface {
 	Search(ctx context.Context, q domain.TrackListQuery) (domain.TrackPage, error)
@@ -50,7 +61,7 @@ func (s *Server) ListTracks(ctx context.Context, req *catalogv1.ListTracksReques
 }
 
 func (s *Server) GetTrack(ctx context.Context, req *catalogv1.GetTrackRequest) (*catalogv1.GetTrackResponse, error) {
-	track, err := s.tracks.GetByID(ctx, req.GetId(), req.GetViewerId())
+	track, err := s.tracks.GetByID(withConsistency(ctx, req.GetConsistency()), req.GetId(), req.GetViewerId())
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +69,7 @@ func (s *Server) GetTrack(ctx context.Context, req *catalogv1.GetTrackRequest) (
 }
 
 func (s *Server) BatchGetTracks(ctx context.Context, req *catalogv1.BatchGetTracksRequest) (*catalogv1.BatchGetTracksResponse, error) {
-	tracks, err := s.tracks.BatchGet(ctx, req.GetIds())
+	tracks, err := s.tracks.BatchGet(withConsistency(ctx, req.GetConsistency()), req.GetIds())
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +77,10 @@ func (s *Server) BatchGetTracks(ctx context.Context, req *catalogv1.BatchGetTrac
 }
 
 func (s *Server) CreateTrack(ctx context.Context, req *catalogv1.CreateTrackRequest) (*catalogv1.CreateTrackResponse, error) {
+	ctx, err := idempotency.With(ctx, req.GetIdempotencyKey())
+	if err != nil {
+		return nil, err
+	}
 	session, err := s.tracks.InitUpload(ctx, domain.TrackUploadInit{
 		UserID:    req.GetActorId(),
 		Title:     req.GetTitle(),
@@ -133,4 +148,12 @@ func ToTracks(tracks []domain.Track) []*catalogv1.Track {
 		out = append(out, ToTrack(t))
 	}
 	return out
+}
+
+// withConsistency sends a STRONG read to the primary.
+func withConsistency(ctx context.Context, c commonv1.Consistency) context.Context {
+	if c == commonv1.Consistency_CONSISTENCY_STRONG {
+		return readpref.Primary(ctx)
+	}
+	return ctx
 }

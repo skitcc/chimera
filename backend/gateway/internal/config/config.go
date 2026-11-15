@@ -13,7 +13,9 @@ type HTTP struct {
 	Addr              string
 	ShutdownTimeout   time.Duration
 	ReadHeaderTimeout time.Duration
-	CORSOrigins       []string
+	// WriteTimeout must outlast every retry of the slowest upstream call.
+	WriteTimeout time.Duration
+	CORSOrigins  []string
 }
 
 type Auth struct {
@@ -29,7 +31,7 @@ type Upstreams struct {
 	IdentityAddr string
 	CatalogAddr  string
 	SocialAddr   string
-	Timeout      time.Duration
+	Client       env.GRPCClient
 }
 
 type Config struct {
@@ -93,11 +95,15 @@ func loadHTTP() (HTTP, error) {
 	if err != nil {
 		return HTTP{}, err
 	}
+	write, err := env.Duration("HTTP_WRITE_TIMEOUT")
+	if err != nil {
+		return HTTP{}, err
+	}
 	origins, err := env.List("HTTP_CORS_ORIGIN")
 	if err != nil {
 		return HTTP{}, err
 	}
-	return HTTP{Addr: addr, ShutdownTimeout: shutdown, ReadHeaderTimeout: readHeader, CORSOrigins: origins}, nil
+	return HTTP{Addr: addr, ShutdownTimeout: shutdown, ReadHeaderTimeout: readHeader, WriteTimeout: write, CORSOrigins: origins}, nil
 }
 
 func loadAuth() (Auth, error) {
@@ -158,9 +164,9 @@ func loadUpstreams() (Upstreams, error) {
 	if err != nil {
 		return Upstreams{}, err
 	}
-	timeout, err := env.Duration("GRPC_CLIENT_TIMEOUT")
+	client, err := env.LoadGRPCClient()
 	if err != nil {
 		return Upstreams{}, err
 	}
-	return Upstreams{IdentityAddr: identity, CatalogAddr: catalog, SocialAddr: social, Timeout: timeout}, nil
+	return Upstreams{IdentityAddr: identity, CatalogAddr: catalog, SocialAddr: social, Client: client}, nil
 }

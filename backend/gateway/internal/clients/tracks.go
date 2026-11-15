@@ -6,6 +6,7 @@ import (
 	catalogv1 "chimera/contracts/gen/catalog/v1"
 	socialv1 "chimera/contracts/gen/social/v1"
 	"chimera/gateway/internal/domain"
+	"chimera/platform/idempotency"
 )
 
 // Tracks serves /v1/tracks from Catalog. Likes live in Social, so
@@ -61,10 +62,11 @@ func (c *Tracks) GetByID(ctx context.Context, id, viewerID string) (domain.Track
 
 func (c *Tracks) InitUpload(ctx context.Context, in domain.TrackUploadInit) (domain.TrackUploadSession, error) {
 	resp, err := c.catalog.CreateTrack(ctx, &catalogv1.CreateTrackRequest{
-		ActorId:   in.UserID,
-		Title:     in.Title,
-		Artist:    in.Artist,
-		SizeBytes: in.SizeBytes,
+		ActorId:        in.UserID,
+		Title:          in.Title,
+		Artist:         in.Artist,
+		SizeBytes:      in.SizeBytes,
+		IdempotencyKey: idempotency.From(ctx),
 	})
 	if err != nil {
 		return domain.TrackUploadSession{}, err

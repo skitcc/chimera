@@ -56,7 +56,7 @@ func TestTrackRepositoryPGXMock(t *testing.T) {
 				WillReturnRows(pgxmock.NewRows([]string{
 					"id", "user_id", "title", "artist", "object_key", "size_bytes", "status",
 				}).AddRow(want.ID, want.UserID, want.Title, want.Artist, want.ObjectKey, want.SizeBytes, string(want.Status)))
-			repo = NewTrackRepository(db)
+			repo = newTrackRepository(db)
 		})
 		r.Act(func(t *testing.T) { got, err = repo.Create(context.Background(), input) })
 		r.Assert(func(t *testing.T) {

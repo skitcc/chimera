@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"chimera/platform/pg"
 	"context"
 	"errors"
 	"fmt"
@@ -209,4 +210,8 @@ func trackValues(track domain.Track) []any {
 		track.SizeBytes,
 		string(track.Status),
 	}
+}
+
+func newTrackRepository(db pg.TxDB) *TrackRepository {
+	return NewTrackRepository(pg.Single(db))
 }

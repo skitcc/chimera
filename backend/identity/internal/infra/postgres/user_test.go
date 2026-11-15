@@ -38,7 +38,7 @@ func TestUserRepositoryList(t *testing.T) {
 		var err error
 		r.Arrange(func(t *testing.T) {
 			rows = newStubRows(userValues(want[0]), userValues(want[1]))
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryFn: func(context.Context, string, ...any) (pgx.Rows, error) { return rows, nil },
 			})
 		})
@@ -65,7 +65,7 @@ func TestUserRepositoryList(t *testing.T) {
 		var err error
 		r.Arrange(func(t *testing.T) {
 			rows = newStubRows()
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryFn: func(context.Context, string, ...any) (pgx.Rows, error) { return rows, nil },
 			})
 		})
@@ -91,7 +91,7 @@ func TestUserRepositoryList(t *testing.T) {
 		var got []domain.User
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryFn: func(context.Context, string, ...any) (pgx.Rows, error) { return nil, dbErr },
 			})
 		})
@@ -119,7 +119,7 @@ func TestUserRepositoryList(t *testing.T) {
 		r.Arrange(func(t *testing.T) {
 			rows = newStubRows(userValues(domain.User{ID: "user-1", Email: "one@example.com", Name: "One"}))
 			rows.scanErrAt = 0
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryFn: func(context.Context, string, ...any) (pgx.Rows, error) { return rows, nil },
 			})
 		})
@@ -147,7 +147,7 @@ func TestUserRepositoryList(t *testing.T) {
 		r.Arrange(func(t *testing.T) {
 			rows = newStubRows()
 			rows.err = rowsErr
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryFn: func(context.Context, string, ...any) (pgx.Rows, error) { return rows, nil },
 			})
 		})
@@ -178,7 +178,7 @@ func TestUserRepositoryGetByID(t *testing.T) {
 		var got domain.User
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryRowFn: func(_ context.Context, _ string, args ...any) pgx.Row {
 					gotArgs = args
 					return stubRow{values: userValues(want)}
@@ -206,7 +206,7 @@ func TestUserRepositoryGetByID(t *testing.T) {
 		var got domain.User
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryRowFn: func(context.Context, string, ...any) pgx.Row { return stubRow{err: pgx.ErrNoRows} },
 			})
 		})
@@ -229,7 +229,7 @@ func TestUserRepositoryGetByID(t *testing.T) {
 		var repo *UserRepository
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryRowFn: func(context.Context, string, ...any) pgx.Row {
 					return stubRow{err: &pgconn.PgError{Code: "22P02"}}
 				},
@@ -262,7 +262,7 @@ func TestUserRepositoryGetByEmail(t *testing.T) {
 		var got domain.AuthUser
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryRowFn: func(_ context.Context, _ string, args ...any) pgx.Row {
 					gotArgs = args
 					return stubRow{values: append(userValues(want.User), want.PasswordHash)}
@@ -290,7 +290,7 @@ func TestUserRepositoryGetByEmail(t *testing.T) {
 		var got domain.AuthUser
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryRowFn: func(context.Context, string, ...any) pgx.Row { return stubRow{err: pgx.ErrNoRows} },
 			})
 		})
@@ -314,7 +314,7 @@ func TestUserRepositoryGetByEmail(t *testing.T) {
 		var repo *UserRepository
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryRowFn: func(context.Context, string, ...any) pgx.Row { return stubRow{err: dbErr} },
 			})
 		})
@@ -346,7 +346,7 @@ func TestUserRepositoryCreate(t *testing.T) {
 		var got domain.User
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryRowFn: func(_ context.Context, _ string, args ...any) pgx.Row {
 					gotArgs = args
 					return stubRow{values: userValues(want)}
@@ -375,7 +375,7 @@ func TestUserRepositoryCreate(t *testing.T) {
 		var got domain.User
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryRowFn: func(context.Context, string, ...any) pgx.Row {
 					return stubRow{err: &pgconn.PgError{Code: "23505", ConstraintName: "users_email_key"}}
 				},
@@ -401,7 +401,7 @@ func TestUserRepositoryCreate(t *testing.T) {
 		var repo *UserRepository
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryRowFn: func(context.Context, string, ...any) pgx.Row { return stubRow{err: pgErr} },
 			})
 		})
@@ -433,7 +433,7 @@ func TestUserRepositoryUpdate(t *testing.T) {
 		var got domain.User
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryRowFn: func(_ context.Context, _ string, args ...any) pgx.Row {
 					gotArgs = args
 					return stubRow{values: userValues(want)}
@@ -461,7 +461,7 @@ func TestUserRepositoryUpdate(t *testing.T) {
 		var got domain.User
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryRowFn: func(context.Context, string, ...any) pgx.Row { return stubRow{err: pgx.ErrNoRows} },
 			})
 		})
@@ -485,7 +485,7 @@ func TestUserRepositoryUpdate(t *testing.T) {
 		var repo *UserRepository
 		var err error
 		r.Arrange(func(t *testing.T) {
-			repo = NewUserRepository(stubDB{
+			repo = newUserRepository(stubDB{
 				queryRowFn: func(context.Context, string, ...any) pgx.Row {
 					return stubRow{err: &pgconn.PgError{Code: "23505", ConstraintName: "users_email_key"}}
 				},
@@ -519,11 +519,11 @@ func TestUserRepositoryDelete(t *testing.T) {
 			db.ExpectExec(regexp.QuoteMeta(deleteSQL)).WithArgs("user-1").
 				WillReturnResult(pgxmock.NewResult("DELETE", 1))
 			db.ExpectExec(regexp.QuoteMeta(outboxSQL)).
-				WithArgs("identity.user.v1", "user-1", "chimera.identity.user.deleted.v1", pgxmock.AnyArg(), pgxmock.AnyArg()).
+				WithArgs("identity.user.v1", "user-1", "chimera.identity.user.deleted.v1", pgxmock.AnyArg(), pgxmock.AnyArg(), "").
 				WillReturnResult(pgxmock.NewResult("INSERT", 1))
 			db.ExpectCommit()
 			db.ExpectRollback()
-			repo = NewUserRepository(db)
+			repo = newUserRepository(db)
 		})
 		r.Act(func(t *testing.T) { err = repo.Delete(context.Background(), "user-1") })
 		r.Assert(func(t *testing.T) {
@@ -550,7 +550,7 @@ func TestUserRepositoryDelete(t *testing.T) {
 			db.ExpectExec(regexp.QuoteMeta(deleteSQL)).WithArgs("missing").
 				WillReturnResult(pgxmock.NewResult("DELETE", 0))
 			db.ExpectRollback()
-			repo = NewUserRepository(db)
+			repo = newUserRepository(db)
 		})
 		r.Act(func(t *testing.T) { err = repo.Delete(context.Background(), "missing") })
 		r.Assert(func(t *testing.T) {
@@ -577,7 +577,7 @@ func TestUserRepositoryDelete(t *testing.T) {
 			db.ExpectExec(regexp.QuoteMeta(deleteSQL)).WithArgs("invalid").
 				WillReturnError(&pgconn.PgError{Code: "22P02"})
 			db.ExpectRollback()
-			repo = NewUserRepository(db)
+			repo = newUserRepository(db)
 		})
 		r.Act(func(t *testing.T) { err = repo.Delete(context.Background(), "invalid") })
 		r.Assert(func(t *testing.T) {

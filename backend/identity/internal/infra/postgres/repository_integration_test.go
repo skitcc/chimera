@@ -11,16 +11,17 @@ import (
 	"chimera/identity/internal/domain"
 	"chimera/identity/internal/testkit"
 	"chimera/identity/migrations"
+	"chimera/platform/idempotency"
 )
 
 const (
 	missingUUID = "00000000-0000-0000-0000-000000000000"
-	resetTables = `TRUNCATE outbox, users RESTART IDENTITY CASCADE`
+	resetTables = `TRUNCATE idempotency_keys, outbox, users RESTART IDENTITY CASCADE`
 )
 
 type postgresFixture struct {
-	ctx    context.Context
-	pool   *pgxpool.Pool
+	ctx   context.Context
+	pool  *pgxpool.Pool
 	users *UserRepository
 }
 
@@ -30,7 +31,7 @@ func newPostgresFixture(t *testing.T) *postgresFixture {
 	return &postgresFixture{
 		ctx:   context.Background(),
 		pool:  pool,
-		users: NewUserRepository(pool),
+		users: newUserRepository(pool),
 	}
 }
 
@@ -201,6 +202,46 @@ func TestUserRepositoryIntegration(t *testing.T) {
 				t.Fatalf("Delete() error = %v", err)
 			}
 			assertEqual(t, countRows(t, f, `SELECT count(*) FROM users WHERE id = $1::uuid`, user.ID), 0)
+		})
+	})
+}
+
+func TestUserRepositoryIdempotencyIntegration(t *testing.T) {
+	const component = "UserRepository"
+
+	runIntegration(t, component, testkit.Spec{
+		ID: "IT-DA-USR-IDEM-01", Method: "Create",
+		Title:     "a repeated create with the same idempotency key returns the first user",
+		Given:     "an empty users table",
+		When:      "Create is called twice with the same key, email and name, then once with the same key and another email",
+		Then:      "both matching calls return one id, one users row and one idempotency_keys row exist, and the other email conflicts",
+		Technique: testkit.TechniqueState,
+		Severity:  testkit.SeverityCritical,
+	}, func(t *testing.T, r testkit.Report) {
+		var f *postgresFixture
+		var first, second domain.User
+		var conflict error
+		r.Arrange(func(t *testing.T) { f = newPostgresFixture(t) })
+		r.Act(func(t *testing.T) {
+			ctx, err := idempotency.With(f.ctx, "reg-1")
+			if err != nil {
+				t.Fatal(err)
+			}
+			first, err = f.users.Create(ctx, domain.User{Email: "idem@example.com", Name: "Idem"}, "hash")
+			if err != nil {
+				t.Fatal(err)
+			}
+			second, err = f.users.Create(ctx, domain.User{Email: "idem@example.com", Name: "Idem"}, "other-hash")
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, conflict = f.users.Create(ctx, domain.User{Email: "other@example.com", Name: "Idem"}, "hash")
+		})
+		r.Assert(func(t *testing.T) {
+			assertEqual(t, second.ID, first.ID)
+			assertDomainError(t, conflict, domain.CodeConflict, "idempotency key reused with another request")
+			assertEqual(t, countRows(t, f, `SELECT count(*) FROM users`), 1)
+			assertEqual(t, countRows(t, f, `SELECT count(*) FROM idempotency_keys`), 1)
 		})
 	})
 }
