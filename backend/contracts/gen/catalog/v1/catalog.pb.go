@@ -300,6 +300,7 @@ type GetTrackRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	ViewerId      string                 `protobuf:"bytes,2,opt,name=viewer_id,json=viewerId,proto3" json:"viewer_id,omitempty"`
+	Consistency   v1.Consistency         `protobuf:"varint,3,opt,name=consistency,proto3,enum=chimera.common.v1.Consistency" json:"consistency,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -346,6 +347,13 @@ func (x *GetTrackRequest) GetViewerId() string {
 		return x.ViewerId
 	}
 	return ""
+}
+
+func (x *GetTrackRequest) GetConsistency() v1.Consistency {
+	if x != nil {
+		return x.Consistency
+	}
+	return v1.Consistency(0)
 }
 
 type GetTrackResponse struct {
@@ -395,6 +403,7 @@ func (x *GetTrackResponse) GetTrack() *Track {
 type BatchGetTracksRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ids           []string               `protobuf:"bytes,1,rep,name=ids,proto3" json:"ids,omitempty"`
+	Consistency   v1.Consistency         `protobuf:"varint,2,opt,name=consistency,proto3,enum=chimera.common.v1.Consistency" json:"consistency,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -434,6 +443,13 @@ func (x *BatchGetTracksRequest) GetIds() []string {
 		return x.Ids
 	}
 	return nil
+}
+
+func (x *BatchGetTracksRequest) GetConsistency() v1.Consistency {
+	if x != nil {
+		return x.Consistency
+	}
+	return v1.Consistency(0)
 }
 
 type BatchGetTracksResponse struct {
@@ -481,13 +497,15 @@ func (x *BatchGetTracksResponse) GetTracks() []*Track {
 }
 
 type CreateTrackRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ActorId       string                 `protobuf:"bytes,1,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Artist        string                 `protobuf:"bytes,3,opt,name=artist,proto3" json:"artist,omitempty"`
-	SizeBytes     int64                  `protobuf:"varint,4,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ActorId   string                 `protobuf:"bytes,1,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	Title     string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Artist    string                 `protobuf:"bytes,3,opt,name=artist,proto3" json:"artist,omitempty"`
+	SizeBytes int64                  `protobuf:"varint,4,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	// idempotency_key makes a repeated call return the first upload session instead of a second track.
+	IdempotencyKey string `protobuf:"bytes,5,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateTrackRequest) Reset() {
@@ -546,6 +564,13 @@ func (x *CreateTrackRequest) GetSizeBytes() int64 {
 		return x.SizeBytes
 	}
 	return 0
+}
+
+func (x *CreateTrackRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
 }
 
 type CreateTrackResponse struct {
@@ -1012,7 +1037,7 @@ var File_chimera_catalog_v1_catalog_proto protoreflect.FileDescriptor
 
 const file_chimera_catalog_v1_catalog_proto_rawDesc = "" +
 	"\n" +
-	" chimera/catalog/v1/catalog.proto\x12\x12chimera.catalog.v1\x1a\x1cchimera/common/v1/page.proto\"\x95\x01\n" +
+	" chimera/catalog/v1/catalog.proto\x12\x12chimera.catalog.v1\x1a#chimera/common/v1/consistency.proto\x1a\x1cchimera/common/v1/page.proto\"\x95\x01\n" +
 	"\x05Track\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x14\n" +
@@ -1034,22 +1059,25 @@ const file_chimera_catalog_v1_catalog_proto_rawDesc = "" +
 	"\x05items\x18\x01 \x03(\v2\x19.chimera.catalog.v1.TrackR\x05items\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
 	"nextCursor\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\x03R\x05limit\">\n" +
+	"\x05limit\x18\x03 \x01(\x03R\x05limit\"\x80\x01\n" +
 	"\x0fGetTrackRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
-	"\tviewer_id\x18\x02 \x01(\tR\bviewerId\"C\n" +
+	"\tviewer_id\x18\x02 \x01(\tR\bviewerId\x12@\n" +
+	"\vconsistency\x18\x03 \x01(\x0e2\x1e.chimera.common.v1.ConsistencyR\vconsistency\"C\n" +
 	"\x10GetTrackResponse\x12/\n" +
-	"\x05track\x18\x01 \x01(\v2\x19.chimera.catalog.v1.TrackR\x05track\")\n" +
+	"\x05track\x18\x01 \x01(\v2\x19.chimera.catalog.v1.TrackR\x05track\"k\n" +
 	"\x15BatchGetTracksRequest\x12\x10\n" +
-	"\x03ids\x18\x01 \x03(\tR\x03ids\"K\n" +
+	"\x03ids\x18\x01 \x03(\tR\x03ids\x12@\n" +
+	"\vconsistency\x18\x02 \x01(\x0e2\x1e.chimera.common.v1.ConsistencyR\vconsistency\"K\n" +
 	"\x16BatchGetTracksResponse\x121\n" +
-	"\x06tracks\x18\x01 \x03(\v2\x19.chimera.catalog.v1.TrackR\x06tracks\"|\n" +
+	"\x06tracks\x18\x01 \x03(\v2\x19.chimera.catalog.v1.TrackR\x06tracks\"\xa5\x01\n" +
 	"\x12CreateTrackRequest\x12\x19\n" +
 	"\bactor_id\x18\x01 \x01(\tR\aactorId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x16\n" +
 	"\x06artist\x18\x03 \x01(\tR\x06artist\x12\x1d\n" +
 	"\n" +
-	"size_bytes\x18\x04 \x01(\x03R\tsizeBytes\"e\n" +
+	"size_bytes\x18\x04 \x01(\x03R\tsizeBytes\x12'\n" +
+	"\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\"e\n" +
 	"\x13CreateTrackResponse\x12/\n" +
 	"\x05track\x18\x01 \x01(\v2\x19.chimera.catalog.v1.TrackR\x05track\x12\x1d\n" +
 	"\n" +
@@ -1124,37 +1152,40 @@ var file_chimera_catalog_v1_catalog_proto_goTypes = []any{
 	(*GetStreamURLRequest)(nil),    // 16: chimera.catalog.v1.GetStreamURLRequest
 	(*GetStreamURLResponse)(nil),   // 17: chimera.catalog.v1.GetStreamURLResponse
 	(*v1.PageRequest)(nil),         // 18: chimera.common.v1.PageRequest
+	(v1.Consistency)(0),            // 19: chimera.common.v1.Consistency
 }
 var file_chimera_catalog_v1_catalog_proto_depIdxs = []int32{
 	18, // 0: chimera.catalog.v1.ListTracksRequest.page:type_name -> chimera.common.v1.PageRequest
 	1,  // 1: chimera.catalog.v1.ListTracksRequest.track_ids:type_name -> chimera.catalog.v1.TrackIDs
 	0,  // 2: chimera.catalog.v1.ListTracksResponse.items:type_name -> chimera.catalog.v1.Track
-	0,  // 3: chimera.catalog.v1.GetTrackResponse.track:type_name -> chimera.catalog.v1.Track
-	0,  // 4: chimera.catalog.v1.BatchGetTracksResponse.tracks:type_name -> chimera.catalog.v1.Track
-	0,  // 5: chimera.catalog.v1.CreateTrackResponse.track:type_name -> chimera.catalog.v1.Track
-	0,  // 6: chimera.catalog.v1.ReplaceTrackResponse.track:type_name -> chimera.catalog.v1.Track
-	0,  // 7: chimera.catalog.v1.PatchTrackResponse.track:type_name -> chimera.catalog.v1.Track
-	2,  // 8: chimera.catalog.v1.CatalogService.ListTracks:input_type -> chimera.catalog.v1.ListTracksRequest
-	4,  // 9: chimera.catalog.v1.CatalogService.GetTrack:input_type -> chimera.catalog.v1.GetTrackRequest
-	6,  // 10: chimera.catalog.v1.CatalogService.BatchGetTracks:input_type -> chimera.catalog.v1.BatchGetTracksRequest
-	8,  // 11: chimera.catalog.v1.CatalogService.CreateTrack:input_type -> chimera.catalog.v1.CreateTrackRequest
-	10, // 12: chimera.catalog.v1.CatalogService.ReplaceTrack:input_type -> chimera.catalog.v1.ReplaceTrackRequest
-	12, // 13: chimera.catalog.v1.CatalogService.PatchTrack:input_type -> chimera.catalog.v1.PatchTrackRequest
-	14, // 14: chimera.catalog.v1.CatalogService.DeleteTrack:input_type -> chimera.catalog.v1.DeleteTrackRequest
-	16, // 15: chimera.catalog.v1.CatalogService.GetStreamURL:input_type -> chimera.catalog.v1.GetStreamURLRequest
-	3,  // 16: chimera.catalog.v1.CatalogService.ListTracks:output_type -> chimera.catalog.v1.ListTracksResponse
-	5,  // 17: chimera.catalog.v1.CatalogService.GetTrack:output_type -> chimera.catalog.v1.GetTrackResponse
-	7,  // 18: chimera.catalog.v1.CatalogService.BatchGetTracks:output_type -> chimera.catalog.v1.BatchGetTracksResponse
-	9,  // 19: chimera.catalog.v1.CatalogService.CreateTrack:output_type -> chimera.catalog.v1.CreateTrackResponse
-	11, // 20: chimera.catalog.v1.CatalogService.ReplaceTrack:output_type -> chimera.catalog.v1.ReplaceTrackResponse
-	13, // 21: chimera.catalog.v1.CatalogService.PatchTrack:output_type -> chimera.catalog.v1.PatchTrackResponse
-	15, // 22: chimera.catalog.v1.CatalogService.DeleteTrack:output_type -> chimera.catalog.v1.DeleteTrackResponse
-	17, // 23: chimera.catalog.v1.CatalogService.GetStreamURL:output_type -> chimera.catalog.v1.GetStreamURLResponse
-	16, // [16:24] is the sub-list for method output_type
-	8,  // [8:16] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	19, // 3: chimera.catalog.v1.GetTrackRequest.consistency:type_name -> chimera.common.v1.Consistency
+	0,  // 4: chimera.catalog.v1.GetTrackResponse.track:type_name -> chimera.catalog.v1.Track
+	19, // 5: chimera.catalog.v1.BatchGetTracksRequest.consistency:type_name -> chimera.common.v1.Consistency
+	0,  // 6: chimera.catalog.v1.BatchGetTracksResponse.tracks:type_name -> chimera.catalog.v1.Track
+	0,  // 7: chimera.catalog.v1.CreateTrackResponse.track:type_name -> chimera.catalog.v1.Track
+	0,  // 8: chimera.catalog.v1.ReplaceTrackResponse.track:type_name -> chimera.catalog.v1.Track
+	0,  // 9: chimera.catalog.v1.PatchTrackResponse.track:type_name -> chimera.catalog.v1.Track
+	2,  // 10: chimera.catalog.v1.CatalogService.ListTracks:input_type -> chimera.catalog.v1.ListTracksRequest
+	4,  // 11: chimera.catalog.v1.CatalogService.GetTrack:input_type -> chimera.catalog.v1.GetTrackRequest
+	6,  // 12: chimera.catalog.v1.CatalogService.BatchGetTracks:input_type -> chimera.catalog.v1.BatchGetTracksRequest
+	8,  // 13: chimera.catalog.v1.CatalogService.CreateTrack:input_type -> chimera.catalog.v1.CreateTrackRequest
+	10, // 14: chimera.catalog.v1.CatalogService.ReplaceTrack:input_type -> chimera.catalog.v1.ReplaceTrackRequest
+	12, // 15: chimera.catalog.v1.CatalogService.PatchTrack:input_type -> chimera.catalog.v1.PatchTrackRequest
+	14, // 16: chimera.catalog.v1.CatalogService.DeleteTrack:input_type -> chimera.catalog.v1.DeleteTrackRequest
+	16, // 17: chimera.catalog.v1.CatalogService.GetStreamURL:input_type -> chimera.catalog.v1.GetStreamURLRequest
+	3,  // 18: chimera.catalog.v1.CatalogService.ListTracks:output_type -> chimera.catalog.v1.ListTracksResponse
+	5,  // 19: chimera.catalog.v1.CatalogService.GetTrack:output_type -> chimera.catalog.v1.GetTrackResponse
+	7,  // 20: chimera.catalog.v1.CatalogService.BatchGetTracks:output_type -> chimera.catalog.v1.BatchGetTracksResponse
+	9,  // 21: chimera.catalog.v1.CatalogService.CreateTrack:output_type -> chimera.catalog.v1.CreateTrackResponse
+	11, // 22: chimera.catalog.v1.CatalogService.ReplaceTrack:output_type -> chimera.catalog.v1.ReplaceTrackResponse
+	13, // 23: chimera.catalog.v1.CatalogService.PatchTrack:output_type -> chimera.catalog.v1.PatchTrackResponse
+	15, // 24: chimera.catalog.v1.CatalogService.DeleteTrack:output_type -> chimera.catalog.v1.DeleteTrackResponse
+	17, // 25: chimera.catalog.v1.CatalogService.GetStreamURL:output_type -> chimera.catalog.v1.GetStreamURLResponse
+	18, // [18:26] is the sub-list for method output_type
+	10, // [10:18] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_chimera_catalog_v1_catalog_proto_init() }

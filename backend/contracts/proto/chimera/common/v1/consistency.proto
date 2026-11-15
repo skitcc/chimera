@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package chimera.common.v1;
+
+option go_package = "chimera/contracts/gen/common/v1;commonv1";
+
+// Consistency selects where a read by id is served.
+enum Consistency {
+  // CONSISTENCY_UNSPECIFIED behaves as CONSISTENCY_EVENTUAL.
+  CONSISTENCY_UNSPECIFIED = 0;
+  // CONSISTENCY_EVENTUAL reads a replica and falls back to the primary when the row is missing there.
+  CONSISTENCY_EVENTUAL = 1;
+  // CONSISTENCY_STRONG reads the primary. Checks that guard a write use it.
+  CONSISTENCY_STRONG = 2;
+}

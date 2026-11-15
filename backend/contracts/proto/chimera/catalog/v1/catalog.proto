@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chimera.catalog.v1;
 
+import "chimera/common/v1/consistency.proto";
 import "chimera/common/v1/page.proto";
 
 option go_package = "chimera/contracts/gen/catalog/v1;catalogv1";
@@ -54,6 +55,7 @@ message ListTracksResponse {
 message GetTrackRequest {
   string id = 1;
   string viewer_id = 2;
+  chimera.common.v1.Consistency consistency = 3;
 }
 
 message GetTrackResponse {
@@ -62,6 +64,7 @@ message GetTrackResponse {
 
 message BatchGetTracksRequest {
   repeated string ids = 1;
+  chimera.common.v1.Consistency consistency = 2;
 }
 
 message BatchGetTracksResponse {
@@ -73,6 +76,8 @@ message CreateTrackRequest {
   string title = 2;
   string artist = 3;
   int64 size_bytes = 4;
+  // idempotency_key makes a repeated call return the first upload session instead of a second track.
+  string idempotency_key = 5;
 }
 
 message CreateTrackResponse {

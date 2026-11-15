@@ -187,12 +187,14 @@ func (x *CreateSessionResponse) GetUser() *User {
 }
 
 type CreateUserRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Password      string                 `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Email    string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	Name     string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Password string                 `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
+	// idempotency_key makes a repeated call return the first result instead of a conflict.
+	IdempotencyKey string `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateUserRequest) Reset() {
@@ -246,6 +248,13 @@ func (x *CreateUserRequest) GetPassword() string {
 	return ""
 }
 
+func (x *CreateUserRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
 type CreateUserResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
@@ -293,6 +302,7 @@ func (x *CreateUserResponse) GetUser() *User {
 type GetUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Consistency   v1.Consistency         `protobuf:"varint,2,opt,name=consistency,proto3,enum=chimera.common.v1.Consistency" json:"consistency,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -332,6 +342,13 @@ func (x *GetUserRequest) GetId() string {
 		return x.Id
 	}
 	return ""
+}
+
+func (x *GetUserRequest) GetConsistency() v1.Consistency {
+	if x != nil {
+		return x.Consistency
+	}
+	return v1.Consistency(0)
 }
 
 type GetUserResponse struct {
@@ -894,7 +911,7 @@ var File_chimera_identity_v1_identity_proto protoreflect.FileDescriptor
 
 const file_chimera_identity_v1_identity_proto_rawDesc = "" +
 	"\n" +
-	"\"chimera/identity/v1/identity.proto\x12\x13chimera.identity.v1\x1a\x1cchimera/common/v1/page.proto\"@\n" +
+	"\"chimera/identity/v1/identity.proto\x12\x13chimera.identity.v1\x1a#chimera/common/v1/consistency.proto\x1a\x1cchimera/common/v1/page.proto\"@\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
@@ -904,15 +921,17 @@ const file_chimera_identity_v1_identity_proto_rawDesc = "" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"\\\n" +
 	"\x15CreateSessionResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12-\n" +
-	"\x04user\x18\x02 \x01(\v2\x19.chimera.identity.v1.UserR\x04user\"Y\n" +
+	"\x04user\x18\x02 \x01(\v2\x19.chimera.identity.v1.UserR\x04user\"\x82\x01\n" +
 	"\x11CreateUserRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
-	"\bpassword\x18\x03 \x01(\tR\bpassword\"C\n" +
+	"\bpassword\x18\x03 \x01(\tR\bpassword\x12'\n" +
+	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\"C\n" +
 	"\x12CreateUserResponse\x12-\n" +
-	"\x04user\x18\x01 \x01(\v2\x19.chimera.identity.v1.UserR\x04user\" \n" +
+	"\x04user\x18\x01 \x01(\v2\x19.chimera.identity.v1.UserR\x04user\"b\n" +
 	"\x0eGetUserRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"@\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12@\n" +
+	"\vconsistency\x18\x02 \x01(\x0e2\x1e.chimera.common.v1.ConsistencyR\vconsistency\"@\n" +
 	"\x0fGetUserResponse\x12-\n" +
 	"\x04user\x18\x01 \x01(\v2\x19.chimera.identity.v1.UserR\x04user\"(\n" +
 	"\x14BatchGetUsersRequest\x12\x10\n" +
@@ -991,38 +1010,40 @@ var file_chimera_identity_v1_identity_proto_goTypes = []any{
 	(*PatchUserResponse)(nil),     // 14: chimera.identity.v1.PatchUserResponse
 	(*DeleteUserRequest)(nil),     // 15: chimera.identity.v1.DeleteUserRequest
 	(*DeleteUserResponse)(nil),    // 16: chimera.identity.v1.DeleteUserResponse
-	(*v1.PageRequest)(nil),        // 17: chimera.common.v1.PageRequest
+	(v1.Consistency)(0),           // 17: chimera.common.v1.Consistency
+	(*v1.PageRequest)(nil),        // 18: chimera.common.v1.PageRequest
 }
 var file_chimera_identity_v1_identity_proto_depIdxs = []int32{
 	0,  // 0: chimera.identity.v1.CreateSessionResponse.user:type_name -> chimera.identity.v1.User
 	0,  // 1: chimera.identity.v1.CreateUserResponse.user:type_name -> chimera.identity.v1.User
-	0,  // 2: chimera.identity.v1.GetUserResponse.user:type_name -> chimera.identity.v1.User
-	0,  // 3: chimera.identity.v1.BatchGetUsersResponse.users:type_name -> chimera.identity.v1.User
-	17, // 4: chimera.identity.v1.ListUsersRequest.page:type_name -> chimera.common.v1.PageRequest
-	0,  // 5: chimera.identity.v1.ListUsersResponse.items:type_name -> chimera.identity.v1.User
-	0,  // 6: chimera.identity.v1.ReplaceUserResponse.user:type_name -> chimera.identity.v1.User
-	0,  // 7: chimera.identity.v1.PatchUserResponse.user:type_name -> chimera.identity.v1.User
-	1,  // 8: chimera.identity.v1.IdentityService.CreateSession:input_type -> chimera.identity.v1.CreateSessionRequest
-	3,  // 9: chimera.identity.v1.IdentityService.CreateUser:input_type -> chimera.identity.v1.CreateUserRequest
-	5,  // 10: chimera.identity.v1.IdentityService.GetUser:input_type -> chimera.identity.v1.GetUserRequest
-	7,  // 11: chimera.identity.v1.IdentityService.BatchGetUsers:input_type -> chimera.identity.v1.BatchGetUsersRequest
-	9,  // 12: chimera.identity.v1.IdentityService.ListUsers:input_type -> chimera.identity.v1.ListUsersRequest
-	11, // 13: chimera.identity.v1.IdentityService.ReplaceUser:input_type -> chimera.identity.v1.ReplaceUserRequest
-	13, // 14: chimera.identity.v1.IdentityService.PatchUser:input_type -> chimera.identity.v1.PatchUserRequest
-	15, // 15: chimera.identity.v1.IdentityService.DeleteUser:input_type -> chimera.identity.v1.DeleteUserRequest
-	2,  // 16: chimera.identity.v1.IdentityService.CreateSession:output_type -> chimera.identity.v1.CreateSessionResponse
-	4,  // 17: chimera.identity.v1.IdentityService.CreateUser:output_type -> chimera.identity.v1.CreateUserResponse
-	6,  // 18: chimera.identity.v1.IdentityService.GetUser:output_type -> chimera.identity.v1.GetUserResponse
-	8,  // 19: chimera.identity.v1.IdentityService.BatchGetUsers:output_type -> chimera.identity.v1.BatchGetUsersResponse
-	10, // 20: chimera.identity.v1.IdentityService.ListUsers:output_type -> chimera.identity.v1.ListUsersResponse
-	12, // 21: chimera.identity.v1.IdentityService.ReplaceUser:output_type -> chimera.identity.v1.ReplaceUserResponse
-	14, // 22: chimera.identity.v1.IdentityService.PatchUser:output_type -> chimera.identity.v1.PatchUserResponse
-	16, // 23: chimera.identity.v1.IdentityService.DeleteUser:output_type -> chimera.identity.v1.DeleteUserResponse
-	16, // [16:24] is the sub-list for method output_type
-	8,  // [8:16] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	17, // 2: chimera.identity.v1.GetUserRequest.consistency:type_name -> chimera.common.v1.Consistency
+	0,  // 3: chimera.identity.v1.GetUserResponse.user:type_name -> chimera.identity.v1.User
+	0,  // 4: chimera.identity.v1.BatchGetUsersResponse.users:type_name -> chimera.identity.v1.User
+	18, // 5: chimera.identity.v1.ListUsersRequest.page:type_name -> chimera.common.v1.PageRequest
+	0,  // 6: chimera.identity.v1.ListUsersResponse.items:type_name -> chimera.identity.v1.User
+	0,  // 7: chimera.identity.v1.ReplaceUserResponse.user:type_name -> chimera.identity.v1.User
+	0,  // 8: chimera.identity.v1.PatchUserResponse.user:type_name -> chimera.identity.v1.User
+	1,  // 9: chimera.identity.v1.IdentityService.CreateSession:input_type -> chimera.identity.v1.CreateSessionRequest
+	3,  // 10: chimera.identity.v1.IdentityService.CreateUser:input_type -> chimera.identity.v1.CreateUserRequest
+	5,  // 11: chimera.identity.v1.IdentityService.GetUser:input_type -> chimera.identity.v1.GetUserRequest
+	7,  // 12: chimera.identity.v1.IdentityService.BatchGetUsers:input_type -> chimera.identity.v1.BatchGetUsersRequest
+	9,  // 13: chimera.identity.v1.IdentityService.ListUsers:input_type -> chimera.identity.v1.ListUsersRequest
+	11, // 14: chimera.identity.v1.IdentityService.ReplaceUser:input_type -> chimera.identity.v1.ReplaceUserRequest
+	13, // 15: chimera.identity.v1.IdentityService.PatchUser:input_type -> chimera.identity.v1.PatchUserRequest
+	15, // 16: chimera.identity.v1.IdentityService.DeleteUser:input_type -> chimera.identity.v1.DeleteUserRequest
+	2,  // 17: chimera.identity.v1.IdentityService.CreateSession:output_type -> chimera.identity.v1.CreateSessionResponse
+	4,  // 18: chimera.identity.v1.IdentityService.CreateUser:output_type -> chimera.identity.v1.CreateUserResponse
+	6,  // 19: chimera.identity.v1.IdentityService.GetUser:output_type -> chimera.identity.v1.GetUserResponse
+	8,  // 20: chimera.identity.v1.IdentityService.BatchGetUsers:output_type -> chimera.identity.v1.BatchGetUsersResponse
+	10, // 21: chimera.identity.v1.IdentityService.ListUsers:output_type -> chimera.identity.v1.ListUsersResponse
+	12, // 22: chimera.identity.v1.IdentityService.ReplaceUser:output_type -> chimera.identity.v1.ReplaceUserResponse
+	14, // 23: chimera.identity.v1.IdentityService.PatchUser:output_type -> chimera.identity.v1.PatchUserResponse
+	16, // 24: chimera.identity.v1.IdentityService.DeleteUser:output_type -> chimera.identity.v1.DeleteUserResponse
+	17, // [17:25] is the sub-list for method output_type
+	9,  // [9:17] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_chimera_identity_v1_identity_proto_init() }

@@ -1270,12 +1270,14 @@ func (x *ListPlaylistsResponse) GetLimit() int64 {
 }
 
 type CreatePlaylistRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ActorId       string                 `protobuf:"bytes,1,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	IsPublic      bool                   `protobuf:"varint,3,opt,name=is_public,json=isPublic,proto3" json:"is_public,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	ActorId  string                 `protobuf:"bytes,1,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	Title    string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	IsPublic bool                   `protobuf:"varint,3,opt,name=is_public,json=isPublic,proto3" json:"is_public,omitempty"`
+	// idempotency_key makes a repeated call return the first playlist instead of a second one.
+	IdempotencyKey string `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreatePlaylistRequest) Reset() {
@@ -1327,6 +1329,13 @@ func (x *CreatePlaylistRequest) GetIsPublic() bool {
 		return x.IsPublic
 	}
 	return false
+}
+
+func (x *CreatePlaylistRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
 }
 
 type CreatePlaylistResponse struct {
@@ -2312,11 +2321,12 @@ const file_chimera_social_v1_social_proto_rawDesc = "" +
 	"\x05items\x18\x01 \x03(\v2\x1b.chimera.social.v1.PlaylistR\x05items\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
 	"nextCursor\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\x03R\x05limit\"e\n" +
+	"\x05limit\x18\x03 \x01(\x03R\x05limit\"\x8e\x01\n" +
 	"\x15CreatePlaylistRequest\x12\x19\n" +
 	"\bactor_id\x18\x01 \x01(\tR\aactorId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x1b\n" +
-	"\tis_public\x18\x03 \x01(\bR\bisPublic\"Q\n" +
+	"\tis_public\x18\x03 \x01(\bR\bisPublic\x12'\n" +
+	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\"Q\n" +
 	"\x16CreatePlaylistResponse\x127\n" +
 	"\bplaylist\x18\x01 \x01(\v2\x1b.chimera.social.v1.PlaylistR\bplaylist\"A\n" +
 	"\x12GetPlaylistRequest\x12\x0e\n" +

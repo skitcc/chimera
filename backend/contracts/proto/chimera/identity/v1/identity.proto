@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chimera.identity.v1;
 
+import "chimera/common/v1/consistency.proto";
 import "chimera/common/v1/page.proto";
 
 option go_package = "chimera/contracts/gen/identity/v1;identityv1";
@@ -40,6 +41,8 @@ message CreateUserRequest {
   string email = 1;
   string name = 2;
   string password = 3;
+  // idempotency_key makes a repeated call return the first result instead of a conflict.
+  string idempotency_key = 4;
 }
 
 message CreateUserResponse {
@@ -48,6 +51,7 @@ message CreateUserResponse {
 
 message GetUserRequest {
   string id = 1;
+  chimera.common.v1.Consistency consistency = 2;
 }
 
 message GetUserResponse {

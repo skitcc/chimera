@@ -154,6 +154,8 @@ message CreatePlaylistRequest {
   string actor_id = 1;
   string title = 2;
   bool is_public = 3;
+  // idempotency_key makes a repeated call return the first playlist instead of a second one.
+  string idempotency_key = 4;
 }
 
 message CreatePlaylistResponse {
