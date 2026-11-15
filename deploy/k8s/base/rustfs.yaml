@@ -1,0 +1,81 @@
+# S3-compatible object storage for track files. Catalog owns the bucket.
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustfs
+spec:
+  selector:
+    app.kubernetes.io/name: rustfs
+  ports:
+    - name: s3
+      port: 9000
+      targetPort: s3
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rustfs
+spec:
+  serviceName: rustfs
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rustfs
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rustfs
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: rustfs
+          image: rustfs/rustfs:latest@sha256:8cc9801755448b71a786705ce76692c77e14936cccd87cf2fc31842e58f4d1ff
+          imagePullPolicy: IfNotPresent
+          args: ["/data"]
+          ports:
+            - name: s3
+              containerPort: 9000
+          env:
+            - name: RUSTFS_ADDRESS
+              value: ":9000"
+            - name: RUSTFS_CONSOLE_ENABLE
+              value: "false"
+            - name: RUSTFS_VOLUMES
+              value: /data
+            - name: RUSTFS_CORS_ALLOWED_ORIGINS
+              valueFrom:
+                configMapKeyRef: {name: edge-config, key: WEB_ORIGIN}
+            - name: RUSTFS_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: {name: chimera-secrets, key: S3_ACCESS_KEY}
+            - name: RUSTFS_SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: chimera-secrets, key: S3_SECRET_KEY}
+          readinessProbe:
+            httpGet: {path: /health, port: s3}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /health, port: s3}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 5Gi

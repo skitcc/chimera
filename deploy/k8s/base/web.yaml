@@ -1,0 +1,51 @@
+# Web: the built SPA behind nginx. Ingress sends /v1 straight to the Gateway; the nginx
+# proxy to API_UPSTREAM serves the same paths when the SPA is opened without ingress.
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+spec:
+  selector:
+    app.kubernetes.io/name: web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: web
+          image: chimera/web:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: API_UPSTREAM
+              value: gateway:8080
+          readinessProbe:
+            httpGet: {path: /, port: http}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits: {memory: 128Mi}
+          securityContext:
+            allowPrivilegeEscalation: false

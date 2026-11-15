@@ -1,0 +1,27 @@
+# minikube (docker driver, node IP 192.168.49.2). Hosts resolve through nip.io.
+# Before apply: make k8s-keys and a secrets.env copied from secrets.env.example.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: chimera
+resources:
+  - ../../base
+  - ingress.yaml
+configMapGenerator:
+  - name: edge-config
+    behavior: replace
+    literals:
+      - WEB_ORIGIN=http://chimera.192.168.49.2.nip.io
+      - S3_PRESIGN_ENDPOINT=http://s3.chimera.192.168.49.2.nip.io
+      - STREAM_HOST=s3.chimera.192.168.49.2.nip.io
+      # The ingress-nginx controller reaches the Gateway from the pod network.
+      - TRUSTED_PROXIES=10.244.0.0/16
+  - name: jwt-public
+    files:
+      - jwt.pub=keys/jwt.pub
+secretGenerator:
+  - name: chimera-secrets
+    envs:
+      - secrets.env
+  - name: jwt-private
+    files:
+      - jwt.pem=keys/jwt.pem

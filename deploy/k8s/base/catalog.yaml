@@ -1,0 +1,78 @@
+# Catalog: tracks and their files. Publishes TrackDeleted, consumes UserDeleted.
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog
+spec:
+  selector:
+    app.kubernetes.io/name: catalog
+  ports:
+    - name: grpc
+      port: 9090
+      targetPort: grpc
+      appProtocol: grpc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: catalog
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: catalog
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: catalog
+          image: chimera/catalog:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: grpc
+              containerPort: 9090
+          envFrom:
+            - configMapRef: {name: service-runtime}
+            - configMapRef: {name: catalog-config}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: chimera-secrets, key: CATALOG_DB_PASSWORD}
+            - name: DATABASE_URL
+              value: postgres://catalog:$(DB_PASSWORD)@postgres:5432/catalog?sslmode=disable
+            - name: S3_PRESIGN_ENDPOINT
+              valueFrom:
+                configMapKeyRef: {name: edge-config, key: S3_PRESIGN_ENDPOINT}
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: {name: chimera-secrets, key: S3_ACCESS_KEY}
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: chimera-secrets, key: S3_SECRET_KEY}
+          readinessProbe:
+            grpc: {port: 9090}
+            periodSeconds: 5
+          # The server listens only after Postgres (and S3) answer; until then
+          # only the startup probe runs, so a slow dependency never kills the pod.
+          startupProbe:
+            grpc: {port: 9090, service: chimera.liveness}
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            grpc: {port: 9090, service: chimera.liveness}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}

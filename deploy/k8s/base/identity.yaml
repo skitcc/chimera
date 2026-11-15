@@ -1,0 +1,79 @@
+# Identity: users and sessions. Signs JWTs, publishes UserDeleted through its outbox.
+apiVersion: v1
+kind: Service
+metadata:
+  name: identity
+spec:
+  selector:
+    app.kubernetes.io/name: identity
+  ports:
+    - name: grpc
+      port: 9090
+      targetPort: grpc
+      appProtocol: grpc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: identity
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: identity
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: identity
+          image: chimera/identity:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: grpc
+              containerPort: 9090
+          envFrom:
+            - configMapRef: {name: service-runtime}
+            - configMapRef: {name: identity-config}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: chimera-secrets, key: IDENTITY_DB_PASSWORD}
+            - name: DATABASE_URL
+              value: postgres://identity:$(DB_PASSWORD)@postgres:5432/identity?sslmode=disable
+          readinessProbe:
+            grpc: {port: 9090}
+            periodSeconds: 5
+          # The server listens only after Postgres (and S3) answer; until then
+          # only the startup probe runs, so a slow dependency never kills the pod.
+          startupProbe:
+            grpc: {port: 9090, service: chimera.liveness}
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            grpc: {port: 9090, service: chimera.liveness}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - name: jwt-private
+              mountPath: /keys
+              readOnly: true
+      volumes:
+        - name: jwt-private
+          secret:
+            secretName: jwt-private
+            defaultMode: 0440

@@ -1,0 +1,50 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chimera
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: chimera.192.168.49.2.nip.io
+      http:
+        paths:
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service: {name: gateway, port: {name: http}}
+          - path: /swagger
+            pathType: Prefix
+            backend:
+              service: {name: gateway, port: {name: http}}
+          - path: /live
+            pathType: Exact
+            backend:
+              service: {name: gateway, port: {name: http}}
+          - path: /ready
+            pathType: Exact
+            backend:
+              service: {name: gateway, port: {name: http}}
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: web, port: {name: http}}
+---
+# Browsers upload and stream through presigned URLs straight to object storage.
+# The signature covers the Host header, so ingress must pass it through unchanged.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chimera-s3
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 100m
+    nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: s3.chimera.192.168.49.2.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: rustfs, port: {name: s3}}

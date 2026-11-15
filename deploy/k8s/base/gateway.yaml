@@ -1,0 +1,77 @@
+# Gateway: the public REST API. Verifies JWTs and fans out to the services over gRPC.
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+spec:
+  selector:
+    app.kubernetes.io/name: gateway
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gateway
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: gateway
+          image: chimera/gateway:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef: {name: gateway-config}
+          env:
+            - name: HTTP_CORS_ORIGIN
+              valueFrom:
+                configMapKeyRef: {name: edge-config, key: WEB_ORIGIN}
+            - name: STREAM_HOST
+              valueFrom:
+                configMapKeyRef: {name: edge-config, key: STREAM_HOST}
+            - name: TRUSTED_PROXIES
+              valueFrom:
+                configMapKeyRef: {name: edge-config, key: TRUSTED_PROXIES}
+          # Not /ready: one service being down must not pull the whole API out of the
+          # ingress. Calls to that service already fail alone with 503; /ready stays a
+          # diagnostic of all upstreams.
+          readinessProbe:
+            httpGet: {path: /live, port: http}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /live, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - name: jwt-public
+              mountPath: /keys
+              readOnly: true
+      volumes:
+        - name: jwt-public
+          configMap:
+            name: jwt-public

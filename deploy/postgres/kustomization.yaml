@@ -1,0 +1,10 @@
+# The same init script docker-compose.yml mounts, packaged for Kubernetes.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+generatorOptions:
+  # Runs only on an empty data directory, so a changed script must not roll the StatefulSet.
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: postgres-init
+    files:
+      - 10-databases.sh=init-databases.sh
