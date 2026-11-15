@@ -103,33 +103,58 @@
 ## 7. Технологический стек
 
 
-| Слой   | Выбор                                      |
-| ------ | ------------------------------------------ |
-| API    | Go, `net/http`, chi                        |
-| Сессия | JWT, пароли bcrypt                         |
-| Данные | PostgreSQL, `pgx`                          |
-| Файлы  | MinIO, временные ссылки на запись и чтение |
-| Логи   | `log/slog`                                 |
-| Клиент | TypeScript, React, React Router, Vite      |
+| Слой                 | Выбор                                                        |
+| -------------------- | ------------------------------------------------------------ |
+| Публичный API        | Gateway: Go, `net/http`, chi, REST `/v1`, Swagger            |
+| Внутренние вызовы    | gRPC, protobuf, `buf` (lint, breaking, генерация)            |
+| События              | Kafka (KRaft), `franz-go`, transactional outbox              |
+| Сессия               | JWT EdDSA (Ed25519): выпускает Identity, проверяет Gateway; пароли bcrypt |
+| Данные               | PostgreSQL, `pgx`, база и роль на сервис, `golang-migrate`   |
+| Файлы                | RustFS (S3 API), временные ссылки на запись и чтение         |
+| Логи                 | `log/slog`, сквозной `run_id` через HTTP-заголовки и gRPC-метаданные |
+| Клиент               | TypeScript, React, React Router, Vite                        |
+| Развёртывание        | Docker Compose; Kubernetes (minikube) через kustomize        |
 
 
 Секреты, порты и лимиты читаются из окружения. Без обязательной переменной процесс не стартует.
 
-Зависимости бэкенда идут внутрь: `transport/http` → `usecase` → `domain`. Реализации портов — `infra`. Сборка в `cmd/api/main.go`: сначала схема базы, затем репозитории, health-monitor и HTTP.
+Код — Go workspace `backend/go.work` из отдельных модулей:
+
+```
+backend/
+  contracts/  proto, сгенерированный Go, buf.yaml        (make proto)
+  platform/   логгер, env, grpcx, health, pg, outbox, kafka — без бизнес-правил
+  testkit/    RunSpec, Allure, тестовая база — только для тестов
+  identity/   cmd/identity, internal/{domain,usecase,infra,transport/grpc}, migrations
+  catalog/    cmd/catalog,  internal/{domain,usecase,infra,transport/{grpc,events}}, migrations
+  social/     cmd/social,   internal/{domain,usecase,infra,transport/{grpc,events}}, migrations
+  gateway/    cmd/gateway,  internal/{transport/http/{v1,middleware},clients,infra/auth}, docs
+  e2e/        демо-сценарий через Gateway
+```
+
+Внутри каждого сервиса зависимости идут внутрь: `transport` → `usecase` → `domain`, реализации портов — в `infra`. Сборка в `cmd/<service>/main.go`: конфигурация, пул Postgres, миграции, адаптеры, сценарии, outbox relay и консьюмеры, gRPC-сервер, health-monitor.
 
 ## 8. Диаграмма базы данных
 
 ![alt-text](../schemas/db/dbml.png)
 
-Миграция создаёт `users`, `tracks`, `track_likes`, `user_follows`, `playlists` и `playlist_tracks`. Связи пользователя и трека удаляются каскадно.
+Диаграмма — логическая модель. Физически это три базы в одном PostgreSQL, у каждой своя роль, и чужие базы сервис не читает:
 
-Уже есть индексы каталога автора, ленты готовых треков и любимого. Лайк удаляется вместе с пользователем и треком. Пустой ключ объекта выводится из идентификатора трека. Новый трек создаётся как `pending`. Страница списка отрезается в памяти от уже отфильтрованного набора.
+| База       | Владелец | Таблицы                                                                        |
+| ---------- | -------- | ------------------------------------------------------------------------------ |
+| `identity` | Identity | `users`, `outbox`                                                              |
+| `catalog`  | Catalog  | `tracks`, `outbox`, `deleted_users`, `processed_events`                        |
+| `social`   | Social   | `track_likes`, `user_follows`, `playlists`, `playlist_tracks`, `deleted_users`, `deleted_tracks`, `processed_events` |
+
+Между базами внешних ключей нет: `tracks.user_id` и `track_likes.track_id` — просто идентификаторы. Каскад, который раньше делал `ON DELETE CASCADE`, теперь делают события (ADR-5). Таблицы `deleted_users` и `deleted_tracks` — надгробия: консьюмер записывает id удалённой сущности, и запись, которая пришла позже события (лайк удалённого трека, трек удалённого автора), отклоняется как `not found` в той же транзакции. `processed_events` делает обработку события идемпотентной.
+
+Внутри базы сервиса связи остаются внешними ключами: позиции плейлиста удаляются вместе с плейлистом и уплотняются триггером. Миграции — нумерованные `migrations/*.sql`, встроены в бинарь и применяются на старте до создания репозиториев.
 
 ## 9. C4
 
 ### 9.1. Контекст
 
-Снаружи только люди. База и хранилище — части самой системы.
+Снаружи только люди. База, брокер и хранилище — части самой системы.
 
 ```mermaid
 C4Context
@@ -142,13 +167,11 @@ C4Context
   UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
 ```
 
-
-
 Почты, платежей и CDN нет.
 
 ### 9.2. Контейнеры
 
-Файл в API не заходит: браузер пишет и читает объект по временной ссылке.
+Файл в сервисы не заходит: браузер пишет и читает объект по временной ссылке. Синхронные вызовы — gRPC, последствия удалений — события Kafka.
 
 ```mermaid
 C4Container
@@ -156,86 +179,109 @@ C4Container
   Person(user, "Клиент", "Гость или пользователь")
   System_Boundary(sys, "Sound Chimera") {
     Container(web, "Web", "React, nginx", "Лента и плеер")
-    Container(api, "API", "Go, chi", "REST и JWT")
-    ContainerDb(pg, "PostgreSQL", "База", "Пользователи и треки")
-    ContainerDb(s3, "MinIO", "S3", "Аудио")
+    Container(gw, "Gateway", "Go, chi", "REST /v1, проверка JWT, rate limit")
+    Container(identity, "Identity", "Go, gRPC", "Аккаунты, вход, выпуск JWT")
+    Container(catalog, "Catalog", "Go, gRPC", "Треки, загрузка, стрим")
+    Container(social, "Social", "Go, gRPC", "Лайки, подписки, плейлисты")
+    ContainerQueue(kafka, "Kafka", "KRaft", "identity.user.v1, catalog.track.v1")
+    ContainerDb(pgi, "identity db", "PostgreSQL", "users, outbox")
+    ContainerDb(pgc, "catalog db", "PostgreSQL", "tracks, outbox")
+    ContainerDb(pgs, "social db", "PostgreSQL", "likes, follows, playlists")
+    ContainerDb(s3, "RustFS", "S3", "Аудио")
   }
   Rel(user, web, "Открывает", "HTTPS")
-  Rel(web, api, "JSON", "HTTP")
-  Rel(api, pg, "SQL", "pgx")
-  Rel(api, s3, "Ссылка и проверка", "S3")
-  Rel(web, s3, "Запись", "HTTP")
-  Rel(user, s3, "Чтение", "HTTP")
-  UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
+  Rel(user, gw, "JSON", "HTTPS")
+  Rel(user, s3, "Запись и чтение по ссылке", "HTTPS")
+  Rel(gw, identity, "Вход, профиль", "gRPC")
+  Rel(gw, catalog, "Треки", "gRPC")
+  Rel(gw, social, "Лайки, подписки, плейлисты", "gRPC")
+  Rel(social, catalog, "GetTrack, BatchGetTracks", "gRPC")
+  Rel(social, identity, "GetUser, BatchGetUsers", "gRPC")
+  Rel(identity, pgi, "SQL")
+  Rel(catalog, pgc, "SQL")
+  Rel(social, pgs, "SQL")
+  Rel(catalog, s3, "Ссылка, проверка, удаление", "S3")
+  Rel(identity, kafka, "UserDeleted", "outbox")
+  Rel(catalog, kafka, "TrackDeleted; читает UserDeleted")
+  Rel(social, kafka, "Читает UserDeleted и TrackDeleted")
+  UpdateLayoutConfig($c4ShapeInRow="4", $c4BoundaryInRow="1")
 ```
 
+| Сервис   | Владеет                                  | Публикует        | Читает (группа)                                          | Вызывает синхронно |
+| -------- | ---------------------------------------- | ---------------- | -------------------------------------------------------- | ------------------ |
+| Identity | пользователи, пароли, выпуск токенов     | `UserDeleted`    | —                                                        | —                  |
+| Catalog  | треки, объекты в бакете                  | `TrackDeleted`   | `UserDeleted` (`catalog`), `TrackDeleted` (`catalog-objects`) | —             |
+| Social   | лайки, подписки, плейлисты               | —                | `UserDeleted`, `TrackDeleted` (`social`)                 | Catalog, Identity  |
+| Gateway  | ничего                                   | —                | —                                                        | все три            |
 
+Маршруты Gateway: `/v1/sessions` и `/v1/users*` — Identity; `/v1/tracks*` — Catalog, кроме `GET /v1/tracks?liked_by=` и `/v1/users/{id}/likes/*`, которые идут в Social; `/v1/follows*` и `/v1/playlists*` — Social. Внешний контракт ([openapi.yaml](openapi.yaml)) остался прежним.
 
-### 9.3. Компоненты API
+### 9.3. Компоненты сервиса
 
-Компонент — папка с одной ролью внутри API. Границы — слои, сверху вниз.
+Все три gRPC-сервиса устроены одинаково; на диаграмме — Catalog, у которого есть все виды компонентов.
 
 ```mermaid
 C4Component
-  title 3. Компоненты API
+  title 3. Компоненты Catalog
   UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
 
   Container_Boundary(edge, "Вход") {
-    Component(authn, "RequireAuth", "middleware", "JWT в контекст")
-    Component(httpv1, "Контроллеры v1", "HTTP", "DTO и коды ответов")
+    Component(grpcSrv, "gRPC Server", "transport/grpc", "proto в домен, ошибки в статусы")
+    Component(events, "Event handlers", "transport/events", "Envelope в сценарий, битое в DLQ")
   }
 
   Container_Boundary(app, "Сценарии") {
-    Component(ucAuth, "AuthService", "usecase", "Регистрация и вход")
-    Component(ucUser, "UserService", "usecase", "Профиль")
-    Component(ucTrack, "TrackService", "usecase", "Лента, загрузка, лайки")
-    Component(ucSocial, "Follow/Playlist services", "usecase", "Подписки и плейлисты")
+    Component(ucTrack, "TrackService", "usecase", "Лента, загрузка, публикация, стрим")
+    Component(ucClean, "CleanupService", "usecase", "Черновики удалённого автора, файлы удалённых треков")
     Component(domain, "Domain", "Go", "Сущности и валидация")
   }
 
   Container_Boundary(out, "Адаптеры") {
-    Component(tokens, "Сессия", "JWT, bcrypt", "Токен и хеш пароля")
-    Component(pgRepo, "Postgres", "pgx", "users, tracks, likes, follows, playlists")
-    Component(s3ad, "S3 Store", "minio-go", "Ссылка и проверка")
-    Component(health, "Health", "infra/health", "Проверка готовности")
+    Component(pgRepo, "Postgres", "pgx", "tracks, outbox, надгробия")
+    Component(s3ad, "S3 Store", "minio-go", "Ссылки, проверка, удаление")
+    Component(relay, "Outbox relay", "platform/outbox", "outbox в Kafka")
+    Component(consumer, "Consumer", "platform/kafka", "Ручной commit, повтор, DLQ")
   }
 
-  Container_Boundary(infra, "Хранилища данных") {
-    ContainerDb(pg, "PostgreSQL", "База", "Данные")
-    ContainerDb(s3, "MinIO", "S3", "Объекты")
-  }
-
-  Rel_D(httpv1, ucAuth, "вызов")
-  Rel_D(httpv1, ucUser, "вызов")
-  Rel_D(httpv1, ucTrack, "вызов")
-  Rel_D(httpv1, ucSocial, "вызов")
-
-  Rel_R(ucAuth, domain, "validate")
-  Rel_R(ucUser, domain, "validate")
-  Rel_R(ucTrack, domain, "статусы")
-  Rel_R(ucSocial, domain, "владение и видимость")
-
-  Rel_D(authn, tokens, "разбор JWT")
-  Rel_D(ucAuth, tokens, "токен")
-  Rel_D(ucUser, tokens, "хеш")
-
-  Rel_D(ucAuth, pgRepo, "пользователи")
-  Rel_D(ucUser, pgRepo, "профиль")
-  Rel_D(ucTrack, pgRepo, "треки и лайки")
-  Rel_D(ucSocial, pgRepo, "подписки и плейлисты")
+  Rel_D(grpcSrv, ucTrack, "вызов")
+  Rel_D(events, ucClean, "вызов")
+  Rel_D(consumer, events, "запись")
+  Rel_R(ucTrack, domain, "validate")
+  Rel_R(ucClean, domain, "validate")
+  Rel_D(ucTrack, pgRepo, "треки")
   Rel_D(ucTrack, s3ad, "файл")
-
-  Rel_D(pgRepo, pg, "SQL")
-  Rel_D(s3ad, s3, "S3")
-  Rel_D(health, pg, "ping")
-  Rel_D(health, s3, "ping")
+  Rel_D(ucClean, pgRepo, "удаление и TrackDeleted в одной транзакции")
+  Rel_D(ucClean, s3ad, "удалить объект")
+  Rel_D(relay, pgRepo, "FOR UPDATE SKIP LOCKED")
 ```
 
+Порты объявлены там, где их вызывают: репозитории и хранилище — в сценариях, сценарии — в gRPC-сервере и обработчиках событий. Gateway устроен как прежний HTTP-слой: контроллеры `v1` и middleware не изменились, а их порты (`TrackService`, `UserService` и так далее) теперь реализуют gRPC-клиенты из `internal/clients`.
 
+### 9.4. Развёртывание
 
-Порты объявлены там, где их вызывают: репозитории, хранилище, хеш пароля и выпуск токена — в сценариях, сервисы — в контроллерах. Регистрация и профиль пишут в тот же Postgres. Проверка входа разбирает токен тем же адаптером, что и вход в аккаунт.
+```mermaid
+flowchart LR
+  browser[Браузер] -->|chimera.192.168.49.2.nip.io| ing[Ingress nginx]
+  browser -->|s3.chimera.192.168.49.2.nip.io| ing
+  ing -->|/| web[Deployment web]
+  ing -->|/v1 /swagger /live /ready| gw[Deployment gateway]
+  ing -->|presigned PUT/GET| rustfs[(StatefulSet rustfs)]
+  gw --> identity[Deployment identity]
+  gw --> catalog[Deployment catalog]
+  gw --> social[Deployment social]
+  social --> catalog
+  social --> identity
+  identity --> pg[(StatefulSet postgres)]
+  catalog --> pg
+  social --> pg
+  catalog --> rustfs
+  identity --> kafka[(StatefulSet kafka)]
+  catalog --> kafka
+  social --> kafka
+  job[Job kafka-topics] --> kafka
+```
 
-Пул воркеров поднимается при старте и обслуживает проверку живости. Публикация трека идёт синхронно, отдельных фоновых задач у неё нет.
+Манифесты — `deploy/k8s/base` и overlay `deploy/k8s/overlays/minikube` (хосты nip.io, `TRUSTED_PROXIES`, секреты из gitignored `secrets.env` и ключей). Сервисы доступны только как `ClusterIP`. Пробы gRPC-сервисов: readiness — `grpc.health.v1` с учётом Postgres, S3 и Kafka-зависимостей; liveness — отдельное имя `chimera.liveness`, которое не зависит от зависимостей; startup-проба даёт до пяти минут на ожидание базы. Readiness Gateway — `/live`: падение одного сервиса не выводит весь API из ingress, вызовы к упавшему сервису отвечают `503` сами. Запуск: `make k8s-images k8s-up`, проверка — `make k8s-e2e`.
 
 ## 10. Архитектурные решения
 
@@ -243,7 +289,7 @@ C4Component
 
 **Контекст.** Аудио тяжёлое. Если гнать байты через API, процесс держит тело запроса и упирается в память и таймаут.
 
-**Решение.** Создание трека возвращает временную ссылку на запись. Браузер пишет объект в MinIO. Подтверждение сверяет владельца и размер и публикует трек. Стрим — переход на временную ссылку чтения. Если ссылку выдать не удалось, строка трека удаляется.
+**Решение.** Создание трека возвращает временную ссылку на запись. Браузер пишет объект в RustFS. Подтверждение сверяет владельца и размер и публикует трек. Стрим — переход на временную ссылку чтения. Если ссылку выдать не удалось, строка трека удаляется.
 
 **Альтернативы.** Проксировать файл через API проще для клиента, но API становится узким местом. Сборка файла по частям нужна для докачки, для одной записи это лишняя машина состояний.
 
@@ -253,8 +299,46 @@ C4Component
 
 **Контекст.** Сценарии загрузки, ленты и входа нужно проверять без базы и хранилища. Правила трека не должны знать про HTTP и SQL.
 
-**Решение.** Домен не импортирует HTTP, SQL и JWT. Проверки живут на моделях входа. Сценарий только вызывает проверку, репозиторий и хранилище и меняет статус. Интерфейсы объявлены у того, кто их вызывает. Схема базы применяется при старте, до создания репозиториев.
+**Решение.** Домен не импортирует HTTP, SQL и JWT. Проверки живут на моделях входа. Сценарий только вызывает проверку, репозиторий и хранилище и меняет статус. Интерфейсы объявлены у того, кто их вызывает. Миграции сервиса применяются при старте, до создания репозиториев.
 
 **Альтернативы.** SQL рядом с правилами статуса быстрее на старте, но тест публикации начинает требовать базу. Если порты объявить в домене, домен узнает про технические операции хранилища.
 
-**Почему так.** Статусы и проверки владельца, размера и пароля покрываются тестами без Postgres и MinIO. Подмена хранилищ — другие реализации тех же портов.
+**Почему так.** Статусы и проверки владельца, размера и пароля покрываются тестами без Postgres и RustFS. Подмена хранилищ — другие реализации тех же портов.
+
+### ADR-3. Три сервиса по бизнес-возможностям и Gateway
+
+**Контекст.** Монолит держал аккаунты, каталог и социальные функции в одном процессе и одной базе. Каталог — горячий путь чтения (лента, стрим), вход — редкий и дорогой (bcrypt), социальные функции растут быстрее остальных. Падение любой части роняло всё.
+
+**Решение.** Identity (аккаунты, вход, выпуск токенов), Catalog (треки, файлы) и Social (лайки, подписки, плейлисты) — отдельные процессы с отдельными базами. Gateway — edge без бизнес-правил и без данных: REST, проверка JWT, rate limit, маршрутизация. Межсервисные связи — только идентификаторы.
+
+**Альтернативы.** Деление по слоям (сервис «база», сервис «API») не даёт независимого выпуска. Отдельный сервис на плейлисты или подписки дробит одну возможность и плодит синхронные вызовы между ними. Без Gateway фронту пришлось бы знать три адреса и проверять токен в каждом сервисе.
+
+**Почему так.** Связей между возможностями мало: Social ссылается на `track_id` и `user_id`, Catalog — на `user_id`. Отказ Catalog оставляет работающими вход и профиль, отказ Social — ленту и стрим (проверено в minikube).
+
+### ADR-4. REST на краю, gRPC внутри; GraphQL и SOAP отклонены
+
+**Контекст.** Фронт уже работает по утверждённому REST-контракту; стриму нужен `302`. Внутренние вызовы синхронные: ответ нужен, чтобы ответить пользователю.
+
+**Решение.** Браузер и Gateway — REST (контракт `openapi.yaml` без изменений). Gateway и сервисы, сервисы между собой — gRPC по proto из `backend/contracts`. Код ошибки едет в `google.rpc.ErrorInfo` (`platform/grpcx`), Gateway переводит его в тот же HTTP-статус и `{code, message}`; недоступный сервис или истёкший дедлайн дают `503`. Совместимость proto проверяет `buf breaking` в CI.
+
+**Альтернативы.** REST/JSON внутри — без типизированного контракта и проверки совместимости. GraphQL — второй публичный контракт без второго клиента; композиция данных нужна в двух местах (любимое, состав плейлиста), и её делает Social. SOAP — нет внешних интеграторов с WS-*, XML внутри кластера проигрывает gRPC по размеру, скорости и инструментам.
+
+**Почему так.** Типизированный контракт с кодогенерацией, HTTP/2, дедлайны через `ctx`, нативная gRPC-проба в Kubernetes.
+
+### ADR-5. Kafka и transactional outbox для каскада удалений; RabbitMQ и Webhooks отклонены
+
+**Контекст.** После разделения баз `ON DELETE CASCADE` между сервисами невозможен. Удаление пользователя не должно синхронно ждать Catalog и Social и падать, если один из них лежит.
+
+**Решение.** Identity публикует `UserDeleted`, Catalog — `TrackDeleted` (`events/v1/events.proto`, ключ — id сущности). Удаление строки и запись в `outbox` — одна транзакция; relay публикует с `acks=all` и ставит `sent_at` (at-least-once). Консьюмеры — группа на назначение (`catalog`, `catalog-objects`, `social`), offset коммитится после обработки, `processed_events` и надгробия в той же транзакции делают обработку идемпотентной, временная ошибка повторяется с паузой, битое сообщение уходит в `<topic>.dlq`. Топики создаёт отдельный Job, автосоздание выключено.
+
+**Альтернативы.** Синхронные вызовы из Identity в Catalog и Social — удаление падает при недоступности любого. RabbitMQ при двух типах событий был бы проще, но не хранит историю: новый потребитель не перечитает прошлые события, а лежавший сервис зависит от того, успела ли очередь их удержать. Webhooks нужны внешним системам, которые не могут читать брокер; внутри кластера это лишний HTTP-контракт с собственными повторами. WebSocket не нужен: сервер ничего не шлёт клиенту сам.
+
+**Почему так.** Долговечный лог с перечитыванием, fan-out через consumer groups без изменений продюсера, порядок событий одной сущности. Цена — каскад стал eventual: лайки и плейлисты удалённого трека исчезают через доли секунды, при лежащем консьюмере — после его старта. Зато файлы удалённых треков теперь удаляются из бакета.
+
+### ADR-6. Ed25519 вместо общего секрета
+
+**Контекст.** В монолите один процесс и выпускал, и проверял HS256-токены общим секретом. Отдать этот секрет Gateway — значит позволить ему выпускать токены.
+
+**Решение.** Identity подписывает EdDSA приватным ключом, Gateway проверяет публичным (`WithValidMethods(EdDSA)`, обязательный `exp`). Ключи генерируются локально (`deploy/keygen`, `make k8s-keys`) и в git не попадают; приватный ключ монтируется только в Identity.
+
+**Почему так.** Утечка Gateway не даёт выпустить токен. Цена — старые HS256-токены не принимаются, нужно войти заново.
