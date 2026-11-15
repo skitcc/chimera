@@ -1,0 +1,105 @@
+{
+  "uuid": "cedccd88-1855-44de-9e5c-9e50a344873d",
+  "historyId": "DA-TRK-LIST-07",
+  "testCaseId": "DA-TRK-LIST-07",
+  "testCaseName": "list maps a row scan failure to internal scan track error and closes rows",
+  "name": "[DA-TRK-LIST-07] list maps a row scan failure to internal scan track error and closes rows",
+  "fullName": "internal/testkit/report.go/TestTrackRepositoryList/list_maps_a_row_scan_failure_to_internal_scan_track_error_and_closes_rows",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-TRK-LIST-07` |\n| **Component** | `TrackRepository.List` |\n| **Given** | the database returns one track row whose scan fails |\n| **When** | List is called |\n| **Then** | an internal domain error with message \"scan track\" and nil tracks are returned, and the rows are closed |\n| **Technique** | error guessing |\n| **Test double style** | stub |\n| **Go test** | `TestTrackRepositoryList/list_maps_a_row_scan_failure_to_internal_scan_track_error_and_closes_rows` |\n| **Source** | `internal/infra/adapters/postgres/track_test.go:190` |\n\nSpecification: `backend/TEST_SPEC.md`, section `TrackRepository.List`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/track_test.go:190"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-TRK-LIST-07"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "TrackRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "List"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "TrackRepository"
+    },
+    {
+      "name": "story",
+      "value": "List"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "error guessing"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "scan error at row",
+      "value": "0"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825947,
+      "stop": 1794422825947
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825947,
+      "stop": 1794422825947
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825947,
+      "stop": 1794422825948
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794422825947,
+  "stop": 1794422825948
+}

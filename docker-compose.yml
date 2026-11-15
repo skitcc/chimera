@@ -2,19 +2,49 @@ services:
   postgres:
     image: postgres:latest
     container_name: ${PROJECT_NAME:-chimera}-postgres
+    entrypoint: ["/bin/sh", "/scripts/primary.sh"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_REPLICATION_USER: ${POSTGRES_REPLICATION_USER}
+      POSTGRES_REPLICATION_PASSWORD: ${POSTGRES_REPLICATION_PASSWORD}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - chimera-pg:/var/lib/postgresql
+      - ./gateway/postgres/primary.sh:/scripts/primary.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 2s
       timeout: 5s
-      retries: 20
+      retries: 30
+      start_period: 10s
+
+  postgres-replica:
+    image: postgres:latest
+    container_name: ${PROJECT_NAME:-chimera}-postgres-replica
+    entrypoint: ["/bin/sh", "/scripts/replica.sh"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_REPLICATION_USER: ${POSTGRES_REPLICATION_USER}
+      POSTGRES_REPLICATION_PASSWORD: ${POSTGRES_REPLICATION_PASSWORD}
+    ports:
+      - "${POSTGRES_REPLICA_PORT:-5433}:5432"
+    volumes:
+      - chimera-pg-replica:/var/lib/postgresql
+      - ./gateway/postgres/replica.sh:/scripts/replica.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 40
+      start_period: 15s
 
   minio:
     image: ${MINIO_IMAGE:-rustfs/rustfs:latest@sha256:8cc9801755448b71a786705ce76692c77e14936cccd87cf2fc31842e58f4d1ff}
@@ -48,6 +78,7 @@ services:
       - .env
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      INSTANCE_NAME: api
       S3_ENDPOINT: http://minio:9000
       S3_PRESIGN_ENDPOINT: http://127.0.0.1:${MINIO_API_PORT:-9000}
       HTTP_CORS_ORIGIN: http://127.0.0.1:${FRONTEND_PORT:-5173},http://localhost:${FRONTEND_PORT:-5173}
@@ -59,16 +90,163 @@ services:
       minio:
         condition: service_healthy
 
+  api-read-1:
+    build:
+      context: ./backend
+    container_name: ${PROJECT_NAME:-chimera}-api-read-1
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_READONLY_USER}:${POSTGRES_READONLY_PASSWORD}@postgres-replica:5432/${POSTGRES_DB}?sslmode=disable
+      DATABASE_READ_ONLY: "true"
+      INSTANCE_NAME: api-read-1
+      S3_ENDPOINT: http://minio:9000
+      S3_PRESIGN_ENDPOINT: http://127.0.0.1:${MINIO_API_PORT:-9000}
+      HTTP_CORS_ORIGIN: http://127.0.0.1:${FRONTEND_PORT:-5173},http://localhost:${FRONTEND_PORT:-5173}
+    ports:
+      - "${API_READ_PORT_1:-8081}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+      postgres-replica:
+        condition: service_healthy
+
+  api-read-2:
+    build:
+      context: ./backend
+    container_name: ${PROJECT_NAME:-chimera}-api-read-2
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_READONLY_USER}:${POSTGRES_READONLY_PASSWORD}@postgres-replica:5432/${POSTGRES_DB}?sslmode=disable
+      DATABASE_READ_ONLY: "true"
+      INSTANCE_NAME: api-read-2
+      S3_ENDPOINT: http://minio:9000
+      S3_PRESIGN_ENDPOINT: http://127.0.0.1:${MINIO_API_PORT:-9000}
+      HTTP_CORS_ORIGIN: http://127.0.0.1:${FRONTEND_PORT:-5173},http://localhost:${FRONTEND_PORT:-5173}
+    ports:
+      - "${API_READ_PORT_2:-8082}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+      postgres-replica:
+        condition: service_healthy
+
+  adminer:
+    image: adminer:4
+    container_name: ${PROJECT_NAME:-chimera}-adminer
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  mirror:
+    build:
+      context: .
+      dockerfile: gateway/mirror.Dockerfile
+    container_name: ${PROJECT_NAME:-chimera}-mirror
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: ${PROJECT_NAME:-chimera}-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./gateway/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - chimera-prometheus:/prometheus
+    depends_on:
+      api-read-1:
+        condition: service_healthy
+      api-read-2:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/-/healthy"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: ${PROJECT_NAME:-chimera}-loki
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./gateway/monitoring/loki.yml:/etc/loki/local-config.yaml:ro
+      - chimera-loki:/loki
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3100/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  promtail:
+    image: grafana/promtail:3.3.2
+    container_name: ${PROJECT_NAME:-chimera}-promtail
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - ./gateway/monitoring/promtail.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      loki:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: ${PROJECT_NAME:-chimera}-grafana
+    environment:
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SERVER_ROOT_URL: http://127.0.0.1:${FRONTEND_PORT:-5173}/monitoring/
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - ./gateway/monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./gateway/monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
   web:
     build:
-      context: ./frontend
+      context: .
+      dockerfile: gateway/Dockerfile
     container_name: ${PROJECT_NAME:-chimera}-web
+    environment:
+      ADMIN_USER: ${ADMIN_USER}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     ports:
       - "${FRONTEND_PORT:-5173}:80"
     depends_on:
       api:
         condition: service_healthy
+      api-read-1:
+        condition: service_healthy
+      api-read-2:
+        condition: service_healthy
+      mirror:
+        condition: service_started
+      adminer:
+        condition: service_started
+      grafana:
+        condition: service_healthy
 
 volumes:
   chimera-pg:
+  chimera-pg-replica:
   chimera-objects:
+  chimera-prometheus:
+  chimera-loki:

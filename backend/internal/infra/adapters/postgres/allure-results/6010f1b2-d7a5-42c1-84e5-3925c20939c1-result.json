@@ -1,0 +1,105 @@
+{
+  "uuid": "6010f1b2-d7a5-42c1-84e5-3925c20939c1",
+  "historyId": "DA-USR-GETEMAIL-01",
+  "testCaseId": "DA-USR-GETEMAIL-01",
+  "testCaseName": "get by email sends the email and returns the user with password hash",
+  "name": "[DA-USR-GETEMAIL-01] get by email sends the email and returns the user with password hash",
+  "fullName": "internal/testkit/report.go/TestUserRepositoryGetByEmail/get_by_email_sends_the_email_and_returns_the_user_with_password_hash",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-USR-GETEMAIL-01` |\n| **Component** | `UserRepository.GetByEmail` |\n| **Given** | the database returns a user row with password hash \"hash\" |\n| **When** | GetByEmail is called with one@example.com |\n| **Then** | the query receives [one@example.com] and the auth user including the password hash is returned |\n| **Technique** | equivalence partitioning |\n| **Test double style** | stub |\n| **Go test** | `TestUserRepositoryGetByEmail/get_by_email_sends_the_email_and_returns_the_user_with_password_hash` |\n| **Source** | `internal/infra/adapters/postgres/user_test.go:248` |\n\nSpecification: `backend/TEST_SPEC.md`, section `UserRepository.GetByEmail`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/user_test.go:248"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-USR-GETEMAIL-01"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "UserRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "GetByEmail"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "UserRepository"
+    },
+    {
+      "name": "story",
+      "value": "GetByEmail"
+    },
+    {
+      "name": "severity",
+      "value": "critical"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "equivalence partitioning"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "email",
+      "value": "one@example.com"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309758,
+      "stop": 1794424309758
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309758,
+      "stop": 1794424309758
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309758,
+      "stop": 1794424309758
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424309758,
+  "stop": 1794424309758
+}

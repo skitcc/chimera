@@ -1,0 +1,105 @@
+{
+  "uuid": "f145bf21-3714-4a7e-8c0b-672cee0ff635",
+  "historyId": "DA-USR-LIST-02",
+  "testCaseId": "DA-USR-LIST-02",
+  "testCaseName": "list returns an empty non-nil slice when there are no users",
+  "name": "[DA-USR-LIST-02] list returns an empty non-nil slice when there are no users",
+  "fullName": "internal/testkit/report.go/TestUserRepositoryList/list_returns_an_empty_non-nil_slice_when_there_are_no_users",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-USR-LIST-02` |\n| **Component** | `UserRepository.List` |\n| **Given** | the database returns zero user rows |\n| **When** | List is called |\n| **Then** | an empty non-nil slice and no error are returned, and the rows are closed |\n| **Technique** | boundary-value analysis |\n| **Test double style** | stub |\n| **Go test** | `TestUserRepositoryList/list_returns_an_empty_non-nil_slice_when_there_are_no_users` |\n| **Source** | `internal/infra/adapters/postgres/user_test.go:51` |\n\nSpecification: `backend/TEST_SPEC.md`, section `UserRepository.List`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/user_test.go:51"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-USR-LIST-02"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "UserRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "List"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "UserRepository"
+    },
+    {
+      "name": "story",
+      "value": "List"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "boundary-value analysis"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "rows",
+      "value": "0"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309420,
+      "stop": 1794424309420
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309420,
+      "stop": 1794424309420
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309420,
+      "stop": 1794424309420
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424309420,
+  "stop": 1794424309420
+}

@@ -1,6 +1,6 @@
 // @title Sound Chimera API
 // @version 1.0.0
-// @BasePath /
+// @BasePath /api
 // @tag.name sessions
 // @tag.description Вход
 // @tag.name users
@@ -65,9 +65,15 @@ func main() {
 	}
 	defer pool.Close()
 
-	if err := postgres.Migrate(ctx, pool); err != nil {
-		log.ErrorContext(ctx, "migrate", "error", err)
-		os.Exit(1)
+	if !cfg.Postgres.ReadOnly {
+		if err := postgres.Migrate(ctx, pool); err != nil {
+			log.ErrorContext(ctx, "migrate", "error", err)
+			os.Exit(1)
+		}
+		if err := postgres.EnsureReadOnlyRole(ctx, pool, cfg.Postgres.ReadOnlyUser, cfg.Postgres.ReadOnlyPassword); err != nil {
+			log.ErrorContext(ctx, "read only role", "error", err)
+			os.Exit(1)
+		}
 	}
 
 	objects, err := waitS3(ctx, log, cfg)
@@ -102,6 +108,8 @@ func main() {
 		Tokens:      tokens,
 		CORSOrigins: cfg.HTTP.CORSOrigins,
 		Health:      monitor,
+		ReadOnly:    cfg.Postgres.ReadOnly,
+		Instance:    cfg.Instance,
 		Routes: v1.New(
 			userService,
 			authService,
@@ -123,6 +131,7 @@ func main() {
 
 	log.InfoContext(ctx, "listening",
 		"addr", cfg.HTTP.Addr,
+		"read_only", cfg.Postgres.ReadOnly,
 		"postgres_min_conns", cfg.Postgres.MinConns,
 		"postgres_max_conns", cfg.Postgres.MaxConns,
 		"worker_pool_size", cfg.Workers.Size,
@@ -172,6 +181,9 @@ func waitS3(ctx context.Context, log *slog.Logger, cfg config.Config) (*s3.Store
 	}
 	if err := health.Wait(ctx, log, "s3", cfg.Health.Interval, cfg.Health.Timeout, objects.Ping); err != nil {
 		return nil, err
+	}
+	if cfg.Postgres.ReadOnly {
+		return objects, nil
 	}
 	if err := health.Wait(ctx, log, "s3 bucket", cfg.Health.Interval, cfg.Health.Timeout, objects.EnsureBucket); err != nil {
 		return nil, err

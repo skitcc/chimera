@@ -1,0 +1,105 @@
+{
+  "uuid": "a5c0d6f8-08fc-4efd-8e2d-4c04431d7bf7",
+  "historyId": "DA-TRK-LIST-08",
+  "testCaseId": "DA-TRK-LIST-08",
+  "testCaseName": "list maps a rows iteration error to internal list tracks error",
+  "name": "[DA-TRK-LIST-08] list maps a rows iteration error to internal list tracks error",
+  "fullName": "internal/testkit/report.go/TestTrackRepositoryList/list_maps_a_rows_iteration_error_to_internal_list_tracks_error",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-TRK-LIST-08` |\n| **Component** | `TrackRepository.List` |\n| **Given** | the database returns no rows and rows.Err reports a driver error |\n| **When** | List is called |\n| **Then** | an internal domain error with message \"list tracks\" wrapping the rows error is returned, and the rows are closed |\n| **Technique** | error guessing |\n| **Test double style** | stub |\n| **Go test** | `TestTrackRepositoryList/list_maps_a_rows_iteration_error_to_internal_list_tracks_error` |\n| **Source** | `internal/infra/adapters/postgres/track_test.go:218` |\n\nSpecification: `backend/TEST_SPEC.md`, section `TrackRepository.List`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/track_test.go:218"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-TRK-LIST-08"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "TrackRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "List"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "TrackRepository"
+    },
+    {
+      "name": "story",
+      "value": "List"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "error guessing"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "rows error",
+      "value": "rows failed"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308998,
+      "stop": 1794424308998
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308998,
+      "stop": 1794424308998
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308998,
+      "stop": 1794424308998
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424308998,
+  "stop": 1794424308998
+}

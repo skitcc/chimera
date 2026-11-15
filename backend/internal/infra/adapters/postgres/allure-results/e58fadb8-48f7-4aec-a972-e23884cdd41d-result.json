@@ -1,0 +1,109 @@
+{
+  "uuid": "e58fadb8-48f7-4aec-a972-e23884cdd41d",
+  "historyId": "DA-USR-CREATE-02",
+  "testCaseId": "DA-USR-CREATE-02",
+  "testCaseName": "create maps unique violation on users_email_key to email already exists",
+  "name": "[DA-USR-CREATE-02] create maps unique violation on users_email_key to email already exists",
+  "fullName": "internal/testkit/report.go/TestUserRepositoryCreate/create_maps_unique_violation_on_users_email_key_to_email_already_exists",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-USR-CREATE-02` |\n| **Component** | `UserRepository.Create` |\n| **Given** | the insert fails with SQLSTATE 23505 on constraint users_email_key |\n| **When** | Create is called |\n| **Then** | a conflict domain error with message \"email already exists\" and a zero user are returned |\n| **Technique** | decision-table testing |\n| **Test double style** | stub |\n| **Go test** | `TestUserRepositoryCreate/create_maps_unique_violation_on_users_email_key_to_email_already_exists` |\n| **Source** | `internal/infra/adapters/postgres/user_test.go:362` |\n\nSpecification: `backend/TEST_SPEC.md`, section `UserRepository.Create`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/user_test.go:362"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-USR-CREATE-02"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "UserRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "Create"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "UserRepository"
+    },
+    {
+      "name": "story",
+      "value": "Create"
+    },
+    {
+      "name": "severity",
+      "value": "critical"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "decision-table testing"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "constraint",
+      "value": "users_email_key"
+    },
+    {
+      "name": "sqlstate",
+      "value": "23505"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422826942,
+      "stop": 1794422826942
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422826942,
+      "stop": 1794422826942
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422826942,
+      "stop": 1794422826942
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794422826942,
+  "stop": 1794422826942
+}

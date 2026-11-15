@@ -1,0 +1,105 @@
+{
+  "uuid": "224dc67c-f823-4ebf-84d5-2a131e949401",
+  "historyId": "DA-USR-GETEMAIL-03",
+  "testCaseId": "DA-USR-GETEMAIL-03",
+  "testCaseName": "get by email wraps a driver failure as internal get user by email error",
+  "name": "[DA-USR-GETEMAIL-03] get by email wraps a driver failure as internal get user by email error",
+  "fullName": "internal/testkit/report.go/TestUserRepositoryGetByEmail/get_by_email_wraps_a_driver_failure_as_internal_get_user_by_email_error",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-USR-GETEMAIL-03` |\n| **Component** | `UserRepository.GetByEmail` |\n| **Given** | the database row scan fails with a non-postgres driver error |\n| **When** | GetByEmail is called |\n| **Then** | an internal domain error with message \"get user by email\" wrapping the driver error is returned |\n| **Technique** | error guessing |\n| **Test double style** | stub |\n| **Go test** | `TestUserRepositoryGetByEmail/get_by_email_wraps_a_driver_failure_as_internal_get_user_by_email_error` |\n| **Source** | `internal/infra/adapters/postgres/user_test.go:302` |\n\nSpecification: `backend/TEST_SPEC.md`, section `UserRepository.GetByEmail`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/user_test.go:302"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-USR-GETEMAIL-03"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "UserRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "GetByEmail"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "UserRepository"
+    },
+    {
+      "name": "story",
+      "value": "GetByEmail"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "error guessing"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "driver error",
+      "value": "query failed"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422826874,
+      "stop": 1794422826874
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422826874,
+      "stop": 1794422826874
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422826874,
+      "stop": 1794422826874
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794422826874,
+  "stop": 1794422826874
+}

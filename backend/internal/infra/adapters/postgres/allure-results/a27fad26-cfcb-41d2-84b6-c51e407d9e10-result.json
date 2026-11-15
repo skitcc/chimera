@@ -1,0 +1,109 @@
+{
+  "uuid": "a27fad26-cfcb-41d2-84b6-c51e407d9e10",
+  "historyId": "DA-LIKE-REMOVE-03",
+  "testCaseId": "DA-LIKE-REMOVE-03",
+  "testCaseName": "remove maps sqlstate 22P02 to invalid id",
+  "name": "[DA-LIKE-REMOVE-03] remove maps sqlstate 22P02 to invalid id",
+  "fullName": "internal/testkit/report.go/TestTrackLikeRepositoryRemove/remove_maps_sqlstate_22P02_to_invalid_id",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-LIKE-REMOVE-03` |\n| **Component** | `TrackLikeRepository.Remove` |\n| **Given** | the delete fails with SQLSTATE 22P02 (invalid text representation) |\n| **When** | Remove is called with a non-uuid user id |\n| **Then** | an invalid domain error with message \"invalid id\" is returned |\n| **Technique** | error guessing |\n| **Test double style** | stub |\n| **Go test** | `TestTrackLikeRepositoryRemove/remove_maps_sqlstate_22P02_to_invalid_id` |\n| **Source** | `internal/infra/adapters/postgres/like_test.go:143` |\n\nSpecification: `backend/TEST_SPEC.md`, section `TrackLikeRepository.Remove`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/like_test.go:143"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-LIKE-REMOVE-03"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "TrackLikeRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "Remove"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "TrackLikeRepository"
+    },
+    {
+      "name": "story",
+      "value": "Remove"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "error guessing"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "sqlstate",
+      "value": "22P02"
+    },
+    {
+      "name": "user id",
+      "value": "invalid"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825432,
+      "stop": 1794422825432
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825432,
+      "stop": 1794422825432
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825432,
+      "stop": 1794422825432
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794422825432,
+  "stop": 1794422825432
+}

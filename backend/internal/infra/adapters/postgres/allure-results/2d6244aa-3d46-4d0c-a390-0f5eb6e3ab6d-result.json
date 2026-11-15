@@ -1,0 +1,113 @@
+{
+  "uuid": "2d6244aa-3d46-4d0c-a390-0f5eb6e3ab6d",
+  "historyId": "DA-TRK-LIST-05",
+  "testCaseId": "DA-TRK-LIST-05",
+  "testCaseName": "list with only artist filter passes nil status and user",
+  "name": "[DA-TRK-LIST-05] list with only artist filter passes nil status and user",
+  "fullName": "internal/testkit/report.go/TestTrackRepositoryList/list_with_only_artist_filter_passes_nil_status_and_user",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-TRK-LIST-05` |\n| **Component** | `TrackRepository.List` |\n| **Given** | a filter with exactly one non-empty field |\n| **When** | List is called |\n| **Then** | only the set field is sent as a query argument and the other filters are nil |\n| **Technique** | decision-table testing |\n| **Test double style** | stub |\n| **Go test** | `TestTrackRepositoryList/list_with_only_artist_filter_passes_nil_status_and_user` |\n| **Source** | `internal/infra/adapters/postgres/track_test.go:133` |\n\nSpecification: `backend/TEST_SPEC.md`, section `TrackRepository.List`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/track_test.go:133"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-TRK-LIST-05"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "TrackRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "List"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "TrackRepository"
+    },
+    {
+      "name": "story",
+      "value": "List"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "decision-table testing"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "artist",
+      "value": "Artist"
+    },
+    {
+      "name": "status",
+      "value": ""
+    },
+    {
+      "name": "user id",
+      "value": ""
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308921,
+      "stop": 1794424308921
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308921,
+      "stop": 1794424308921
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308921,
+      "stop": 1794424308921
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424308921,
+  "stop": 1794424308921
+}

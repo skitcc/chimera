@@ -1,0 +1,105 @@
+{
+  "uuid": "d4d82de9-b444-42e5-9295-60cd3c2b22b6",
+  "historyId": "DA-LIKE-LISTREADY-01",
+  "testCaseId": "DA-LIKE-LISTREADY-01",
+  "testCaseName": "list ready by user sends user id and ready status and returns liked tracks",
+  "name": "[DA-LIKE-LISTREADY-01] list ready by user sends user id and ready status and returns liked tracks",
+  "fullName": "internal/testkit/report.go/TestTrackLikeRepositoryListReadyByUser/list_ready_by_user_sends_user_id_and_ready_status_and_returns_liked_tracks",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-LIKE-LISTREADY-01` |\n| **Component** | `TrackLikeRepository.ListReadyByUser` |\n| **Given** | the database returns one liked ready track owned by another user |\n| **When** | ListReadyByUser is called with user-1 |\n| **Then** | the query receives [user-1, ready], the liked track is returned without error, and the rows are closed |\n| **Technique** | equivalence partitioning |\n| **Test double style** | stub |\n| **Go test** | `TestTrackLikeRepositoryListReadyByUser/list_ready_by_user_sends_user_id_and_ready_status_and_returns_liked_tracks` |\n| **Source** | `internal/infra/adapters/postgres/like_test.go:206` |\n\nSpecification: `backend/TEST_SPEC.md`, section `TrackLikeRepository.ListReadyByUser`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/like_test.go:206"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-LIKE-LISTREADY-01"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "TrackLikeRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "ListReadyByUser"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "TrackLikeRepository"
+    },
+    {
+      "name": "story",
+      "value": "ListReadyByUser"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "equivalence partitioning"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "user id",
+      "value": "user-1"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825491,
+      "stop": 1794422825491
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825491,
+      "stop": 1794422825491
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825491,
+      "stop": 1794422825491
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794422825491,
+  "stop": 1794422825491
+}

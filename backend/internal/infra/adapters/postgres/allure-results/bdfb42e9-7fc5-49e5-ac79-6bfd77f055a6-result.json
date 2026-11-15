@@ -1,0 +1,105 @@
+{
+  "uuid": "bdfb42e9-7fc5-49e5-ac79-6bfd77f055a6",
+  "historyId": "DA-LIKE-LISTREADY-03",
+  "testCaseId": "DA-LIKE-LISTREADY-03",
+  "testCaseName": "list ready by user maps a rows iteration error to internal list tracks error",
+  "name": "[DA-LIKE-LISTREADY-03] list ready by user maps a rows iteration error to internal list tracks error",
+  "fullName": "internal/testkit/report.go/TestTrackLikeRepositoryListReadyByUser/list_ready_by_user_maps_a_rows_iteration_error_to_internal_list_tracks_error",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-LIKE-LISTREADY-03` |\n| **Component** | `TrackLikeRepository.ListReadyByUser` |\n| **Given** | the database returns no rows and rows.Err reports a driver error |\n| **When** | ListReadyByUser is called |\n| **Then** | an internal domain error with message \"list tracks\" wrapping the rows error is returned, and the rows are closed |\n| **Technique** | error guessing |\n| **Test double style** | stub |\n| **Go test** | `TestTrackLikeRepositoryListReadyByUser/list_ready_by_user_maps_a_rows_iteration_error_to_internal_list_tracks_error` |\n| **Source** | `internal/infra/adapters/postgres/like_test.go:264` |\n\nSpecification: `backend/TEST_SPEC.md`, section `TrackLikeRepository.ListReadyByUser`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/like_test.go:264"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-LIKE-LISTREADY-03"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "TrackLikeRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "ListReadyByUser"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "TrackLikeRepository"
+    },
+    {
+      "name": "story",
+      "value": "ListReadyByUser"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "error guessing"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "rows error",
+      "value": "rows failed"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825558,
+      "stop": 1794422825558
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825558,
+      "stop": 1794422825558
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794422825558,
+      "stop": 1794422825558
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794422825558,
+  "stop": 1794422825558
+}

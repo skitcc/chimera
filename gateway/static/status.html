@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Статус сервера</title>
+  </head>
+  <body>
+    <h1>Статус сервера</h1>
+    <p><a href="/health">/health</a> отвечает сам веб-сервер и не смотрит базу.</p>
+    <p><a href="/ready">/ready</a> проверяет, готов ли API обслуживать запросы.</p>
+    <pre><!--# include virtual="/status/nginx" --></pre>
+  </body>
+</html>

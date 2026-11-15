@@ -54,6 +54,8 @@ func mapError(err error, fallback string) error {
 			return domain.NotFound("not found")
 		case "22P02":
 			return domain.Invalid("invalid id")
+		case "42501", "25006":
+			return domain.Forbidden("read only")
 		}
 	}
 	return domain.Wrap(domain.CodeInternal, fallback, err)

@@ -20,6 +20,7 @@ const (
 
 type Config struct {
 	Mode     Mode
+	Instance string
 	HTTP     HTTP
 	Log      Log
 	Postgres Postgres
@@ -48,6 +49,9 @@ type Postgres struct {
 	MaxConnIdleTime   time.Duration
 	MaxConnLifetime   time.Duration
 	HealthCheckPeriod time.Duration
+	ReadOnly          bool
+	ReadOnlyUser      string
+	ReadOnlyPassword  string
 }
 
 type Auth struct {
@@ -153,6 +157,7 @@ func Load() (Config, error) {
 
 	cfg := Config{
 		Mode:     Mode(strings.ToLower(mode)),
+		Instance: strings.TrimSpace(os.Getenv("INSTANCE_NAME")),
 		HTTP:     HTTP{Addr: addr, ShutdownTimeout: shutdown, ReadHeaderTimeout: readHeader, CORSOrigins: origins},
 		Log:      Log{Level: os.Getenv("LOG_LEVEL")},
 		Postgres: pg,
@@ -188,13 +193,43 @@ func loadPostgres(dsn string) (Postgres, error) {
 	if err != nil {
 		return Postgres{}, err
 	}
-	return Postgres{
+	readOnly, err := loadBool("DATABASE_READ_ONLY")
+	if err != nil {
+		return Postgres{}, err
+	}
+	pg := Postgres{
 		DSN:             dsn,
 		MinConns:        minConns,
 		MaxConns:        maxConns,
 		MaxConnIdleTime: idle,
 		MaxConnLifetime: lifetime,
-	}, nil
+		ReadOnly:        readOnly,
+	}
+	if readOnly {
+		return pg, nil
+	}
+	user, err := require("POSTGRES_READONLY_USER")
+	if err != nil {
+		return Postgres{}, err
+	}
+	password, err := require("POSTGRES_READONLY_PASSWORD")
+	if err != nil {
+		return Postgres{}, err
+	}
+	pg.ReadOnlyUser = user
+	pg.ReadOnlyPassword = password
+	return pg, nil
+}
+
+func loadBool(name string) (bool, error) {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" || strings.EqualFold(raw, "false") {
+		return false, nil
+	}
+	if strings.EqualFold(raw, "true") {
+		return true, nil
+	}
+	return false, errors.New(name + " is invalid")
 }
 
 func loadWorkers() (Workers, error) {

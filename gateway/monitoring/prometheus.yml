@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: chimera
+    honor_labels: true
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8080"]
+        labels:
+          instance: api
+      - targets: ["api-read-1:8080"]
+        labels:
+          instance: api-read-1
+      - targets: ["api-read-2:8080"]
+        labels:
+          instance: api-read-2

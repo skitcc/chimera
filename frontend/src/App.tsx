@@ -24,7 +24,7 @@ export function App() {
       <LikesProvider>
         <PlayerProvider>
           {splash ? <Splash onDone={hideSplash} /> : null}
-          <BrowserRouter>
+          <BrowserRouter basename={import.meta.env.VITE_ROUTER_BASENAME || '/legacy'}>
             <Backdrop />
             <Routes>
               <Route path="/auth" element={<AuthPage />} />

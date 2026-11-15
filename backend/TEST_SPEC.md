@@ -264,8 +264,8 @@ HTTP-слой переводит код в статус в `internal/transport/h
 
 #### UserService.Delete
 
-- Требует идентификатор. Удаление пользователя, у которого есть треки, база
-  отклоняет (KI-1).
+- Требует идентификатор. Треки этого пользователя удаляются вместе с ним
+  (`tracks.user_id` с `ON DELETE CASCADE`).
 
 #### TrackService.List
 
@@ -344,6 +344,8 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | 23505 на любом другом ограничении | conflict `email already exists` (KI-5) |
 | 23503 | not_found `not found` (KI-1) |
 | 22P02 (некорректный UUID) | invalid `invalid id` |
+| 42501 (нет права на запись) | forbidden `read only` |
+| 25006 (реплика только для чтения) | forbidden `read only` |
 | всё остальное | internal, текст называет операцию, причина сохраняется |
 
 Модульные кейсы (`stub`, `pgxmock`) проверяют аргументы SQL, чтение строки и
@@ -378,7 +380,7 @@ HTTP-слой переводит код в статус в `internal/transport/h
 #### UserRepository.Delete
 
 - Ноль затронутых строк — not_found `user not found`. Пользователь, у которого
-  есть треки, — not_found `not found` (KI-1).
+  есть треки, удаляется вместе с ними (`ON DELETE CASCADE`).
 
 #### TrackRepository.Create
 
@@ -435,23 +437,24 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | Шаг | Запрос | Статус | Что проверяется |
 | --- | --- | --- | --- |
 | 01 | `GET /ready` | 200 | API готов |
-| 02 | `POST /v1/auth/register` артист | 201 | в ответе есть `token` |
-| 03 | `POST /v1/auth/login` | 200 | новый `token` |
-| 04 | `GET /v1/me` | 200 | email артиста |
-| 05 | `POST /v1/tracks/upload-init` | 201 | статус `pending`, есть `upload_url` |
+| 02 | `POST /v1/users` артист | 201 | в ответе есть `id` и email, токена нет |
+| 03 | `POST /v1/sessions` | 201 | `token` и `user_id` артиста |
+| 04 | `GET /v1/users/{id}` | 200 | email артиста |
+| 05 | `POST /v1/tracks` | 201 | статус `pending`, есть `upload_url` |
 | 06 | `PUT upload_url` | 200 | байты лежат в RustFS |
 | 07 | `GET /v1/tracks?artist=` | 200 | трека в ленте нет |
-| 08 | `POST /v1/tracks/{id}/upload-complete` | 200 | статус `ready` |
+| 08 | `PATCH /v1/tracks/{id}` со `status: ready` | 200 | статус `ready` |
 | 09 | `GET /v1/tracks?artist=` | 200 | трек в ленте, статус `ready` |
-| 10 | `POST /v1/auth/register` слушатель | 201 | отдельный `token` |
-| 11 | `POST /v1/tracks/{id}/like` без токена | 401 | код `unauthorized` |
-| 12 | `POST /v1/tracks/{id}/like` | 204 | лайк записан |
-| 13 | повтор шага 12 | 409 | `conflict`, текст `track already liked` |
-| 14 | `GET /v1/me/likes` | 200 | трек в списке |
-| 15 | `GET /v1/tracks/{id}/stream` | 302 | заголовок `Location` |
-| 16 | `GET Location` | 200 | байты совпали с загруженными |
-| 17 | `DELETE /v1/tracks/{id}/like` | 204 | лайк снят |
-| 18 | `GET /v1/me/likes` | 200 | трека в списке нет |
+| 10 | `POST /v1/users` слушатель | 201 | отдельный `id` |
+| 11 | `POST /v1/sessions` слушатель | 201 | отдельный `token` |
+| 12 | `PUT /v1/users/{id}/likes/{trackId}` без токена | 401 | код `unauthorized` |
+| 13 | `PUT /v1/users/{id}/likes/{trackId}` | 204 | лайк записан |
+| 14 | повтор шага 13 | 204 | повтор лайка ничего не меняет |
+| 15 | `GET /v1/tracks?liked_by=` | 200 | трек в списке |
+| 16 | `GET /v1/tracks/{id}/stream` | 302 | заголовок `Location` |
+| 17 | `GET Location` | 200 | байты совпали с загруженными |
+| 18 | `DELETE /v1/users/{id}/likes/{trackId}` | 204 | лайк снят |
+| 19 | `GET /v1/tracks?liked_by=` | 200 | трека в списке нет |
 
 Тот же порядок повторяет `scripts/demo-requests.sh`. Захват этого прогона —
 `make demo-capture`.
@@ -782,7 +785,7 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `UC-USR-CREATE-03` | Business logic | `UserService.Create` | reports invalid email before short password | classic | decision-table testing | normal |
 | `UC-USR-CREATE-04` | Business logic | `UserService.Create` | returns hashing error without storing user | classic | error guessing | normal |
 | `UC-USR-CREATE-05` | Business logic | `UserService.Create` | returns repository create error | classic | error guessing | normal |
-| `IT-UC-USR-DELETE-01` | Business logic | `UserService.Delete` | delete of a user who owns tracks is refused | integration | error guessing | critical |
+| `IT-UC-USR-DELETE-01` | Business logic | `UserService.Delete` | delete of a user removes owned tracks | integration | state-transition testing | normal |
 | `UC-USR-DELETE-01` | Business logic | `UserService.Delete` | deletes user and password hash | classic | equivalence partitioning | normal |
 | `UC-USR-DELETE-02` | Business logic | `UserService.Delete` | rejects empty id without deleting | classic | boundary-value analysis | normal |
 | `UC-USR-DELETE-03` | Business logic | `UserService.Delete` | propagates not found for unknown user | classic | equivalence partitioning | normal |
@@ -867,7 +870,7 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `DA-USR-DELETE-02` | Data access | `UserRepository.Delete` | delete maps zero affected rows to user not found | stub | boundary-value analysis | normal |
 | `DA-USR-DELETE-03` | Data access | `UserRepository.Delete` | delete maps sqlstate 22P02 to invalid id | stub | error guessing | normal |
 | `IT-DA-USR-DELETE-01` | Data access | `UserRepository.Delete` | delete removes the user row | integration | equivalence partitioning | normal |
-| `IT-DA-USR-DELETE-02` | Data access | `UserRepository.Delete` | delete of a user who owns a track is refused | integration | error guessing | critical |
+| `IT-DA-USR-DELETE-02` | Data access | `UserRepository.Delete` | delete of a user cascades owned tracks | integration | state-transition testing | normal |
 | `IT-DA-USR-DELETE-03` | Data access | `UserRepository.Delete` | delete of an unknown uuid returns not found | integration | error guessing | normal |
 | `DA-USR-GETEMAIL-01` | Data access | `UserRepository.GetByEmail` | get by email sends the email and returns the user with password hash | stub | equivalence partitioning | critical |
 | `DA-USR-GETEMAIL-02` | Data access | `UserRepository.GetByEmail` | get by email maps pgx no rows to user not found | stub | error guessing | normal |
@@ -904,10 +907,11 @@ Total: 384 cases.
 ## Известные проблемы и ограничения
 
 - KI-1. Любое нарушение внешнего ключа (SQLSTATE 23503) становится not_found
-  `not found` (HTTP 404). Удаление пользователя, у которого ещё есть треки,
-  отклоняется с 404, как будто пользователя нет. Это фиксируют
-  `IT-DA-USR-DELETE-02` и `IT-UC-USR-DELETE-01`: тесты закрепляют текущее
-  поведение. Точнее был бы 409 conflict.
+  `not found` (HTTP 404). Это фиксируют `IT-DA-TRK-CREATE-02` (трек
+  неизвестного пользователя) и `IT-DA-LIKE-ADD-03` (лайк неизвестного трека).
+  Точнее был бы 409 conflict. Удаление пользователя с треками сюда не попадает:
+  `tracks.user_id` объявлен с `ON DELETE CASCADE`
+  (`IT-DA-USR-DELETE-02`, `IT-UC-USR-DELETE-01`).
 - KI-2. `TrackService.Update` и `TrackService.Delete` не принимают
   идентификатор вызывающего, а `PUT/DELETE /v1/tracks/{id}` не проверяют
   владельца. Любой авторизованный пользователь может переименовать или удалить

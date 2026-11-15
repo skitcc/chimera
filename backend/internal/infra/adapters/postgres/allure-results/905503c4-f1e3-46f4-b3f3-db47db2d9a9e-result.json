@@ -1,0 +1,109 @@
+{
+  "uuid": "905503c4-f1e3-46f4-b3f3-db47db2d9a9e",
+  "historyId": "DA-TRK-UPDATE-02",
+  "testCaseId": "DA-TRK-UPDATE-02",
+  "testCaseName": "update with empty object key sends the id based default key",
+  "name": "[DA-TRK-UPDATE-02] update with empty object key sends the id based default key",
+  "fullName": "internal/testkit/report.go/TestTrackRepositoryUpdate/update_with_empty_object_key_sends_the_id_based_default_key",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-TRK-UPDATE-02` |\n| **Component** | `TrackRepository.Update` |\n| **Given** | a track track-1 with an empty object key |\n| **When** | Update is called |\n| **Then** | the object key argument sent to the database is track-1.mp3 |\n| **Technique** | boundary-value analysis |\n| **Test double style** | stub |\n| **Go test** | `TestTrackRepositoryUpdate/update_with_empty_object_key_sends_the_id_based_default_key` |\n| **Source** | `internal/infra/adapters/postgres/track_test.go:449` |\n\nSpecification: `backend/TEST_SPEC.md`, section `TrackRepository.Update`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/track_test.go:449"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-TRK-UPDATE-02"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "TrackRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "Update"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "TrackRepository"
+    },
+    {
+      "name": "story",
+      "value": "Update"
+    },
+    {
+      "name": "severity",
+      "value": "critical"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "boundary-value analysis"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "id",
+      "value": "track-1"
+    },
+    {
+      "name": "object key",
+      "value": ""
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309184,
+      "stop": 1794424309184
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309184,
+      "stop": 1794424309184
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309184,
+      "stop": 1794424309184
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424309184,
+  "stop": 1794424309184
+}

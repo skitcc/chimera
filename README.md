@@ -9,9 +9,12 @@ cp .env.example .env
 docker compose up --build
 ```
 
-UI: http://localhost:5173  
-API: http://127.0.0.1:8080  
-Swagger: http://localhost:5173/swagger/index.html
+Welcome page: http://localhost:5173/  
+Client: http://localhost:5173/legacy/  
+API through the web server: http://localhost:5173/api/v1/tracks  
+Swagger: http://localhost:5173/api/v1/docs/  
+Service index: http://localhost:5173/management  
+API process directly: http://127.0.0.1:8080
 
 ## Backend tests
 

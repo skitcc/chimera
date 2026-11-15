@@ -1,0 +1,109 @@
+{
+  "uuid": "e1047864-f9f0-4364-8dce-3c3bc87ba75c",
+  "historyId": "DA-PGX-USR-GET-02",
+  "testCaseId": "DA-PGX-USR-GET-02",
+  "testCaseName": "get by id maps pgx no rows from the driver to user not found",
+  "name": "[DA-PGX-USR-GET-02] get by id maps pgx no rows from the driver to user not found",
+  "fullName": "internal/testkit/report.go/TestUserRepositoryPGXMock/get_by_id_maps_pgx_no_rows_from_the_driver_to_user_not_found",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-PGX-USR-GET-02` |\n| **Component** | `UserRepository.GetByID` |\n| **Given** | pgxmock expects the users-by-id SELECT with argument missing and returns pgx.ErrNoRows |\n| **When** | GetByID is called with missing |\n| **Then** | a not_found domain error with message \"user not found\" is returned and all expectations are met |\n| **Technique** | error guessing |\n| **Test double style** | pgxmock |\n| **Go test** | `TestUserRepositoryPGXMock/get_by_id_maps_pgx_no_rows_from_the_driver_to_user_not_found` |\n| **Source** | `internal/infra/adapters/postgres/pgxmock_test.go:65` |\n\nSpecification: `backend/TEST_SPEC.md`, section `UserRepository.GetByID`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/pgxmock_test.go:65"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-PGX-USR-GET-02"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "UserRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "GetByID"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "UserRepository"
+    },
+    {
+      "name": "story",
+      "value": "GetByID"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "pgxmock"
+    },
+    {
+      "name": "testTechnique",
+      "value": "error guessing"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "driver error",
+      "value": "pgx.ErrNoRows"
+    },
+    {
+      "name": "id",
+      "value": "missing"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308626,
+      "stop": 1794424308626
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308626,
+      "stop": 1794424308626
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424308626,
+      "stop": 1794424308626
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424308626,
+  "stop": 1794424308626
+}

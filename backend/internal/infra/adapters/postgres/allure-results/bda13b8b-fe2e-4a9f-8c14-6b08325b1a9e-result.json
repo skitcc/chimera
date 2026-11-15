@@ -1,0 +1,105 @@
+{
+  "uuid": "bda13b8b-fe2e-4a9f-8c14-6b08325b1a9e",
+  "historyId": "DA-TRK-UPDATE-03",
+  "testCaseId": "DA-TRK-UPDATE-03",
+  "testCaseName": "update maps pgx no rows to track not found",
+  "name": "[DA-TRK-UPDATE-03] update maps pgx no rows to track not found",
+  "fullName": "internal/testkit/report.go/TestTrackRepositoryUpdate/update_maps_pgx_no_rows_to_track_not_found",
+  "description": "| | |\n|---|---|\n| **Spec ID** | `DA-TRK-UPDATE-03` |\n| **Component** | `TrackRepository.Update` |\n| **Given** | the update returns no row because the id does not exist |\n| **When** | Update is called |\n| **Then** | a not_found domain error with message \"track not found\" and a zero track are returned |\n| **Technique** | error guessing |\n| **Test double style** | stub |\n| **Go test** | `TestTrackRepositoryUpdate/update_maps_pgx_no_rows_to_track_not_found` |\n| **Source** | `internal/infra/adapters/postgres/track_test.go:480` |\n\nSpecification: `backend/TEST_SPEC.md`, section `TrackRepository.Update`.\n",
+  "status": "passed",
+  "stage": "finished",
+  "labels": [
+    {
+      "name": "framework",
+      "value": "go-test"
+    },
+    {
+      "name": "language",
+      "value": "go"
+    },
+    {
+      "name": "package",
+      "value": "internal/infra/adapters/postgres"
+    },
+    {
+      "name": "source",
+      "value": "internal/infra/adapters/postgres/track_test.go:480"
+    },
+    {
+      "name": "ALLURE_ID",
+      "value": "DA-TRK-UPDATE-03"
+    },
+    {
+      "name": "parentSuite",
+      "value": "Data access"
+    },
+    {
+      "name": "suite",
+      "value": "TrackRepository"
+    },
+    {
+      "name": "subSuite",
+      "value": "Update"
+    },
+    {
+      "name": "epic",
+      "value": "Data access"
+    },
+    {
+      "name": "feature",
+      "value": "TrackRepository"
+    },
+    {
+      "name": "story",
+      "value": "Update"
+    },
+    {
+      "name": "severity",
+      "value": "normal"
+    },
+    {
+      "name": "tag",
+      "value": "stub"
+    },
+    {
+      "name": "testTechnique",
+      "value": "error guessing"
+    }
+  ],
+  "parameters": [
+    {
+      "name": "driver error",
+      "value": "pgx.ErrNoRows"
+    }
+  ],
+  "steps": [
+    {
+      "name": "Arrange",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309218,
+      "stop": 1794424309218
+    },
+    {
+      "name": "Act",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309218,
+      "stop": 1794424309218
+    },
+    {
+      "name": "Assert",
+      "status": "passed",
+      "stage": "finished",
+      "start": 1794424309218,
+      "stop": 1794424309218
+    }
+  ],
+  "titlePath": [
+    "internal",
+    "testkit",
+    "report.go"
+  ],
+  "start": 1794424309218,
+  "stop": 1794424309218
+}

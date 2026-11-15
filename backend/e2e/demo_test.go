@@ -42,7 +42,7 @@ func TestDemoScenario(t *testing.T) {
 		},
 	}}
 
-	var artistToken, listenerToken, trackID, uploadURL, streamURL string
+	var artistID, listenerID, artistToken, listenerToken, trackID, uploadURL, streamURL string
 
 	testkit.RunSpec(t, testkit.Spec{
 		ID:        "E2E-DEMO-01",
@@ -52,7 +52,7 @@ func TestDemoScenario(t *testing.T) {
 		Title:     "publishes a track and lets another user like and stream it",
 		Given:     "a running API, PostgreSQL and object storage",
 		When:      "an artist registers, uploads and publishes a track, and a listener likes and streams it",
-		Then:      "the track stays hidden until it is ready, a repeat like conflicts, and the streamed bytes match the upload",
+		Then:      "the track stays hidden until it is ready, a repeat like stays recorded, and the streamed bytes match the upload",
 		Technique: testkit.TechniqueState,
 		Severity:  testkit.SeverityBlocker,
 		Kind:      testkit.KindE2E,
@@ -79,40 +79,40 @@ func TestDemoScenario(t *testing.T) {
 		})
 
 		step("02 register artist", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPost, "/v1/auth/register", "", jsonBody(t, map[string]string{
+			status, _, body := api.do(t, http.MethodPost, "/v1/users", "", jsonBody(t, map[string]string{
 				"email": artistEmail, "password": password, "name": "Demo Artist",
 			}))
 			requireStatus(t, http.StatusCreated, status, body)
-			auth := decode[authResponse](t, body)
-			if auth.Token == "" || auth.User.Email != artistEmail {
+			user := decode[userResponse](t, body)
+			if user.ID == "" || user.Email != artistEmail {
 				t.Fatalf("register response: %s", body)
 			}
-			artistToken = auth.Token
+			artistID = user.ID
 		})
 
 		step("03 login artist", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPost, "/v1/auth/login", "", jsonBody(t, map[string]string{
+			status, _, body := api.do(t, http.MethodPost, "/v1/sessions", "", jsonBody(t, map[string]string{
 				"email": artistEmail, "password": password,
 			}))
-			requireStatus(t, http.StatusOK, status, body)
-			auth := decode[authResponse](t, body)
-			if auth.Token == "" {
+			requireStatus(t, http.StatusCreated, status, body)
+			session := decode[sessionResponse](t, body)
+			if session.Token == "" || session.UserID != artistID {
 				t.Fatalf("login response: %s", body)
 			}
-			artistToken = auth.Token
+			artistToken = session.Token
 		})
 
 		step("04 current user", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodGet, "/v1/me", artistToken, nil)
+			status, _, body := api.do(t, http.MethodGet, "/v1/users/"+artistID, artistToken, nil)
 			requireStatus(t, http.StatusOK, status, body)
 			user := decode[userResponse](t, body)
-			if user.Email != artistEmail {
-				t.Fatalf("me email %q", user.Email)
+			if user.ID != artistID || user.Email != artistEmail {
+				t.Fatalf("profile email %q id %q", user.Email, user.ID)
 			}
 		})
 
 		step("05 init upload", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPost, "/v1/tracks/upload-init", artistToken, jsonBody(t, map[string]any{
+			status, _, body := api.do(t, http.MethodPost, "/v1/tracks", artistToken, jsonBody(t, map[string]any{
 				"title": title, "artist": artistName, "size": len(audio),
 			}))
 			requireStatus(t, http.StatusCreated, status, body)
@@ -142,7 +142,9 @@ func TestDemoScenario(t *testing.T) {
 		})
 
 		step("08 complete upload", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPost, "/v1/tracks/"+trackID+"/upload-complete", artistToken, nil)
+			status, _, body := api.do(t, http.MethodPatch, "/v1/tracks/"+trackID, artistToken, jsonBody(t, map[string]string{
+				"status": "ready",
+			}))
 			requireStatus(t, http.StatusOK, status, body)
 			track := decode[trackResponse](t, body)
 			if track.ID != trackID || track.Status != "ready" || track.Artist != artistName {
@@ -159,19 +161,31 @@ func TestDemoScenario(t *testing.T) {
 		})
 
 		step("10 register listener", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPost, "/v1/auth/register", "", jsonBody(t, map[string]string{
+			status, _, body := api.do(t, http.MethodPost, "/v1/users", "", jsonBody(t, map[string]string{
 				"email": listenerEmail, "password": password, "name": "Demo Listener",
 			}))
 			requireStatus(t, http.StatusCreated, status, body)
-			auth := decode[authResponse](t, body)
-			if auth.Token == "" {
+			user := decode[userResponse](t, body)
+			if user.ID == "" || user.Email != listenerEmail {
 				t.Fatalf("listener register: %s", body)
 			}
-			listenerToken = auth.Token
+			listenerID = user.ID
 		})
 
-		step("11 like without token", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPost, "/v1/tracks/"+trackID+"/like", "", nil)
+		step("11 login listener", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodPost, "/v1/sessions", "", jsonBody(t, map[string]string{
+				"email": listenerEmail, "password": password,
+			}))
+			requireStatus(t, http.StatusCreated, status, body)
+			session := decode[sessionResponse](t, body)
+			if session.Token == "" || session.UserID != listenerID {
+				t.Fatalf("listener login: %s", body)
+			}
+			listenerToken = session.Token
+		})
+
+		step("12 like without token", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodPut, "/v1/users/"+listenerID+"/likes/"+trackID, "", nil)
 			requireStatus(t, http.StatusUnauthorized, status, body)
 			errBody := decode[errorResponse](t, body)
 			if errBody.Code != "unauthorized" {
@@ -179,28 +193,24 @@ func TestDemoScenario(t *testing.T) {
 			}
 		})
 
-		step("12 like track", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPost, "/v1/tracks/"+trackID+"/like", listenerToken, nil)
+		step("13 like track", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodPut, "/v1/users/"+listenerID+"/likes/"+trackID, listenerToken, nil)
 			requireStatus(t, http.StatusNoContent, status, body)
 		})
 
-		step("13 like track again", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPost, "/v1/tracks/"+trackID+"/like", listenerToken, nil)
-			requireStatus(t, http.StatusConflict, status, body)
-			errBody := decode[errorResponse](t, body)
-			if errBody.Code != "conflict" || errBody.Message != "track already liked" {
-				t.Fatalf("repeat like: %s", body)
-			}
+		step("14 like track again", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodPut, "/v1/users/"+listenerID+"/likes/"+trackID, listenerToken, nil)
+			requireStatus(t, http.StatusNoContent, status, body)
 		})
 
-		step("14 liked list", func(t *testing.T) {
-			page := api.feed(t, "", "/v1/me/likes?limit=100", listenerToken)
+		step("15 liked list", func(t *testing.T) {
+			page := api.feed(t, "", "/v1/tracks?limit=100&liked_by="+listenerID, listenerToken)
 			if _, ok := page.find(trackID); !ok {
 				t.Fatalf("liked list: %+v", page.Items)
 			}
 		})
 
-		step("15 stream redirect", func(t *testing.T) {
+		step("16 stream redirect", func(t *testing.T) {
 			status, header, body := api.do(t, http.MethodGet, "/v1/tracks/"+trackID+"/stream", "", nil)
 			requireStatus(t, http.StatusFound, status, body)
 			streamURL = header.Get("Location")
@@ -209,7 +219,7 @@ func TestDemoScenario(t *testing.T) {
 			}
 		})
 
-		step("16 download audio", func(t *testing.T) {
+		step("17 download audio", func(t *testing.T) {
 			status, _, body := api.doURL(t, http.MethodGet, streamURL, "", nil)
 			requireStatus(t, http.StatusOK, status, body)
 			if !bytes.Equal(body, audio) {
@@ -217,13 +227,13 @@ func TestDemoScenario(t *testing.T) {
 			}
 		})
 
-		step("17 unlike", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodDelete, "/v1/tracks/"+trackID+"/like", listenerToken, nil)
+		step("18 unlike", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodDelete, "/v1/users/"+listenerID+"/likes/"+trackID, listenerToken, nil)
 			requireStatus(t, http.StatusNoContent, status, body)
 		})
 
-		step("18 liked list is empty", func(t *testing.T) {
-			page := api.feed(t, "", "/v1/me/likes?limit=100", listenerToken)
+		step("19 liked list is empty", func(t *testing.T) {
+			page := api.feed(t, "", "/v1/tracks?limit=100&liked_by="+listenerID, listenerToken)
 			if page.has(trackID) || len(page.Items) != 0 {
 				t.Fatalf("liked list after unlike: %+v", page.Items)
 			}
@@ -339,9 +349,9 @@ func requireStatus(t *testing.T, want, got int, body []byte) {
 	}
 }
 
-type authResponse struct {
-	Token string       `json:"token"`
-	User  userResponse `json:"user"`
+type sessionResponse struct {
+	Token  string `json:"token"`
+	UserID string `json:"user_id"`
 }
 
 type userResponse struct {
