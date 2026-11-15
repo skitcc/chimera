@@ -7,17 +7,31 @@ x-runtime: &runtime
 x-grpc-server: &grpc-server
   GRPC_ADDR: :9090
   SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT}
+  GRPC_MAX_CONNECTION_AGE: ${GRPC_MAX_CONNECTION_AGE}
 
 x-postgres-pool: &postgres-pool
   POSTGRES_MIN_CONNS: ${POSTGRES_MIN_CONNS}
   POSTGRES_MAX_CONNS: ${POSTGRES_MAX_CONNS}
   POSTGRES_MAX_CONN_IDLE: ${POSTGRES_MAX_CONN_IDLE}
   POSTGRES_MAX_CONN_LIFETIME: ${POSTGRES_MAX_CONN_LIFETIME}
+  POSTGRES_STATEMENT_TIMEOUT: ${POSTGRES_STATEMENT_TIMEOUT}
+
+x-kafka-consumer: &kafka-consumer
+  KAFKA_BROKERS: kafka:9092
+  KAFKA_PRODUCE_TIMEOUT: ${KAFKA_PRODUCE_TIMEOUT}
+  KAFKA_RETRY_MAX_ATTEMPTS: ${KAFKA_RETRY_MAX_ATTEMPTS}
+  KAFKA_RETRY_BACKOFF: ${KAFKA_RETRY_BACKOFF}
+  KAFKA_RETRY_MAX_BACKOFF: ${KAFKA_RETRY_MAX_BACKOFF}
 
 x-kafka-client: &kafka-client
-  KAFKA_BROKERS: kafka:9092
+  <<: *kafka-consumer
   OUTBOX_POLL_INTERVAL: ${OUTBOX_POLL_INTERVAL}
   OUTBOX_BATCH_SIZE: ${OUTBOX_BATCH_SIZE}
+
+x-grpc-client: &grpc-client
+  GRPC_CLIENT_TIMEOUT: ${GRPC_CLIENT_TIMEOUT}
+  GRPC_RETRY_MAX_ATTEMPTS: ${GRPC_RETRY_MAX_ATTEMPTS}
+  GRPC_RETRY_BACKOFF: ${GRPC_RETRY_BACKOFF}
 
 x-ready-infra: &ready-infra
   postgres:
@@ -158,6 +172,7 @@ services:
       S3_BUCKET: ${S3_BUCKET}
       S3_REGION: ${S3_REGION}
       S3_PRESIGN_TTL: ${S3_PRESIGN_TTL}
+      S3_TIMEOUT: ${S3_TIMEOUT}
       TRACK_MAX_BYTES: ${TRACK_MAX_BYTES}
     depends_on:
       <<: *ready-infra
@@ -170,12 +185,10 @@ services:
       dockerfile: social/Dockerfile
     container_name: ${PROJECT_NAME:-chimera}-social
     environment:
-      <<: [*runtime, *grpc-server, *postgres-pool]
+      <<: [*runtime, *grpc-server, *postgres-pool, *kafka-consumer, *grpc-client]
       DATABASE_URL: postgres://social:${SOCIAL_DB_PASSWORD}@postgres:5432/social?sslmode=disable
-      KAFKA_BROKERS: kafka:9092
       IDENTITY_GRPC_ADDR: identity:9090
       CATALOG_GRPC_ADDR: catalog:9090
-      GRPC_CLIENT_TIMEOUT: ${GRPC_CLIENT_TIMEOUT}
     depends_on:
       <<: *ready-infra
       identity:
@@ -189,10 +202,11 @@ services:
       dockerfile: gateway/Dockerfile
     container_name: ${PROJECT_NAME:-chimera}-gateway
     environment:
-      <<: *runtime
+      <<: [*runtime, *grpc-client]
       HTTP_ADDR: :8080
       HTTP_SHUTDOWN_TIMEOUT: ${HTTP_SHUTDOWN_TIMEOUT}
       HTTP_READ_HEADER_TIMEOUT: ${HTTP_READ_HEADER_TIMEOUT}
+      HTTP_WRITE_TIMEOUT: ${HTTP_WRITE_TIMEOUT}
       HTTP_CORS_ORIGIN: http://127.0.0.1:${FRONTEND_PORT:-5173},http://localhost:${FRONTEND_PORT:-5173}
       JWT_PUBLIC_KEY_FILE: /keys/jwt.pub
       AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT}
@@ -201,7 +215,6 @@ services:
       IDENTITY_GRPC_ADDR: identity:9090
       CATALOG_GRPC_ADDR: catalog:9090
       SOCIAL_GRPC_ADDR: social:9090
-      GRPC_CLIENT_TIMEOUT: ${GRPC_CLIENT_TIMEOUT}
       STREAM_HOST: ${STREAM_HOST}
     ports:
       - "${API_PORT:-8080}:8080"

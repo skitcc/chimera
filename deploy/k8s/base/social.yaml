@@ -12,12 +12,33 @@ spec:
       targetPort: grpc
       appProtocol: grpc
 ---
+# One A record per ready pod: gRPC clients resolve dns:///social-headless and
+# balance round robin over the pods; Prometheus scrapes each pod through it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: social-headless
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: social
+  ports:
+    - name: grpc
+      port: 9090
+      targetPort: grpc
+      appProtocol: grpc
+    - name: metrics
+      port: 9464
+      targetPort: metrics
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: social
 spec:
-  replicas: 1
+  replicas: 3
+  strategy:
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
   selector:
     matchLabels:
       app.kubernetes.io/name: social
@@ -32,6 +53,15 @@ spec:
         runAsUser: 10001
         runAsGroup: 10001
         seccompProfile: {type: RuntimeDefault}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: social
       containers:
         - name: social
           image: chimera/social:dev
@@ -39,15 +69,26 @@ spec:
           ports:
             - name: grpc
               containerPort: 9090
+            - name: metrics
+              containerPort: 9464
           envFrom:
             - configMapRef: {name: service-runtime}
             - configMapRef: {name: social-config}
           env:
+            - name: INSTANCE_NAME
+              valueFrom:
+                fieldRef: {fieldPath: metadata.name}
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef: {name: chimera-secrets, key: SOCIAL_DB_PASSWORD}
             - name: DATABASE_URL
               value: postgres://social:$(DB_PASSWORD)@postgres:5432/social?sslmode=disable
+            # Reads that tolerate replication lag go to the hot standbys.
+            - name: DB_READ_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: chimera-secrets, key: SOCIAL_DB_READ_PASSWORD}
+            - name: DATABASE_READ_URL
+              value: postgres://social_ro:$(DB_READ_PASSWORD)@postgres-replica:5432/social?sslmode=disable
           readinessProbe:
             grpc: {port: 9090}
             periodSeconds: 5
@@ -67,3 +108,13 @@ spec:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities: {drop: [ALL]}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: social
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: social

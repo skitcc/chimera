@@ -10,8 +10,6 @@ RUN npm run build
 
 FROM nginx:1.27-alpine
 RUN rm -f /etc/nginx/templates/default.conf.template
-COPY edge/install-headers-more.sh /tmp/install-headers-more.sh
-RUN sh /tmp/install-headers-more.sh && rm /tmp/install-headers-more.sh
 COPY edge/nginx.main.conf /etc/nginx/nginx.conf
 COPY edge/mirror-nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=ui /src/dist/ /usr/share/nginx/html/mirror/

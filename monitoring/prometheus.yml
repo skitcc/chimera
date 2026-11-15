@@ -1,17 +1,38 @@
+# Each job resolves the headless Service of a deployment: one A record per ready
+# pod, so every instance is a target of its own. The pod label comes from the
+# process (INSTANCE_NAME), because a DNS target knows only its address.
 global:
   scrape_interval: 5s
 
 scrape_configs:
-  - job_name: chimera
-    honor_labels: true
-    metrics_path: /metrics
+  - job_name: gateway
+    dns_sd_configs:
+      - names: [gateway-headless]
+        type: A
+        port: 8080
+  - job_name: identity
+    dns_sd_configs:
+      - names: [identity-headless]
+        type: A
+        port: 9464
+  - job_name: catalog
+    dns_sd_configs:
+      - names: [catalog-headless]
+        type: A
+        port: 9464
+  - job_name: social
+    dns_sd_configs:
+      - names: [social-headless]
+        type: A
+        port: 9464
+  # postgres-exporter beside the primary: replication lag of each standby.
+  - job_name: postgres
     static_configs:
-      - targets: ["api:8080"]
-        labels:
-          instance: api
-      - targets: ["api-read-1:8080"]
-        labels:
-          instance: api-read-1
-      - targets: ["api-read-2:8080"]
-        labels:
-          instance: api-read-2
+      - targets: [postgres:9187]
+  - job_name: otel-collector
+    static_configs:
+      - targets: [otel-collector:8888]
+  # Consumer-group lag of identity.user.v1 and catalog.track.v1.
+  - job_name: kafka
+    static_configs:
+      - targets: [kafka-exporter:9308]

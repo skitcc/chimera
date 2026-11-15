@@ -1,23 +1,44 @@
+# Runs on every node and tails the container logs of the pods in its own namespace.
+# Service and pod become labels; trace_id stays in the line, where Grafana finds it
+# (a label per trace would explode the index).
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
 
 positions:
-  filename: /tmp/positions.yaml
+  filename: /run/promtail/positions.yaml
 
 clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-  - job_name: chimera-api
-    docker_sd_configs:
-      - host: unix:///var/run/docker.sock
-        refresh_interval: 5s
+  - job_name: pods
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          own_namespace: true
+    pipeline_stages:
+      - cri: {}
+      - json:
+          expressions:
+            level: level
+      - labels:
+          level:
     relabel_configs:
-      - source_labels: ["__meta_docker_container_name"]
-        regex: '/.+-api(-read-[12])?$'
-        action: keep
-      - source_labels: ["__meta_docker_container_name"]
-        regex: '/(.*)'
-        target_label: instance
-        replacement: "$1"
+      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+        target_label: service
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+      - source_labels: [__meta_kubernetes_pod_container_name]
+        target_label: container
+      # One directory per container. A glob over every pod opens more files than
+      # the node allows and promtail exits at startup.
+      - source_labels:
+          - __meta_kubernetes_namespace
+          - __meta_kubernetes_pod_name
+          - __meta_kubernetes_pod_uid
+          - __meta_kubernetes_pod_container_name
+        separator: /
+        regex: (.+)/(.+)/(.+)/(.+)
+        target_label: __path__
+        replacement: /var/log/pods/$1_$2_$3/$4/*.log

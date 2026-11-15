@@ -28,7 +28,7 @@ location = /admin {
 location /admin/ {
 	auth_basic "Chimera database";
 	auth_basic_user_file /etc/nginx/admin.htpasswd;
-	proxy_pass http://adminer:8080/;
+	proxy_pass http://__ADMINER_UPSTREAM__/;
 	proxy_http_version 1.1;
 	proxy_set_header Host $host;
 	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -43,3 +43,4 @@ location /admin/ {
 	sub_filter 'src="/' 'src="/admin/';
 }
 EOF
+sed -i "s|__ADMINER_UPSTREAM__|${ADMINER_UPSTREAM:?ADMINER_UPSTREAM is required}|" "$out"

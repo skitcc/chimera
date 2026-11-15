@@ -1,5 +1,6 @@
-# Web: the built SPA behind nginx. Ingress sends /v1 straight to the Gateway; the nginx
-# proxy to API_UPSTREAM serves the same paths when the SPA is opened without ingress.
+# Web: the built SPA under /legacy. The edge proxies /legacy here and sends the SPA's
+# /api calls to the Gateway itself; the nginx proxy to API_UPSTREAM serves the same
+# paths when the SPA is opened without the edge.
 apiVersion: v1
 kind: Service
 metadata:

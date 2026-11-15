@@ -12,12 +12,33 @@ spec:
       targetPort: grpc
       appProtocol: grpc
 ---
+# One A record per ready pod: gRPC clients resolve dns:///identity-headless and
+# balance round robin over the pods; Prometheus scrapes each pod through it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: identity-headless
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: identity
+  ports:
+    - name: grpc
+      port: 9090
+      targetPort: grpc
+      appProtocol: grpc
+    - name: metrics
+      port: 9464
+      targetPort: metrics
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: identity
 spec:
-  replicas: 1
+  replicas: 3
+  strategy:
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
   selector:
     matchLabels:
       app.kubernetes.io/name: identity
@@ -33,6 +54,15 @@ spec:
         runAsGroup: 10001
         fsGroup: 10001
         seccompProfile: {type: RuntimeDefault}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: identity
       containers:
         - name: identity
           image: chimera/identity:dev
@@ -40,15 +70,26 @@ spec:
           ports:
             - name: grpc
               containerPort: 9090
+            - name: metrics
+              containerPort: 9464
           envFrom:
             - configMapRef: {name: service-runtime}
             - configMapRef: {name: identity-config}
           env:
+            - name: INSTANCE_NAME
+              valueFrom:
+                fieldRef: {fieldPath: metadata.name}
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef: {name: chimera-secrets, key: IDENTITY_DB_PASSWORD}
             - name: DATABASE_URL
               value: postgres://identity:$(DB_PASSWORD)@postgres:5432/identity?sslmode=disable
+            # Reads that tolerate replication lag go to the hot standbys.
+            - name: DB_READ_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: chimera-secrets, key: IDENTITY_DB_READ_PASSWORD}
+            - name: DATABASE_READ_URL
+              value: postgres://identity_ro:$(DB_READ_PASSWORD)@postgres-replica:5432/identity?sslmode=disable
           readinessProbe:
             grpc: {port: 9090}
             periodSeconds: 5
@@ -77,3 +118,13 @@ spec:
           secret:
             secretName: jwt-private
             defaultMode: 0440
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: identity
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: identity
