@@ -1,5 +1,7 @@
 // Physical model aligned with the conceptual ER in docs/architecture.md §6.
-// users, tracks, track_likes match schema.sql.
+// Logical model across the service databases: users live in identity, tracks in
+// catalog, likes/follows/playlists in social. Cross-service refs are by id only
+// (no foreign keys); see <service>/migrations for the actual DDL.
 // playlists, playlist_tracks and follows are not migrated yet.
 
 Project chimera {

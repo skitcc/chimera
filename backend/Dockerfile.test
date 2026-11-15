@@ -5,7 +5,16 @@ RUN GOBIN=/tools go install github.com/rillig/gobco@${GOBCO_VERSION}
 FROM golang:1.26-alpine
 RUN apk add --no-cache build-base ca-certificates git
 WORKDIR /src
-COPY go.mod go.sum ./
+# Module files first, so dependency downloads stay cached between code changes.
+COPY go.work go.work.sum ./
+COPY contracts/go.mod contracts/go.sum ./contracts/
+COPY platform/go.mod platform/go.sum ./platform/
+COPY testkit/go.mod testkit/go.sum ./testkit/
+COPY identity/go.mod identity/go.sum ./identity/
+COPY catalog/go.mod catalog/go.sum ./catalog/
+COPY social/go.mod social/go.sum ./social/
+COPY gateway/go.mod gateway/go.sum ./gateway/
+COPY e2e/go.mod e2e/go.sum ./e2e/
 RUN go mod download
 COPY . .
 COPY --from=tools /tools/gobco /usr/local/bin/gobco
@@ -13,4 +22,4 @@ ENV GOCACHE=/tmp/go-build \
 	GOTMPDIR=/tmp/go-tmp
 RUN mkdir -p /artifacts /tmp/go-build /tmp/go-tmp \
 	&& chmod 1777 /artifacts /tmp/go-build /tmp/go-tmp
-CMD ["go", "test", "./..."]
+CMD ["go", "test", "chimera/platform/...", "chimera/testkit/...", "chimera/identity/...", "chimera/catalog/...", "chimera/social/...", "chimera/gateway/..."]

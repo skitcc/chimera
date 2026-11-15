@@ -17,7 +17,6 @@ make test-offline
 make stand-up
 make test-integration
 make test-e2e
-make stand-refresh
 make stand-gc
 make stand-down
 make coverage
@@ -32,25 +31,25 @@ make test-all
 Перед интеграционными и сквозными тестами скопируйте `.env.example` в `.env`
 в корне репозитория и один раз выполните `make stand-up`. Стенд — отдельный
 проект Compose `chimera-stand`: один PostgreSQL на `127.0.0.1:54329` и один
-RustFS на `127.0.0.1:9002`. Рабочий проект `chimera` он не трогает. При первом
-запуске схема попадает в шаблон `chimera_template`, шаблон закрывается для
-подключений и остаётся в томе. Строка тестировщика ведёт в служебную базу
-`postgres`:
+RustFS на `127.0.0.1:9002`. Рабочий проект `chimera` он не трогает. Шаблонной
+базы нет: каждый сервис владеет своими миграциями (`<service>/migrations`), и
+интеграционный тест сам накатывает их на пустую базу. Строка тестировщика
+ведёт в служебную базу `postgres`:
 
 `postgres://chimera_test:replace-test-only@127.0.0.1:54329/postgres?sslmode=disable`
 
-`make test`, `make test-integration` и `make test-e2e` стенд не включают и не
-выключают. Если его нет, интеграция и сквозной прогон заканчиваются просьбой
-выполнить `make stand-up`, а не поднимают свой PostgreSQL. Тот же отказ
-записывается в `allure-results` как broken: «integration tests did not start»
-или «e2e tests did not start», а прежние результаты этого набора из каталога
-удаляются. `go test` при этом не запускается. `make allure-open` показывает
+`make test` и `make test-integration` стенд не включают и не выключают. Если
+его нет, интеграция заканчивается просьбой выполнить `make stand-up`, а не
+поднимает свой PostgreSQL. Тот же отказ записывается в `allure-results` как
+broken: «integration tests did not start», а прежние результаты этого набора
+из каталога удаляются. `make test-e2e` стенд не использует: он поднимает
+собственную копию всей системы (см. ниже), и при её сбое пишет broken
+«e2e tests did not start». `go test` при этом не запускается. `make allure-open` показывает
 не этот каталог, а уже собранный `allure-report`. Если в `allure-results` есть
 файлы, цель перед отдачей страницы собирает отчёт заново. `make stand-down`
 останавливает контейнеры и нужен только для обслуживания машины: тома и шаблон
-он не удаляет. `make stand-refresh` заново собирает шаблон из `schema.sql` и
-не удаляет копии `t_*`. `make stand-gc` удаляет базы `t_*` без сессий — это
-копии после убитого прогона. Пароль `POSTGRES_TEST_PASSWORD` входит в URL,
+он не удаляет. `make stand-gc` удаляет базы `t_*` без сессий — это базы после
+убитого прогона. Пароль `POSTGRES_TEST_PASSWORD` входит в URL,
 поэтому в нём допустимы только буквы, цифры, точка, подчёркивание, тильда и
 дефис.
 
@@ -58,12 +57,18 @@ RustFS на `127.0.0.1:9002`. Рабочий проект `chimera` он не т
 
 | Набор | Build tag | Пакеты | Двойники | Префикс spec ID |
 | --- | --- | --- | --- | --- |
-| Модульные тесты домена | нет | `internal/domain` | нет | `DOM-` |
-| Модульные тесты бизнес-логики | нет | `internal/usecase` | фейки с состоянием (classic), моки и шпионы (london) | `UC-` |
-| Модульные тесты доступа к данным | нет | `internal/infra/adapters/postgres` | строки `stubDB`, pgxmock | `DA-`, `DA-PGX-` |
-| Интеграция бизнес-логики | `integration` | `internal/usecase` | настоящий PostgreSQL, фейковое хранилище объектов | `IT-UC-` |
-| Интеграция доступа к данным | `integration` | `internal/infra/adapters/postgres` | настоящий PostgreSQL | `IT-DA-` |
-| Сквозной демо-сценарий | `e2e` | `e2e` | свой контейнер API, копия PostgreSQL и свой бакет на стенде | `E2E-` |
+| Модульные тесты домена | нет | `<service>/internal/domain` | нет | `DOM-` |
+| Модульные тесты бизнес-логики | нет | `<service>/internal/usecase` | фейки с состоянием (classic), моки и шпионы (london) | `UC-` |
+| Модульные тесты доступа к данным | нет | `<service>/internal/infra/postgres` | строки `stubDB`, pgxmock | `DA-`, `DA-PGX-` |
+| Модульные тесты Gateway | нет | `gateway/internal/...` | фейковые gRPC-клиенты | без spec ID |
+| Интеграция бизнес-логики | `integration` | `<service>/internal/usecase` | настоящий PostgreSQL, фейковое хранилище объектов | `IT-UC-` |
+| Интеграция доступа к данным | `integration` | `<service>/internal/infra/postgres` | настоящий PostgreSQL | `IT-DA-` |
+| Сквозной демо-сценарий | `e2e` | `e2e` | своя копия всей системы в Compose: четыре сервиса, PostgreSQL, RustFS, Kafka | `E2E-` |
+
+`<service>` — `identity`, `catalog` или `social`. Каждый из них и `gateway` —
+отдельный Go-модуль; `backend/go.work` собирает их вместе с `contracts`,
+`platform`, `testkit` и `e2e`, поэтому пакеты называются путями модулей:
+`chimera/catalog/...`.
 
 Интеграционные тесты пропускают себя, если не задан `TEST_DATABASE_URL`.
 Поэтому обычный `go test ./...` с этим тегом не падает из-за отсутствия базы.
@@ -89,32 +94,35 @@ RustFS на `127.0.0.1:9002`. Рабочий проект `chimera` он не т
 
 ## Цели и параметры
 
-- `test-image` собирает `Dockerfile.test`. В образ запекаются все модули из
-  `go.mod`, включая тестовые библиотеки (allure-go, pgxmock), и gobco.
-- `test` запускает `go test` по `TEST_PACKAGES` (по умолчанию `./...`).
+- `test-image` собирает `Dockerfile.test`. В образ запекаются зависимости всех
+  модулей `go.work`, включая тестовые библиотеки (allure-go, pgxmock), и gobco.
+- `test` запускает `go test` по `TEST_PACKAGES` (по умолчанию все модули:
+  `chimera/platform/... chimera/testkit/... chimera/identity/...` и так далее).
 - `test-shuffle` включает `-shuffle`. При `SHUFFLE_SEED=on` печатается случайное
   зерно. Повторить падение можно так:
   `make test-shuffle SHUFFLE_SEED=1700000000000000000`.
 - `test-offline` требует уже собранный `make test-image`, запрещает pull и
   запускает ровно этот образ с `--network none`. Падение обычно значит, что
   зависимость или обращение к сети во время теста не попали в образ.
-- `test-integration` запускает тесты с build tag `integration` в пакетах
-  `INTEGRATION_PACKAGES`. По умолчанию это
-  `./internal/infra/adapters/postgres` и `./internal/usecase`: репозитории
-  (`IT-DA-`) и сервисы на настоящем PostgreSQL (`IT-UC-`). Имена тестов
-  совпадают с `INTEGRATION_RUN` (по умолчанию `Integration`). Модульные тесты
-  второй раз не бегут. На запуск создаётся одна копия `CREATE DATABASE ...
-  TEMPLATE chimera_template`, все кейсы этого запуска идут по ней по очереди и
-  очищают таблицы до и после себя. Второй одновременный запуск получает свою
-  копию. Пакеты внутри запуска не идут параллельно. Переопределите
-  `INTEGRATION_TAGS`, `INTEGRATION_RUN` или `INTEGRATION_PACKAGES`, например
-  `make test-integration INTEGRATION_RUN=TrackServiceIntegration` или
-  `make test-integration INTEGRATION_PACKAGES=./internal/infra/adapters/postgres`.
-- `test-e2e` создаёт одну копию базы и один бакет, поднимает только свой
-  контейнер API на свободном порту и гоняет `go test -tags=e2e ./e2e/...` в
-  сети хоста, потому что подписанный URL указывает на `127.0.0.1`. PostgreSQL
-  и RustFS стенда продолжают работать. `E2E_KEEP_STACK=1` оставляет контейнер
-  API, копию базы и бакет. Нужен файл `.env` в корне репозитория.
+- `test-integration` запускает тесты с build tag `integration` по сервисам из
+  `INTEGRATION_SERVICES` (по умолчанию `identity catalog social`). Для каждого
+  сервиса создаётся пустая база `t_<id>_<service>`, тесты сами накатывают на
+  неё миграции сервиса и идут по `chimera/<service>/...` по очереди (`-p 1`),
+  очищая таблицы до и после каждого кейса. После прогона базы удаляются.
+  Второй одновременный запуск получает свои базы. Имена тестов совпадают с
+  `INTEGRATION_RUN` (по умолчанию `Integration`); модульные тесты второй раз
+  не бегут. Например:
+  `make test-integration INTEGRATION_SERVICES=social` или
+  `make test-integration INTEGRATION_RUN=TrackServiceIntegration`.
+- `test-e2e` поднимает отдельный проект Compose `chimera-e2e-<id>` из
+  `docker-compose.yml` и `docker-compose.e2e.yml`: Identity, Catalog, Social,
+  Gateway, PostgreSQL, RustFS и Kafka со своей сетью и томами, без портов на
+  хосте. Тестовый контейнер подключается к этой сети и гоняет
+  `go test -tags=e2e chimera/e2e/...` против `http://gateway:8080`; подписанные
+  URL указывают на `minio:9000` внутри сети. После прогона лог всех
+  контейнеров сохраняется в `e2e-out/chimera-e2e-<id>.log`, проект удаляется
+  вместе с томами. `E2E_KEEP_STACK=1` его оставляет. Нужен файл `.env` в
+  корне репозитория.
 - `demo-capture` поднимает корневой `docker-compose.yml` разработчика, повторяет
   сценарий через `scripts/demo-requests.sh` (curl и jq в контейнере
   `nicolaka/netshoot`) и пишет захват трафика в `e2e-out/`. Это снимок трафика
@@ -128,7 +136,7 @@ RustFS на `127.0.0.1:9002`. Рабочий проект `chimera` он не т
 Полезные переопределения:
 
 ```bash
-make test TEST_PACKAGES=./internal/usecase/...
+make test TEST_PACKAGES=chimera/catalog/internal/usecase/...
 make test GO_TEST_P=2 GO_TEST_PARALLEL=8
 make test-image TEST_IMAGE=registry.example/chimera-test:dev
 ```
@@ -138,27 +146,27 @@ make test-image TEST_IMAGE=registry.example/chimera-test:dev
 тестов внутри одного бинарника могут идти после `t.Parallel`
 (`go test -parallel`). Эти два параметра относятся к обычным тестам: они базу
 не используют и `t.Parallel` не вызывают. Интеграционный запуск держит одну
-копию шаблона и выполняет кейсы по очереди, поэтому пакеты внутри него не
-распараллеливаются. Два запуска на одной машине получают две копии и не читают
+базу на сервис и выполняет кейсы по очереди, поэтому пакеты внутри него не
+распараллеливаются. Два запуска на одной машине получают разные базы и не читают
 чужие строки. Обычный пакет выполняется в отдельном процессе, так что глобальные
 переменные пакета между пакетами не общие.
 
 ## Зависимости только для тестов
 
-В Go нет `devDependencies`: один `go.mod` перечисляет каждый модуль, который
-импортируют пакеты модуля и их тесты. Разделение держат явно:
+В Go нет `devDependencies`: `go.mod` каждого сервиса перечисляет каждый модуль,
+который импортируют пакеты сервиса и их тесты. Разделение держат явно:
 
-- В `go.mod` есть отдельный блок `require` для модулей только тестов
-  (`go mod tidy` его сохраняет). Новые тестовые библиотеки добавляйте туда.
-- Боевой `Dockerfile` не запускает `go mod download`. Он удаляет `*_test.go` и
-  `internal/testkit`, собирает `./cmd/api` и роняет сборку, если
-  `go version -m /api` видит тестовый модуль. Импорт тестовой библиотеки из
-  боевого кода поэтому ломает `docker compose build`.
+- Общие тестовые хелперы (`RunSpec`, Allure, `TEST_DATABASE_URL`) лежат в
+  отдельном модуле `chimera/testkit`. Боевой код сервиса его не импортирует.
+- Боевой `<service>/Dockerfile` собирает с `GOWORK=off`, удаляет `*_test.go` и
+  `internal/testkit` и роняет сборку, если `go version -m /service` видит
+  allure-go или pgxmock. Импорт тестовой библиотеки из боевого кода поэтому
+  ломает `docker compose build`.
 
 | Модуль | Откуда используется | Зачем |
 | --- | --- | --- |
-| `github.com/allure-framework/allure-go/commons` | `internal/testkit/report.go` | Адаптер Allure: оборачивает `t.Run`, пишет JSON результата с наборами, behaviors, шагами AAA и метками техник |
-| `github.com/pashagolub/pgxmock/v5` | `internal/infra/adapters/postgres/*_test.go` | Замена `pgxpool.Pool` в памяти: ожидаемый SQL, заготовленные строки и ошибки, `ExpectationsWereMet` |
+| `github.com/allure-framework/allure-go/commons` | `testkit/report.go` | Адаптер Allure: оборачивает `t.Run`, пишет JSON результата с наборами, behaviors, шагами AAA и метками техник |
+| `github.com/pashagolub/pgxmock/v5` | `<service>/internal/infra/postgres/*_test.go` | Замена `pgxpool.Pool` в памяти: ожидаемый SQL, заготовленные строки и ошибки, `ExpectationsWereMet` |
 
 `gobco` — это бинарник, установленный в `Dockerfile.test`, а не зависимость
 `go.mod`.
@@ -237,7 +245,7 @@ Arrange, Act, Assert (AAA) разделяют подготовку, единст
   равно видны в месте вызова.
 
 Не делите изменяемые фикстуры между тестами. Интеграционные кейсы одного запуска
-делят одну копию `chimera_template` и очищают таблицы до и после каждого кейса,
+сервиса делят одну базу прогона и очищают таблицы до и после каждого кейса,
 поэтому внутри запуска они идут по очереди. Обычные тесты базу не трогают.
 
 Данные для тестов выбирайте систематически:
@@ -308,29 +316,30 @@ make allure-open
 доступен на `http://127.0.0.1:5252`. Порт меняется через `ALLURE_PORT`. Ни Java,
 ни Allure на хост не ставятся.
 
-В CI job `Backend tests` выкладывает два артефакта: `allure-results` (сырой
-JSON, чтобы склеивать прогоны или копить историю) и `allure-report` (скачать,
-распаковать и раздавать любым сервером статики). Job `e2e` отдельно выкладывает
+В CI jobs `Unit tests (<module>)` и `Integration tests (<service>)` выкладывают
+сырой JSON как `allure-results-unit-<module>` и
+`allure-results-integration-<service>`; их можно склеить и собрать отчёт
+локально через `make allure-render`. Job `e2e` отдельно выкладывает
 `e2e-traffic` и `e2e-allure-results`.
 
 ## Захват трафика демо-сценария
 
 ## Логи приложения в демо-сценарии
 
-`make test`, `make test-integration` и `make test-e2e` печатают ход `go test` в терминал. Отчёт Allure — это JSON в `backend/allure-results`, не лог сервера. Лог API идёт в stdout контейнера: строка `msg=request` на каждый запрос с методом, путём и статусом. `make test-e2e` перед удалением своего контейнера API сохраняет этот лог в `backend/e2e-out/chimera-e2e-<id>.log`.
+`make test`, `make test-integration` и `make test-e2e` печатают ход `go test` в терминал. Отчёт Allure — это JSON в `backend/allure-results`, не лог сервера. Лог каждого сервиса идёт в stdout его контейнера. Gateway пишет строку `msg=request` на каждый HTTP-запрос с методом, путём и статусом; Identity, Catalog и Social пишут `msg="grpc request"` с методом и длительностью (уровень debug) и `msg="grpc request rejected"` с кодом ошибки. `make test-e2e` перед удалением своего проекта сохраняет логи всех контейнеров в `backend/e2e-out/chimera-e2e-<id>.log`.
 
-Каждый прогон теста получает сквозной `run_id`. Клиент шлёт его в заголовке `X-Run-Id`, а номер шага — в `X-Run-Step`. Middleware `RunTrace` кладёт их в контекст запроса, и логгер добавляет `run_id` и `step` ко всем строкам, которые API пишет при обработке запроса: к `msg=request` и к ошибкам. Заголовок `X-Run-Event: start` или `finish` (с `X-Run-Result: passed|failed`) API пишет отдельной строкой:
+Каждый прогон теста получает сквозной `run_id`. Клиент шлёт его в заголовке `X-Run-Id`, а номер шага — в `X-Run-Step`. Middleware `RunTrace` кладёт их в контекст запроса, и логгер добавляет `run_id` и `step` ко всем строкам, которые Gateway пишет при обработке запроса: к `msg=request` и к ошибкам. Gateway передаёт их дальше в gRPC-метаданных `x-run-id` и `x-run-step`, и серверный перехватчик `platform/grpcx` кладёт их в контекст сервиса, поэтому один `run_id` виден в логах всех четырёх сервисов. Заголовок `X-Run-Event: start` или `finish` (с `X-Run-Result: passed|failed`) Gateway пишет отдельной строкой:
 
 ```text
 level=INFO msg="test run started" mode=development run_id=curl-1 step=01
-level=INFO msg=request mode=development method=POST path=/v1/auth/login status=200 duration=41ms run_id=curl-1 step=03
+level=INFO msg=request mode=development method=POST path=/v1/sessions status=201 duration=41ms run_id=curl-1 step=03
 level=INFO msg="test run finished" mode=development result=passed run_id=curl-1 step=finish
 ```
 
 | Прогон | `run_id` | Где лог |
 | --- | --- | --- |
-| `make demo-requests RUN=1` | `curl-1` | `docker logs chimera-api` |
-| `make e2e-dev RUN=1` | `go-1` | `docker logs chimera-api` |
+| `make demo-requests RUN=1` | `curl-1` | `make app-logs RUN=curl-1` (логи `chimera-gateway`, `-identity`, `-catalog`, `-social`) |
+| `make e2e-dev RUN=1` | `go-1` | `make app-logs RUN=go-1` |
 | `make test-e2e RUN=1` | `go-1` | `backend/e2e-out/chimera-e2e-<id>.log` |
 | `make test-integration RUN=1` | `it-1` | `backend/test-logs/it-1.log` |
 
@@ -346,7 +355,7 @@ make app-logs RUN=go-1
 
 Интеграционные тесты HTTP не используют: код приложения работает внутри `go test`. Там `run_id` приходит из `TEST_RUN_ID`. `testkit.RunSpec` пишет `msg="test started"` и `msg="test finished" result=...` с `run_id` и `spec_id` на каждый кейс в `backend/test-logs/it-<run>.log`, а `test-integration.sh` пишет туда же начало и конец прогона. В строке подключения к PostgreSQL стоит `application_name=it-<run>`, поэтому сессии прогона видны в `pg_stat_activity` стенда. Без `RUN` берётся случайный id.
 
-Когда разработческий Compose (`docker compose up` в корне: `chimera-api`, PostgreSQL, RustFS) уже работает, из `backend/` один прогон запускается так:
+Когда разработческий Compose (`docker compose up` в корне: Gateway, Identity, Catalog, Social, PostgreSQL, RustFS, Kafka) уже работает, из `backend/` один прогон запускается так:
 
 ```bash
 make demo-requests RUN=1   # curl, ответы в backend/e2e-out/runs/1/
@@ -356,13 +365,13 @@ make e2e-dev RUN=1         # go test -tags=e2e против того же API
 Три параллельных прогона — это три такие команды в разных терминалах с `RUN=1`, `RUN=2` и `RUN=3`. Лог приложения в отдельном терминале:
 
 ```bash
-make app-logs                              # docker logs -f chimera-api, весь лог
+make app-logs                              # docker compose logs -f четырёх сервисов
 make app-logs | grep 'test run'            # начало и конец каждого прогона
 make app-logs RUN=curl-2                   # только строки прогона curl-2
 make test-logs                             # интеграционные прогоны, RUN=1 — только it-1
 ```
 
-`DEV_API_URL` (по умолчанию `http://127.0.0.1:8080`) и `DEV_API_CONTAINER` (по умолчанию `chimera-api`) меняют адрес и контейнер.
+`DEV_API_URL` (по умолчанию `http://127.0.0.1:8080`) меняет адрес Gateway, `DEV_SERVICES` (по умолчанию `gateway identity catalog social`) — сервисы Compose, чьи логи читает `app-logs`.
 
 `make demo-capture` пишет в `backend/e2e-out/`:
 
@@ -370,23 +379,27 @@ make test-logs                             # интеграционные про
 | --- | --- |
 | `curl.log` | строка на шаг: метод, путь, статус |
 | `responses/` | заголовки и тела ответов |
-| `demo.pcap` | все запросы демо: HTTP клиента, загрузка файла и SQL |
+| `demo.pcap` | весь трафик демо в сети Compose: HTTP клиента, gRPC Gateway → сервисы и Social → Catalog, SQL всех трёх баз, Kafka, загрузка файла |
 | `http.txt` | разобранные HTTP-поля из `demo.pcap` |
-| `demo.txt` | разбор `http` и `pgsql` из `demo.pcap`, затем тексты SQL |
+| `demo.txt` | разбор `http`, `grpc`, `pgsql` и `kafka` из `demo.pcap`, затем список gRPC-методов и тексты SQL |
 
 В pcap видны JWT и пароли из `.env`. Это тестовые значения из `.env.example`,
 не боевые секреты.
 
 tcpdump не подключается к приложению. Он копирует кадры с одного сетевого
 интерфейса в pcap. tshark и Wireshark потом только читают этот файл: это один
-и тот же разборщик. Окно Wireshark на петле хоста или на Wi-Fi запросы к
-PostgreSQL не покажет: они идут по мосту Docker с `eth0` контейнера API на
-`eth0` контейнера PostgreSQL и на хост не выходят. Скрипт поэтому слушает два
-интерфейса и склеивает их в один `demo.pcap`: с API берёт порты 8080 и 5432,
-с RustFS — порт 9000. В логе стенда SQL печатается блоком `--- SQL ---`.
+и тот же разборщик. Окно Wireshark на петле хоста или на Wi-Fi запросы между
+контейнерами не покажет: они идут по мосту Docker и на хост не выходят.
+Скрипт поэтому слушает с хоста сам мост `br-<id>` сети `chimera_default` и
+запускает tcpdump до старта сервисов (`docker compose create`, затем dump,
+затем `up`). gRPC сжимает заголовки состоянием HPACK на всё соединение, и
+соединения живут долго, поэтому имена методов tshark восстанавливает, только
+если видел соединение с первого байта. В логе прогона gRPC-методы печатаются
+блоком `--- gRPC ---`, SQL — блоком `--- SQL ---`.
 
 Открыть `demo.pcap` в Wireshark. Фильтр `http`, затем Follow → HTTP Stream на
-запросе `POST /v1/auth/register`. Фильтр `pgsql` показывает запросы к
-PostgreSQL. API слушает 8080, RustFS — 9000, поэтому в `http.txt` tshark
-заранее вызван с decode-as для этих портов. В Wireshark то же самое:
-Analyze → Decode As → TCP 8080 и TCP 9000 как HTTP.
+запросе `POST /v1/users`. Фильтр `grpc` показывает вызовы между сервисами,
+`pgsql` — запросы к PostgreSQL, `kafka` — публикацию и чтение событий. Gateway
+слушает 8080, сервисы — gRPC на 9090, RustFS — 9000, поэтому tshark заранее
+вызван с decode-as для этих портов. В Wireshark то же самое: Analyze → Decode
+As → TCP 8080 и TCP 9000 как HTTP, TCP 9090 как HTTP2.

@@ -6,7 +6,7 @@ stand_require
 
 list=$(docker exec chimera-stand-postgres \
 	psql -v ON_ERROR_STOP=1 -U "$POSTGRES_TEST_USER" -d postgres -tAc \
-	"SELECT datname FROM pg_database WHERE datname ~ '^t_[0-9a-f]+$' AND NOT EXISTS (SELECT 1 FROM pg_stat_activity a WHERE a.datname = pg_database.datname)")
+	"SELECT datname FROM pg_database WHERE datname ~ '^t_[0-9a-f]+(_[a-z]+)?$' AND NOT EXISTS (SELECT 1 FROM pg_stat_activity a WHERE a.datname = pg_database.datname)")
 
 dropped=0
 for db in $list; do

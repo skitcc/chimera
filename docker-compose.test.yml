@@ -13,8 +13,6 @@ services:
       - "${POSTGRES_TEST_PORT:-54329}:5432"
     volumes:
       - chimera-stand-pg:/var/lib/postgresql/data
-      - ./backend/scripts/stand-init.sh:/docker-entrypoint-initdb.d/01-template.sh:ro
-      - ./backend/internal/infra/adapters/postgres/schema.sql:/schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d postgres"]
       interval: ${POSTGRES_TEST_HEALTH_INTERVAL:-2s}
