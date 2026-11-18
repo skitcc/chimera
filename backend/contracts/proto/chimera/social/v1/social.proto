@@ -1,0 +1,243 @@
+syntax = "proto3";
+
+package chimera.social.v1;
+
+import "chimera/catalog/v1/catalog.proto";
+import "chimera/common/v1/page.proto";
+import "chimera/identity/v1/identity.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "chimera/contracts/gen/social/v1;socialv1";
+
+// SocialService owns likes, follows and playlists.
+service SocialService {
+  rpc PutLike(PutLikeRequest) returns (PutLikeResponse);
+  rpc DeleteLike(DeleteLikeRequest) returns (DeleteLikeResponse);
+  // ListLikedTracks is the GET /v1/tracks listing with liked_by. Other filters are applied by Catalog.
+  rpc ListLikedTracks(ListLikedTracksRequest) returns (ListLikedTracksResponse);
+
+  rpc ListFollows(ListFollowsRequest) returns (ListFollowsResponse);
+  rpc GetFollow(GetFollowRequest) returns (GetFollowResponse);
+  rpc PutFollow(PutFollowRequest) returns (PutFollowResponse);
+  rpc DeleteFollow(DeleteFollowRequest) returns (DeleteFollowResponse);
+  rpc CreateFollows(CreateFollowsRequest) returns (CreateFollowsResponse);
+  rpc DeleteFollows(DeleteFollowsRequest) returns (DeleteFollowsResponse);
+
+  rpc ListPlaylists(ListPlaylistsRequest) returns (ListPlaylistsResponse);
+  rpc CreatePlaylist(CreatePlaylistRequest) returns (CreatePlaylistResponse);
+  rpc GetPlaylist(GetPlaylistRequest) returns (GetPlaylistResponse);
+  rpc ReplacePlaylist(ReplacePlaylistRequest) returns (ReplacePlaylistResponse);
+  rpc PatchPlaylist(PatchPlaylistRequest) returns (PatchPlaylistResponse);
+  rpc DeletePlaylist(DeletePlaylistRequest) returns (DeletePlaylistResponse);
+  rpc ListPlaylistTracks(ListPlaylistTracksRequest) returns (ListPlaylistTracksResponse);
+  rpc AddPlaylistTrack(AddPlaylistTrackRequest) returns (AddPlaylistTrackResponse);
+  rpc MovePlaylistTrack(MovePlaylistTrackRequest) returns (MovePlaylistTrackResponse);
+  rpc RemovePlaylistTrack(RemovePlaylistTrackRequest) returns (RemovePlaylistTrackResponse);
+}
+
+message PutLikeRequest {
+  string actor_id = 1;
+  string user_id = 2;
+  string track_id = 3;
+}
+
+message PutLikeResponse {}
+
+message DeleteLikeRequest {
+  string actor_id = 1;
+  string user_id = 2;
+  string track_id = 3;
+}
+
+message DeleteLikeResponse {}
+
+message ListLikedTracksRequest {
+  chimera.common.v1.PageRequest page = 1;
+  string viewer_id = 2;
+  string liked_by = 3;
+  string user_id = 4;
+  string artist = 5;
+  string status = 6;
+}
+
+message ListLikedTracksResponse {
+  repeated chimera.catalog.v1.Track items = 1;
+  string next_cursor = 2;
+  int64 limit = 3;
+}
+
+message Follow {
+  chimera.identity.v1.User follower = 1;
+  chimera.identity.v1.User following = 2;
+  google.protobuf.Timestamp created_at = 3;
+}
+
+message ListFollowsRequest {
+  chimera.common.v1.PageRequest page = 1;
+  string follower_id = 2;
+  string following_id = 3;
+}
+
+message ListFollowsResponse {
+  repeated Follow items = 1;
+  string next_cursor = 2;
+  int64 limit = 3;
+}
+
+message GetFollowRequest {
+  string follower_id = 1;
+  string following_id = 2;
+}
+
+message GetFollowResponse {
+  Follow follow = 1;
+}
+
+message PutFollowRequest {
+  string actor_id = 1;
+  string follower_id = 2;
+  string following_id = 3;
+}
+
+message PutFollowResponse {}
+
+message DeleteFollowRequest {
+  string actor_id = 1;
+  string follower_id = 2;
+  string following_id = 3;
+}
+
+message DeleteFollowResponse {}
+
+message CreateFollowsRequest {
+  string actor_id = 1;
+  string follower_id = 2;
+  repeated string following_ids = 3;
+}
+
+message CreateFollowsResponse {}
+
+message DeleteFollowsRequest {
+  string actor_id = 1;
+  string follower_id = 2;
+  repeated string following_ids = 3;
+}
+
+message DeleteFollowsResponse {}
+
+message Playlist {
+  string id = 1;
+  string owner_id = 2;
+  string title = 3;
+  bool is_public = 4;
+}
+
+message PlaylistTrack {
+  int64 position = 1;
+  chimera.catalog.v1.Track track = 2;
+}
+
+message ListPlaylistsRequest {
+  chimera.common.v1.PageRequest page = 1;
+  string viewer_id = 2;
+  string owner_id = 3;
+  optional bool is_public = 4;
+}
+
+message ListPlaylistsResponse {
+  repeated Playlist items = 1;
+  string next_cursor = 2;
+  int64 limit = 3;
+}
+
+message CreatePlaylistRequest {
+  string actor_id = 1;
+  string title = 2;
+  bool is_public = 3;
+  // idempotency_key makes a repeated call return the first playlist instead of a second one.
+  string idempotency_key = 4;
+}
+
+message CreatePlaylistResponse {
+  Playlist playlist = 1;
+}
+
+message GetPlaylistRequest {
+  string id = 1;
+  string viewer_id = 2;
+}
+
+message GetPlaylistResponse {
+  Playlist playlist = 1;
+}
+
+message ReplacePlaylistRequest {
+  string actor_id = 1;
+  string id = 2;
+  string title = 3;
+  bool is_public = 4;
+}
+
+message ReplacePlaylistResponse {
+  Playlist playlist = 1;
+}
+
+message PatchPlaylistRequest {
+  string actor_id = 1;
+  string id = 2;
+  optional string title = 3;
+  optional bool is_public = 4;
+}
+
+message PatchPlaylistResponse {
+  Playlist playlist = 1;
+}
+
+message DeletePlaylistRequest {
+  string actor_id = 1;
+  string id = 2;
+}
+
+message DeletePlaylistResponse {}
+
+message ListPlaylistTracksRequest {
+  string id = 1;
+  string viewer_id = 2;
+  chimera.common.v1.PageRequest page = 3;
+}
+
+message ListPlaylistTracksResponse {
+  repeated PlaylistTrack items = 1;
+  string next_cursor = 2;
+  int64 limit = 3;
+}
+
+message AddPlaylistTrackRequest {
+  string actor_id = 1;
+  string playlist_id = 2;
+  string track_id = 3;
+  int64 position = 4;
+}
+
+message AddPlaylistTrackResponse {
+  PlaylistTrack item = 1;
+}
+
+message MovePlaylistTrackRequest {
+  string actor_id = 1;
+  string playlist_id = 2;
+  string track_id = 3;
+  int64 position = 4;
+}
+
+message MovePlaylistTrackResponse {
+  PlaylistTrack item = 1;
+}
+
+message RemovePlaylistTrackRequest {
+  string actor_id = 1;
+  string playlist_id = 2;
+  string track_id = 3;
+}
+
+message RemovePlaylistTrackResponse {}

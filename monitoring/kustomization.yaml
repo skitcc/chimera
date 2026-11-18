@@ -1,0 +1,22 @@
+# The monitoring configs, packaged for deploy/k8s/base/monitoring.yaml.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+generatorOptions:
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: prometheus-config
+    files: [prometheus.yml]
+  - name: loki-config
+    files: [loki.yml]
+  - name: promtail-config
+    files: [promtail.yml]
+  - name: otel-collector-config
+    files: [otel-collector.yml]
+  - name: tempo-config
+    files: [tempo.yml]
+  - name: grafana-datasources
+    files: [grafana/provisioning/datasources/datasources.yml]
+  - name: grafana-dashboards-provider
+    files: [grafana/provisioning/dashboards/dashboards.yml]
+  - name: grafana-dashboards
+    files: [grafana/provisioning/dashboards/json/chimera.json]

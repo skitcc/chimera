@@ -13,8 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"chimera/internal/testkit"
+	"chimera/testkit"
 )
+
+// eventualTimeout bounds how long a deletion may take to reach the other
+// services through Kafka.
+const eventualTimeout = 60 * time.Second
 
 func TestDemoScenario(t *testing.T) {
 	base := os.Getenv("E2E_API_URL")
@@ -42,17 +46,18 @@ func TestDemoScenario(t *testing.T) {
 		},
 	}}
 
-	var artistID, listenerID, artistToken, listenerToken, trackID, uploadURL, streamURL string
+	var artist, listener session
+	var trackID, draftID, uploadURL, streamURL, playlistID string
 
 	testkit.RunSpec(t, testkit.Spec{
 		ID:        "E2E-DEMO-01",
 		Layer:     testkit.LayerE2E,
 		Component: "DemoScenario",
 		Method:    "MVP",
-		Title:     "publishes a track and lets another user like and stream it",
-		Given:     "a running API, PostgreSQL and object storage",
-		When:      "an artist registers, uploads and publishes a track, and a listener likes and streams it",
-		Then:      "the track stays hidden until it is ready, a repeat like stays recorded, and the streamed bytes match the upload",
+		Title:     "publishes a track, lets another user like and stream it, and cascades deletions",
+		Given:     "a running Gateway, Identity, Catalog, Social, Kafka, PostgreSQL and object storage",
+		When:      "an artist uploads and publishes a track, a listener likes, streams and saves it, then the track and the artist are deleted",
+		Then:      "the track stays hidden until ready, the streamed bytes match, and Kafka events remove likes, playlist entries, follows and the artist's tracks",
 		Technique: testkit.TechniqueState,
 		Severity:  testkit.SeverityBlocker,
 		Kind:      testkit.KindE2E,
@@ -74,152 +79,121 @@ func TestDemoScenario(t *testing.T) {
 		}
 
 		step("01 ready", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodGet, "/ready", "", nil)
-			requireStatus(t, http.StatusOK, status, body)
+			// The Gateway re-probes its upstreams on an interval, so right after a
+			// deploy /ready may still report the previous round.
+			eventually(t, "gateway ready", func() bool {
+				status, _, _ := api.do(t, http.MethodGet, "/ready", "", nil)
+				return status == http.StatusOK
+			})
 		})
 
 		step("02 register artist", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPost, "/v1/users", "", jsonBody(t, map[string]string{
-				"email": artistEmail, "password": password, "name": "Demo Artist",
-			}))
-			requireStatus(t, http.StatusCreated, status, body)
-			user := decode[userResponse](t, body)
-			if user.ID == "" || user.Email != artistEmail {
-				t.Fatalf("register response: %s", body)
-			}
-			artistID = user.ID
+			artist = api.register(t, artistEmail, "Demo Artist", password)
 		})
 
-		step("03 login artist", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPost, "/v1/sessions", "", jsonBody(t, map[string]string{
-				"email": artistEmail, "password": password,
-			}))
-			requireStatus(t, http.StatusCreated, status, body)
-			session := decode[sessionResponse](t, body)
-			if session.Token == "" || session.UserID != artistID {
-				t.Fatalf("login response: %s", body)
-			}
-			artistToken = session.Token
-		})
-
-		step("04 current user", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodGet, "/v1/users/"+artistID, artistToken, nil)
+		step("03 artist profile", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodGet, "/v1/users/"+artist.UserID, "", nil)
 			requireStatus(t, http.StatusOK, status, body)
-			user := decode[userResponse](t, body)
-			if user.ID != artistID || user.Email != artistEmail {
-				t.Fatalf("profile email %q id %q", user.Email, user.ID)
+			if user := decode[userResponse](t, body); user.Email != artistEmail {
+				t.Fatalf("profile email %q", user.Email)
 			}
 		})
 
-		step("05 init upload", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPost, "/v1/tracks", artistToken, jsonBody(t, map[string]any{
+		step("04 create track", func(t *testing.T) {
+			status, header, body := api.do(t, http.MethodPost, "/v1/tracks", artist.Token, jsonBody(t, map[string]any{
 				"title": title, "artist": artistName, "size": len(audio),
 			}))
 			requireStatus(t, http.StatusCreated, status, body)
-			session := decode[uploadResponse](t, body)
-			if session.Track.ID == "" || session.Track.Status != "pending" || session.UploadURL == "" {
-				t.Fatalf("init response: %s", body)
+			upload := decode[uploadResponse](t, body)
+			if upload.Track.ID == "" || upload.Track.Status != "pending" || upload.UploadURL == "" {
+				t.Fatalf("create response: %s", body)
 			}
-			if session.Track.SizeBytes != int64(len(audio)) {
-				t.Fatalf("declared size %d", session.Track.SizeBytes)
+			if upload.Track.SizeBytes != int64(len(audio)) {
+				t.Fatalf("declared size %d", upload.Track.SizeBytes)
 			}
-			trackID = session.Track.ID
-			uploadURL = session.UploadURL
+			if header.Get("Location") != "/v1/tracks/"+upload.Track.ID {
+				t.Fatalf("Location %q", header.Get("Location"))
+			}
+			trackID = upload.Track.ID
+			uploadURL = upload.UploadURL
 		})
 
-		step("06 put object", func(t *testing.T) {
+		step("05 put object", func(t *testing.T) {
 			status, _, body := api.doURL(t, http.MethodPut, uploadURL, "", audio)
 			if status != http.StatusOK && status != http.StatusNoContent {
 				t.Fatalf("put object status %d body %s", status, body)
 			}
 		})
 
-		step("07 feed hides pending track", func(t *testing.T) {
-			page := api.feed(t, artistName, "", "")
-			if page.has(trackID) {
+		step("06 feed hides pending track", func(t *testing.T) {
+			if page := api.tracks(t, "/v1/tracks?limit=100&artist="+artistName, ""); page.has(trackID) {
 				t.Fatalf("pending track %s is in the public feed", trackID)
 			}
 		})
 
-		step("08 complete upload", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPatch, "/v1/tracks/"+trackID, artistToken, jsonBody(t, map[string]string{
-				"status": "ready",
-			}))
+		step("07 publish track", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodPatch, "/v1/tracks/"+trackID, artist.Token, jsonBody(t, map[string]string{"status": "ready"}))
 			requireStatus(t, http.StatusOK, status, body)
 			track := decode[trackResponse](t, body)
 			if track.ID != trackID || track.Status != "ready" || track.Artist != artistName {
-				t.Fatalf("complete response: %s", body)
+				t.Fatalf("publish response: %s", body)
 			}
 		})
 
-		step("09 feed shows ready track", func(t *testing.T) {
-			page := api.feed(t, artistName, "", "")
-			track, ok := page.find(trackID)
-			if !ok || track.Status != "ready" {
-				t.Fatalf("ready track missing from feed: %+v", page.Items)
-			}
+		step("08 feed shows ready track", func(t *testing.T) {
+			// ListTracks may read a replica, so the row can arrive a moment after the write.
+			eventually(t, "ready track in the feed", func() bool {
+				track, ok := api.tracks(t, "/v1/tracks?limit=100&artist="+artistName, "").find(trackID)
+				return ok && track.Status == "ready"
+			})
 		})
 
-		step("10 register listener", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPost, "/v1/users", "", jsonBody(t, map[string]string{
-				"email": listenerEmail, "password": password, "name": "Demo Listener",
-			}))
-			requireStatus(t, http.StatusCreated, status, body)
-			user := decode[userResponse](t, body)
-			if user.ID == "" || user.Email != listenerEmail {
-				t.Fatalf("listener register: %s", body)
-			}
-			listenerID = user.ID
+		step("09 register listener", func(t *testing.T) {
+			listener = api.register(t, listenerEmail, "Demo Listener", password)
 		})
 
-		step("11 login listener", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPost, "/v1/sessions", "", jsonBody(t, map[string]string{
-				"email": listenerEmail, "password": password,
-			}))
-			requireStatus(t, http.StatusCreated, status, body)
-			session := decode[sessionResponse](t, body)
-			if session.Token == "" || session.UserID != listenerID {
-				t.Fatalf("listener login: %s", body)
-			}
-			listenerToken = session.Token
-		})
+		likePath := func() string { return "/v1/users/" + listener.UserID + "/likes/" + trackID }
 
-		step("12 like without token", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPut, "/v1/users/"+listenerID+"/likes/"+trackID, "", nil)
+		step("10 like without token", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodPut, likePath(), "", nil)
 			requireStatus(t, http.StatusUnauthorized, status, body)
-			errBody := decode[errorResponse](t, body)
-			if errBody.Code != "unauthorized" {
+			if e := decode[errorResponse](t, body); e.Code != "unauthorized" {
 				t.Fatalf("like without token: %s", body)
 			}
 		})
 
-		step("13 like track", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPut, "/v1/users/"+listenerID+"/likes/"+trackID, listenerToken, nil)
+		step("11 like for another user", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodPut, "/v1/users/"+artist.UserID+"/likes/"+trackID, listener.Token, nil)
+			requireStatus(t, http.StatusForbidden, status, body)
+		})
+
+		step("12 like track", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodPut, likePath(), listener.Token, nil)
 			requireStatus(t, http.StatusNoContent, status, body)
 		})
 
-		step("14 like track again", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodPut, "/v1/users/"+listenerID+"/likes/"+trackID, listenerToken, nil)
+		step("13 like track again", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodPut, likePath(), listener.Token, nil)
 			requireStatus(t, http.StatusNoContent, status, body)
 		})
 
-		step("15 liked list", func(t *testing.T) {
-			page := api.feed(t, "", "/v1/tracks?limit=100&liked_by="+listenerID, listenerToken)
-			if _, ok := page.find(trackID); !ok {
-				t.Fatalf("liked list: %+v", page.Items)
-			}
+		likedPath := func() string { return "/v1/tracks?limit=100&liked_by=" + listener.UserID }
+
+		step("14 liked list", func(t *testing.T) {
+			eventually(t, "liked track in the list", func() bool {
+				return api.tracks(t, likedPath(), listener.Token).has(trackID)
+			})
 		})
 
-		step("16 stream redirect", func(t *testing.T) {
+		step("15 stream redirect", func(t *testing.T) {
 			status, header, body := api.do(t, http.MethodGet, "/v1/tracks/"+trackID+"/stream", "", nil)
 			requireStatus(t, http.StatusFound, status, body)
-			streamURL = header.Get("Location")
-			if streamURL == "" {
+			if streamURL = header.Get("Location"); streamURL == "" {
 				t.Fatal("stream response has no Location")
 			}
 		})
 
-		step("17 download audio", func(t *testing.T) {
+		step("16 download audio", func(t *testing.T) {
 			status, _, body := api.doURL(t, http.MethodGet, streamURL, "", nil)
 			requireStatus(t, http.StatusOK, status, body)
 			if !bytes.Equal(body, audio) {
@@ -227,22 +201,78 @@ func TestDemoScenario(t *testing.T) {
 			}
 		})
 
-		step("18 unlike", func(t *testing.T) {
-			status, _, body := api.do(t, http.MethodDelete, "/v1/users/"+listenerID+"/likes/"+trackID, listenerToken, nil)
+		step("17 save to playlist", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodPost, "/v1/playlists", listener.Token, jsonBody(t, map[string]any{
+				"title": "Demo " + suffix, "is_public": true,
+			}))
+			requireStatus(t, http.StatusCreated, status, body)
+			playlistID = decode[playlistResponse](t, body).ID
+			status, _, body = api.do(t, http.MethodPost, "/v1/playlists/"+playlistID+"/tracks", listener.Token, jsonBody(t, map[string]any{
+				"track_id": trackID, "position": 0,
+			}))
+			requireStatus(t, http.StatusCreated, status, body)
+		})
+
+		step("18 follow artist", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodPut, "/v1/follows/"+listener.UserID+"/"+artist.UserID, listener.Token, nil)
 			requireStatus(t, http.StatusNoContent, status, body)
 		})
 
-		step("19 liked list is empty", func(t *testing.T) {
-			page := api.feed(t, "", "/v1/tracks?limit=100&liked_by="+listenerID, listenerToken)
-			if page.has(trackID) || len(page.Items) != 0 {
-				t.Fatalf("liked list after unlike: %+v", page.Items)
-			}
+		step("19 delete track", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodDelete, "/v1/tracks/"+trackID, artist.Token, nil)
+			requireStatus(t, http.StatusNoContent, status, body)
+		})
+
+		step("20 like and playlist entry disappear", func(t *testing.T) {
+			eventually(t, "TrackDeleted reached Social", func() bool {
+				status, _, body := api.do(t, http.MethodGet, "/v1/playlists/"+playlistID+"/tracks", listener.Token, nil)
+				requireStatus(t, http.StatusOK, status, body)
+				entries := decode[itemsResponse](t, body)
+				return len(entries.Items) == 0 && !api.tracks(t, likedPath(), listener.Token).has(trackID)
+			})
+		})
+
+		step("21 artist keeps a draft", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodPost, "/v1/tracks", artist.Token, jsonBody(t, map[string]any{
+				"title": "Draft " + suffix, "artist": artistName, "size": 1,
+			}))
+			requireStatus(t, http.StatusCreated, status, body)
+			draftID = decode[uploadResponse](t, body).Track.ID
+		})
+
+		step("22 delete artist", func(t *testing.T) {
+			status, _, body := api.do(t, http.MethodDelete, "/v1/users/"+artist.UserID, artist.Token, nil)
+			requireStatus(t, http.StatusNoContent, status, body)
+		})
+
+		step("23 artist data disappears", func(t *testing.T) {
+			eventually(t, "UserDeleted reached Catalog and Social", func() bool {
+				status, _, body := api.do(t, http.MethodGet, "/v1/tracks/"+draftID, artist.Token, nil)
+				if status != http.StatusNotFound {
+					requireStatus(t, http.StatusOK, status, body)
+					return false
+				}
+				status, _, body = api.do(t, http.MethodGet, "/v1/follows?follower_id="+listener.UserID, "", nil)
+				requireStatus(t, http.StatusOK, status, body)
+				return len(decode[itemsResponse](t, body).Items) == 0
+			})
 		})
 	})
 }
 
+func eventually(t *testing.T, what string, done func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(eventualTimeout)
+	for !done() {
+		if time.Now().After(deadline) {
+			t.Fatalf("%s: not observed within %s", what, eventualTimeout)
+		}
+		time.Sleep(time.Second)
+	}
+}
+
 // client tags every API request with X-Run-Id go-<run> and X-Run-Step, which
-// the API adds to every log line of the request as run_id and step.
+// the Gateway passes to every service and log line as run_id and step.
 type client struct {
 	base  string
 	run   string
@@ -285,6 +315,14 @@ func (c *client) doURL(t *testing.T, method, rawURL, token string, body []byte) 
 		t.Fatalf("%s %s: %v", method, rawURL, err)
 	}
 	defer res.Body.Close()
+	if strings.HasPrefix(rawURL, c.base+"/v1/") {
+		if got := res.Header.Get("X-Request-Id"); len(got) != 32 {
+			t.Fatalf("X-Request-Id %q", got)
+		}
+		if res.Header.Get("X-Chimera-Instance") == "" {
+			t.Fatal("X-Chimera-Instance is empty")
+		}
+	}
 	raw, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatalf("read body: %v", err)
@@ -292,7 +330,7 @@ func (c *client) doURL(t *testing.T, method, rawURL, token string, body []byte) 
 	return res.StatusCode, res.Header, raw
 }
 
-// mark sends X-Run-Event so the API logs the start or the finish of the run.
+// mark sends X-Run-Event so the Gateway logs the start or the finish of the run.
 // It runs from Cleanup too, so it reports errors instead of failing the test.
 func (c *client) mark(t *testing.T, event, result string) {
 	req, err := http.NewRequest(http.MethodGet, c.base+"/live", nil)
@@ -314,11 +352,30 @@ func (c *client) mark(t *testing.T, event, result string) {
 	res.Body.Close()
 }
 
-func (c *client) feed(t *testing.T, artist, path, token string) pageResponse {
+// register creates an account and opens a session for it.
+func (c *client) register(t *testing.T, email, name, password string) session {
 	t.Helper()
-	if path == "" {
-		path = "/v1/tracks?limit=100&artist=" + artist
+	status, _, body := c.do(t, http.MethodPost, "/v1/users", "", jsonBody(t, map[string]string{
+		"email": email, "name": name, "password": password,
+	}))
+	requireStatus(t, http.StatusCreated, status, body)
+	user := decode[userResponse](t, body)
+	if user.ID == "" || user.Email != email {
+		t.Fatalf("register response: %s", body)
 	}
+	status, _, body = c.do(t, http.MethodPost, "/v1/sessions", "", jsonBody(t, map[string]string{
+		"email": email, "password": password,
+	}))
+	requireStatus(t, http.StatusCreated, status, body)
+	s := decode[session](t, body)
+	if s.Token == "" || s.UserID != user.ID {
+		t.Fatalf("session response: %s", body)
+	}
+	return s
+}
+
+func (c *client) tracks(t *testing.T, path, token string) pageResponse {
+	t.Helper()
 	status, _, body := c.do(t, http.MethodGet, path, token, nil)
 	requireStatus(t, http.StatusOK, status, body)
 	return decode[pageResponse](t, body)
@@ -349,7 +406,7 @@ func requireStatus(t *testing.T, want, got int, body []byte) {
 	}
 }
 
-type sessionResponse struct {
+type session struct {
 	Token  string `json:"token"`
 	UserID string `json:"user_id"`
 }
@@ -374,9 +431,17 @@ type uploadResponse struct {
 	UploadURL string        `json:"upload_url"`
 }
 
+type playlistResponse struct {
+	ID string `json:"id"`
+}
+
 type pageResponse struct {
 	Items []trackResponse `json:"items"`
 	Limit int             `json:"limit"`
+}
+
+type itemsResponse struct {
+	Items []json.RawMessage `json:"items"`
 }
 
 func (p pageResponse) has(id string) bool {

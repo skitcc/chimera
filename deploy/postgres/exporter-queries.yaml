@@ -1,0 +1,17 @@
+# Replication lag as the primary sees it, one series per replica slot.
+pg_replication:
+  query: |
+    SELECT application_name,
+           COALESCE(EXTRACT(EPOCH FROM replay_lag), 0) AS replay_lag_seconds,
+           pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn) AS replay_lag_bytes
+    FROM pg_stat_replication
+  metrics:
+    - application_name:
+        usage: LABEL
+        description: Replica that streams from this primary
+    - replay_lag_seconds:
+        usage: GAUGE
+        description: Time between a commit on the primary and its replay on the replica
+    - replay_lag_bytes:
+        usage: GAUGE
+        description: WAL the replica has not replayed yet

@@ -6,6 +6,7 @@ backend/tmp
 backend/allure-report.html
 backend/allure-report/
 backend/allure-results/
+backend/**/allure-results/
 backend/coverage.html
 backend/coverage.out
 backend/branch-coverage.txt
@@ -15,3 +16,5 @@ backend/e2e-out/
 backend/test-logs/
 *.drawio.bkp
 backend/e2e-out
+deploy/k8s/overlays/*/secrets.env
+deploy/k8s/overlays/*/keys/

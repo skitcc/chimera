@@ -1,0 +1,10 @@
+# The same topic script docker-compose.yml runs, packaged for the kafka-topics Job.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+generatorOptions:
+  # A Job's pod template is immutable; a stable name keeps re-applies idempotent.
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: kafka-topics
+    files:
+      - create-topics.sh

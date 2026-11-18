@@ -1,0 +1,272 @@
+package postgres
+
+import (
+	"context"
+	"errors"
+	"strconv"
+
+	"github.com/jackc/pgx/v5"
+
+	"chimera/catalog/internal/domain"
+	"chimera/contracts/events"
+	eventsv1 "chimera/contracts/gen/events/v1"
+	"chimera/platform/idempotency"
+	"chimera/platform/outbox"
+	"chimera/platform/pg"
+)
+
+const (
+	producer  = "catalog"
+	trackCols = `id::text, user_id::text, title, artist, object_key, size_bytes, status`
+)
+
+// Pools routes each statement to the primary or a replica.
+type Pools interface {
+	Write() pg.TxDB
+	Read(ctx context.Context) pg.DB
+	Find(ctx context.Context, fn func(pg.DB) error) error
+}
+
+// TrackRepository serves the feed and lookups from a replica; writes and the
+// lookups of a request that writes (see readpref) use the primary.
+type TrackRepository struct {
+	db Pools
+}
+
+func NewTrackRepository(db Pools) *TrackRepository {
+	return &TrackRepository{db: db}
+}
+
+type scanner interface {
+	Scan(dest ...any) error
+}
+
+func scanTrack(row scanner) (domain.Track, error) {
+	var t domain.Track
+	var status string
+	err := row.Scan(&t.ID, &t.UserID, &t.Title, &t.Artist, &t.ObjectKey, &t.SizeBytes, &status)
+	t.Status = domain.TrackStatus(status)
+	return t, err
+}
+
+func collectTracks(rows pgx.Rows) ([]domain.Track, error) {
+	defer rows.Close()
+
+	tracks := make([]domain.Track, 0)
+	for rows.Next() {
+		t, err := scanTrack(rows)
+		if err != nil {
+			return nil, mapError(err, "scan track")
+		}
+		tracks = append(tracks, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, mapError(err, "list tracks")
+	}
+	return tracks, nil
+}
+
+func (r *TrackRepository) List(ctx context.Context, filter domain.TrackFilter) ([]domain.Track, error) {
+	var status any
+	if filter.Status != "" {
+		status = string(filter.Status)
+	}
+	var userID any
+	if filter.UserID != "" {
+		userID = filter.UserID
+	}
+	var artist any
+	if filter.Artist != "" {
+		artist = filter.Artist
+	}
+	var ids any
+	if filter.ByIDs {
+		ids = append([]string{}, filter.IDs...)
+	}
+
+	rows, err := r.db.Read(ctx).Query(ctx,
+		`SELECT `+trackCols+`
+		 FROM tracks
+		 WHERE ($1::text IS NULL OR status = $1)
+		   AND ($2::uuid IS NULL OR user_id = $2)
+		   AND ($3::text IS NULL OR lower(btrim(artist)) = lower(btrim($3)))
+		   AND ($4::uuid[] IS NULL OR id = ANY($4::uuid[]))
+		 ORDER BY created_at, id`,
+		status, userID, artist, ids,
+	)
+	if err != nil {
+		return nil, mapError(err, "list tracks")
+	}
+	return collectTracks(rows)
+}
+
+func (r *TrackRepository) GetByID(ctx context.Context, id string) (domain.Track, error) {
+	var t domain.Track
+	err := r.db.Find(ctx, func(db pg.DB) error {
+		var err error
+		t, err = scanTrack(db.QueryRow(ctx, `SELECT `+trackCols+` FROM tracks WHERE id = $1::uuid`, id))
+		return err
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Track{}, domain.NotFound("track not found")
+	}
+	if err != nil {
+		return domain.Track{}, mapError(err, "get track")
+	}
+	return t, nil
+}
+
+func (r *TrackRepository) GetMany(ctx context.Context, ids []string) ([]domain.Track, error) {
+	rows, err := r.db.Read(ctx).Query(ctx,
+		`SELECT `+trackCols+` FROM tracks WHERE id = ANY($1::uuid[]) ORDER BY created_at, id`, ids)
+	if err != nil {
+		return nil, mapError(err, "get tracks")
+	}
+	return collectTracks(rows)
+}
+
+const opCreateTrack = "catalog.CreateTrack"
+
+// Create refuses owners whose UserDeleted event Catalog has already applied. With
+// an idempotency key in ctx a repeat returns the track the first call created.
+func (r *TrackRepository) Create(ctx context.Context, t domain.Track) (domain.Track, error) {
+	if idempotency.From(ctx) == "" {
+		return insertTrack(ctx, r.db.Write(), t)
+	}
+	var created domain.Track
+	err := pg.InTx(ctx, r.db.Write(), func(tx pgx.Tx) error {
+		replay, err := idempotency.Claim(ctx, tx, opCreateTrack, t.UserID,
+			t.Title, t.Artist, strconv.FormatInt(t.SizeBytes, 10))
+		if err != nil {
+			return err
+		}
+		if replay != "" {
+			created, err = getTrack(ctx, tx, replay)
+			return err
+		}
+		created, err = insertTrack(ctx, tx, t)
+		if err != nil {
+			return err
+		}
+		return idempotency.Complete(ctx, tx, opCreateTrack, t.UserID, created.ID)
+	})
+	return created, err
+}
+
+func getTrack(ctx context.Context, db pg.DB, id string) (domain.Track, error) {
+	t, err := scanTrack(db.QueryRow(ctx, `SELECT `+trackCols+` FROM tracks WHERE id = $1::uuid`, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Track{}, domain.NotFound("track not found")
+	}
+	if err != nil {
+		return domain.Track{}, mapError(err, "get track")
+	}
+	return t, nil
+}
+
+func insertTrack(ctx context.Context, db pg.DB, t domain.Track) (domain.Track, error) {
+	t, err := scanTrack(db.QueryRow(ctx,
+		`INSERT INTO tracks (id, user_id, title, artist, object_key, size_bytes, status)
+		 SELECT i, $1::uuid, $2, $3, i::text || '.mp3', $4, $5
+		 FROM (SELECT gen_random_uuid() AS i) s
+		 WHERE NOT EXISTS (SELECT 1 FROM deleted_users d WHERE d.user_id = $1::uuid)
+		 RETURNING `+trackCols,
+		t.UserID, t.Title, t.Artist, t.SizeBytes, string(t.Status),
+	))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Track{}, domain.NotFound("user not found")
+	}
+	if err != nil {
+		return domain.Track{}, mapError(err, "create track")
+	}
+	return t, nil
+}
+
+func (r *TrackRepository) Update(ctx context.Context, t domain.Track) (domain.Track, error) {
+	t, err := scanTrack(r.db.Write().QueryRow(ctx,
+		`UPDATE tracks SET user_id = $2::uuid, title = $3, artist = $4, object_key = $5, size_bytes = $6, status = $7
+		 WHERE id = $1::uuid
+		 RETURNING `+trackCols,
+		t.ID, t.UserID, t.Title, t.Artist, t.AudioObjectKey(), t.SizeBytes, string(t.Status),
+	))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Track{}, domain.NotFound("track not found")
+	}
+	if err != nil {
+		return domain.Track{}, mapError(err, "update track")
+	}
+	return t, nil
+}
+
+// Delete removes the track and writes TrackDeleted to the outbox in the same
+// transaction. Social drops likes and playlist entries, catalog-objects drops the audio.
+func (r *TrackRepository) Delete(ctx context.Context, id string) error {
+	return pg.InTx(ctx, r.db.Write(), func(tx pgx.Tx) error {
+		var d domain.DeletedTrack
+		err := tx.QueryRow(ctx,
+			`DELETE FROM tracks WHERE id = $1::uuid RETURNING id::text, user_id::text, object_key`, id,
+		).Scan(&d.ID, &d.UserID, &d.ObjectKey)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.NotFound("track not found")
+		}
+		if err != nil {
+			return mapError(err, "delete track")
+		}
+		return writeTrackDeleted(ctx, tx, d)
+	})
+}
+
+func (r *TrackRepository) DeleteByUser(ctx context.Context, d domain.UserDeletion) error {
+	return pg.InTx(ctx, r.db.Write(), func(tx pgx.Tx) error {
+		fresh, err := pg.MarkProcessed(ctx, tx, d.EventID)
+		if err != nil || !fresh {
+			return err
+		}
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO deleted_users (user_id) VALUES ($1::uuid) ON CONFLICT DO NOTHING`, d.UserID); err != nil {
+			return mapError(err, "record deleted user")
+		}
+		deleted, err := deleteUserTracks(ctx, tx, d.UserID)
+		if err != nil {
+			return err
+		}
+		for _, t := range deleted {
+			if err := writeTrackDeleted(ctx, tx, t); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func deleteUserTracks(ctx context.Context, tx pgx.Tx, userID string) ([]domain.DeletedTrack, error) {
+	rows, err := tx.Query(ctx,
+		`DELETE FROM tracks WHERE user_id = $1::uuid RETURNING id::text, user_id::text, object_key`, userID)
+	if err != nil {
+		return nil, mapError(err, "delete user tracks")
+	}
+	defer rows.Close()
+
+	deleted := make([]domain.DeletedTrack, 0)
+	for rows.Next() {
+		var d domain.DeletedTrack
+		if err := rows.Scan(&d.ID, &d.UserID, &d.ObjectKey); err != nil {
+			return nil, mapError(err, "scan deleted track")
+		}
+		deleted = append(deleted, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, mapError(err, "delete user tracks")
+	}
+	return deleted, nil
+}
+
+func writeTrackDeleted(ctx context.Context, tx pgx.Tx, d domain.DeletedTrack) error {
+	event := outbox.NewEvent(producer, events.TypeTrackDeleted)
+	event.Payload = &eventsv1.Envelope_TrackDeleted{TrackDeleted: &eventsv1.TrackDeleted{
+		TrackId:   d.ID,
+		UserId:    d.UserID,
+		ObjectKey: d.ObjectKey,
+	}}
+	return outbox.Write(ctx, tx, events.TopicTrack, d.ID, event)
+}

@@ -13,17 +13,26 @@
 
 | Слой | Пакеты | Стили тестов | База данных |
 | --- | --- | --- | --- |
-| Домен | `internal/domain` | classic | нет |
-| Бизнес-логика | `internal/usecase` | classic (фейки с состоянием), london (моки и шпионы), integration | integration: настоящий PostgreSQL |
-| Доступ к данным | `internal/infra/adapters/postgres` | stub (`stubDB`), pgxmock, integration | integration: настоящий PostgreSQL |
-| Сквозной сценарий | `e2e` | e2e | docker compose: PostgreSQL и RustFS |
+| Домен | `{identity,catalog,social}/internal/domain` | classic | нет |
+| Бизнес-логика | `{identity,catalog,social}/internal/usecase` | classic (фейки с состоянием), london (моки и шпионы), integration | integration: настоящий PostgreSQL, своя база сервиса |
+| Доступ к данным | `{identity,catalog,social}/internal/infra/postgres` | stub (`stubDB`), pgxmock, integration | integration: настоящий PostgreSQL, своя база сервиса |
+| Сквозной сценарий | `e2e` | e2e | docker compose: вся система (четыре сервиса, PostgreSQL, RustFS, Kafka) |
 
-Сквозной тест `E2E-DEMO-01` проходит демо-сценарий MVP по HTTP: регистрация,
-загрузка, публикация, лайк и стрим. Отдельными модульными тестами по-прежнему
-не покрыты все обработчики (`internal/transport/http`), адаптер S3 вне этого
-сценария, краевые случаи разбора JWT, загрузка конфигурации и монитор
-готовности. Дымовая проверка системы в CI (`.github/workflows/ci.yml`, job
-`System under test`) открывает API и фронтенд и регистрирует одного пользователя.
+Компонент из идентификатора однозначно указывает сервис: `USR`, `AUTH`, `ERR` —
+Identity; `TRK`, `PAGE`, `CLN-OBJ` — Catalog; `LIKE`, `LIK`, `CLN-USER`,
+`CLN-TRACK` — Social (у Catalog есть и свой `CLN-USER` для черновиков удалённого
+автора, он лежит в `catalog/internal/usecase/cleanup_test.go`).
+
+Сквозной тест `E2E-DEMO-01` проходит демо-сценарий MVP через Gateway: регистрация,
+загрузка, публикация, лайк, стрим и каскад удаления через Kafka (лайк и запись
+плейлиста пропадают после удаления трека, черновик и подписки — после удаления
+автора). Отдельными модульными тестами по-прежнему не покрыты все HTTP-обработчики
+(`gateway/internal/transport/http/v1`), gRPC-серверы сервисов, адаптер S3 вне
+этого сценария и монитор готовности. Разбор JWT в Gateway, доверенные прокси,
+перевод кодов в HTTP-статусы и загрузка конфигурации Gateway покрыты тестами
+без spec ID. Дымовая проверка системы в CI (`.github/workflows/ci.yml`, job
+`System under test`) открывает Gateway и фронтенд, регистрирует пользователя,
+получает токен у Identity и создаёт трек в Catalog с этим токеном.
 
 ### Формат идентификатора
 
@@ -57,7 +66,9 @@
 ### Контракт ошибок
 
 Бизнес-ошибки — это значения `domain.Error` с кодом и фиксированным текстом.
-HTTP-слой переводит код в статус в `internal/transport/http/respond.go`.
+Между сервисами код едет в `google.rpc.ErrorInfo` gRPC-статуса
+(`platform/grpcx`), Gateway восстанавливает его и переводит в HTTP-статус в
+`gateway/internal/transport/http/respond.go`.
 
 | Код | HTTP-статус | Обычная причина |
 | --- | --- | --- |
@@ -65,7 +76,9 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `unauthorized` | 401 | неверные учётные данные, вызывающий не владелец трека |
 | `not_found` | 404 | нет строки, нарушение внешнего ключа (SQLSTATE 23503, см. KI-1) |
 | `conflict` | 409 | нарушение уникальности (SQLSTATE 23505), неверный статус трека |
+| `too_many_requests` | 429 | превышен лимит запросов к `/v1/users` и `/v1/sessions` |
 | `internal` | 500 | любой другой сбой зависимости, с сохранённой причиной |
+| `unavailable` | 503 | сервис за Gateway не отвечает или не уложился в `GRPC_CLIENT_TIMEOUT` |
 
 ## <a id="part-1"></a>Часть 1. Поведенческая спецификация
 
@@ -264,8 +277,8 @@ HTTP-слой переводит код в статус в `internal/transport/h
 
 #### UserService.Delete
 
-- Требует идентификатор. Треки этого пользователя удаляются вместе с ним
-  (`tracks.user_id` с `ON DELETE CASCADE`).
+- Требует идентификатор. Удаление пользователя, у которого есть треки, база
+  отклоняет (KI-1).
 
 #### TrackService.List
 
@@ -344,8 +357,6 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | 23505 на любом другом ограничении | conflict `email already exists` (KI-5) |
 | 23503 | not_found `not found` (KI-1) |
 | 22P02 (некорректный UUID) | invalid `invalid id` |
-| 42501 (нет права на запись) | forbidden `read only` |
-| 25006 (реплика только для чтения) | forbidden `read only` |
 | всё остальное | internal, текст называет операцию, причина сохраняется |
 
 Модульные кейсы (`stub`, `pgxmock`) проверяют аргументы SQL, чтение строки и
@@ -380,7 +391,7 @@ HTTP-слой переводит код в статус в `internal/transport/h
 #### UserRepository.Delete
 
 - Ноль затронутых строк — not_found `user not found`. Пользователь, у которого
-  есть треки, удаляется вместе с ними (`ON DELETE CASCADE`).
+  есть треки, — not_found `not found` (KI-1).
 
 #### TrackRepository.Create
 
@@ -437,24 +448,23 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | Шаг | Запрос | Статус | Что проверяется |
 | --- | --- | --- | --- |
 | 01 | `GET /ready` | 200 | API готов |
-| 02 | `POST /v1/users` артист | 201 | в ответе есть `id` и email, токена нет |
-| 03 | `POST /v1/sessions` | 201 | `token` и `user_id` артиста |
-| 04 | `GET /v1/users/{id}` | 200 | email артиста |
-| 05 | `POST /v1/tracks` | 201 | статус `pending`, есть `upload_url` |
+| 02 | `POST /v1/auth/register` артист | 201 | в ответе есть `token` |
+| 03 | `POST /v1/auth/login` | 200 | новый `token` |
+| 04 | `GET /v1/me` | 200 | email артиста |
+| 05 | `POST /v1/tracks/upload-init` | 201 | статус `pending`, есть `upload_url` |
 | 06 | `PUT upload_url` | 200 | байты лежат в RustFS |
 | 07 | `GET /v1/tracks?artist=` | 200 | трека в ленте нет |
-| 08 | `PATCH /v1/tracks/{id}` со `status: ready` | 200 | статус `ready` |
+| 08 | `POST /v1/tracks/{id}/upload-complete` | 200 | статус `ready` |
 | 09 | `GET /v1/tracks?artist=` | 200 | трек в ленте, статус `ready` |
-| 10 | `POST /v1/users` слушатель | 201 | отдельный `id` |
-| 11 | `POST /v1/sessions` слушатель | 201 | отдельный `token` |
-| 12 | `PUT /v1/users/{id}/likes/{trackId}` без токена | 401 | код `unauthorized` |
-| 13 | `PUT /v1/users/{id}/likes/{trackId}` | 204 | лайк записан |
-| 14 | повтор шага 13 | 204 | повтор лайка ничего не меняет |
-| 15 | `GET /v1/tracks?liked_by=` | 200 | трек в списке |
-| 16 | `GET /v1/tracks/{id}/stream` | 302 | заголовок `Location` |
-| 17 | `GET Location` | 200 | байты совпали с загруженными |
-| 18 | `DELETE /v1/users/{id}/likes/{trackId}` | 204 | лайк снят |
-| 19 | `GET /v1/tracks?liked_by=` | 200 | трека в списке нет |
+| 10 | `POST /v1/auth/register` слушатель | 201 | отдельный `token` |
+| 11 | `POST /v1/tracks/{id}/like` без токена | 401 | код `unauthorized` |
+| 12 | `POST /v1/tracks/{id}/like` | 204 | лайк записан |
+| 13 | повтор шага 12 | 409 | `conflict`, текст `track already liked` |
+| 14 | `GET /v1/me/likes` | 200 | трек в списке |
+| 15 | `GET /v1/tracks/{id}/stream` | 302 | заголовок `Location` |
+| 16 | `GET Location` | 200 | байты совпали с загруженными |
+| 17 | `DELETE /v1/tracks/{id}/like` | 204 | лайк снят |
+| 18 | `GET /v1/me/likes` | 200 | трека в списке нет |
 
 Тот же порядок повторяет `scripts/demo-requests.sh`. Захват этого прогона —
 `make demo-capture`.
@@ -542,6 +552,10 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `DOM-ERR-UNWRAP-02` | Domain | `Error.Unwrap` | returns nil when error has no cause | classic | equivalence partitioning | normal |
 | `DOM-ERR-WRAP-01` | Domain | `Error.Wrap` | constructs error retaining cause | classic | equivalence partitioning | normal |
 | `DOM-ERR-WRAP-02` | Domain | `Error.Wrap` | accepts nil cause | classic | error guessing | normal |
+| `DOM-TRK-LIKED-01` | Domain | `LikedTracksQuery.Validate` | accepts the owner and trims the artist filter | classic | equivalence partitioning | normal |
+| `DOM-TRK-LIKED-02` | Domain | `LikedTracksQuery.Validate` | rejects an unknown status before the viewer check | classic | decision-table testing | normal |
+| `DOM-TRK-LIKED-03` | Domain | `LikedTracksQuery.Validate` | rejects an anonymous viewer | classic | decision-table testing | normal |
+| `DOM-TRK-LIKED-04` | Domain | `LikedTracksQuery.Validate` | forbids another viewer | classic | decision-table testing | normal |
 | `DOM-AUTH-LOGIN-01` | Domain | `LoginInput.Validate` | accepts credentials and normalizes email | classic | equivalence partitioning | critical |
 | `DOM-AUTH-LOGIN-02` | Domain | `LoginInput.Validate` | accepts a one-character password | classic | boundary-value analysis | normal |
 | `DOM-AUTH-LOGIN-03` | Domain | `LoginInput.Validate` | rejects blank email after normalization | classic | boundary-value analysis | normal |
@@ -611,9 +625,6 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `DOM-TRK-LIKE-01` | Domain | `TrackLike.Validate` | accepts user and track ids | classic | equivalence partitioning | normal |
 | `DOM-TRK-LIKE-02` | Domain | `TrackLike.Validate` | rejects empty user id before track id | classic | decision-table testing | normal |
 | `DOM-TRK-LIKE-03` | Domain | `TrackLike.Validate` | rejects empty track id | classic | equivalence partitioning | normal |
-| `DOM-TRK-LIKELIST-01` | Domain | `TrackLikeListQuery.Validate` | accepts user and valid page | classic | equivalence partitioning | normal |
-| `DOM-TRK-LIKELIST-02` | Domain | `TrackLikeListQuery.Validate` | rejects empty user before page validation | classic | decision-table testing | normal |
-| `DOM-TRK-LIKELIST-03` | Domain | `TrackLikeListQuery.Validate` | rejects invalid page for valid user | classic | equivalence partitioning | normal |
 | `DOM-TRK-OWNERFLT-01` | Domain | `TrackOwnerQuery.Filter` | builds owner and status filter | classic | equivalence partitioning | normal |
 | `DOM-TRK-OWNERFLT-02` | Domain | `TrackOwnerQuery.Filter` | does not populate artist filter | classic | equivalence partitioning | normal |
 | `DOM-TRK-OWNERQ-01` | Domain | `TrackOwnerQuery.Validate` | accepts owner and valid page | classic | equivalence partitioning | normal |
@@ -640,13 +651,15 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `DOM-TRK-WRITE-01` | Domain | `TrackWrite.Validate` | accepts title without artist | classic | equivalence partitioning | normal |
 | `DOM-TRK-WRITE-02` | Domain | `TrackWrite.Validate` | accepts whitespace title because it is non-empty | classic | error guessing | normal |
 | `DOM-TRK-WRITE-03` | Domain | `TrackWrite.Validate` | rejects empty title | classic | boundary-value analysis | normal |
+| `DOM-USER-ACT-01` | Domain | `UserID.RequireActor` | accepts the same actor | classic | equivalence partitioning | normal |
+| `DOM-USER-ACT-02` | Domain | `UserID.RequireActor` | rejects another actor | classic | equivalence partitioning | normal |
 | `DOM-USER-ID-01` | Domain | `UserID.Validate` | accepts non-empty id | classic | equivalence partitioning | normal |
 | `DOM-USER-ID-02` | Domain | `UserID.Validate` | rejects empty id | classic | boundary-value analysis | normal |
 | `DOM-USER-MAP-01` | Domain | `UserWrite.User` | maps write fields and supplied id | classic | equivalence partitioning | normal |
 | `DOM-USER-MAP-02` | Domain | `UserWrite.User` | allows an empty supplied id without leaking password | classic | error guessing | critical |
 | `DOM-USER-VAL-01` | Domain | `UserWrite.Validate` | accepts valid write and normalizes email | classic | equivalence partitioning | critical |
 | `DOM-USER-VAL-02` | Domain | `UserWrite.Validate` | normalizes shortest padded email | classic | boundary-value analysis | critical |
-| `DOM-USER-VAL-03` | Domain | `UserWrite.Validate` | accepts bare at sign as email | classic | error guessing | critical |
+| `DOM-USER-VAL-03` | Domain | `UserWrite.Validate` | rejects a bare at sign | classic | error guessing | critical |
 | `DOM-USER-VAL-04` | Domain | `UserWrite.Validate` | does not require password for update | classic | equivalence partitioning | critical |
 | `DOM-USER-VAL-05` | Domain | `UserWrite.Validate` | rejects email without at sign | classic | equivalence partitioning | critical |
 | `DOM-USER-VAL-06` | Domain | `UserWrite.Validate` | rejects empty email | classic | boundary-value analysis | critical |
@@ -677,8 +690,47 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `UC-AUTH-REG-04` | Business logic | `AuthService.Register` | returns hashing error without storing user | classic | error guessing | critical |
 | `UC-AUTH-REG-05` | Business logic | `AuthService.Register` | returns repository create error without token | classic | error guessing | critical |
 | `UC-AUTH-REG-06` | Business logic | `AuthService.Register` | returns token error and keeps the created user | classic | error guessing | critical |
+| `UC-CLN-OBJ-01` | Business logic | `CleanupService.RemoveObject` | removes the object by key | london | equivalence partitioning | normal |
+| `UC-CLN-OBJ-02` | Business logic | `CleanupService.RemoveObject` | rejects an empty key | london | boundary-value analysis | normal |
+| `UC-CLN-TRACK-01` | Business logic | `CleanupService.RemoveTrack` | passes a valid deletion to the repository | classic | equivalence partitioning | normal |
+| `UC-CLN-TRACK-02` | Business logic | `CleanupService.RemoveTrack` | rejects missing track id | classic | equivalence partitioning | normal |
+| `UC-CLN-TRACK-03` | Business logic | `CleanupService.RemoveTrack` | returns repository error for a retry | classic | error guessing | normal |
+| `UC-CLN-USER-01` | Business logic | `CleanupService.RemoveUser` | passes a valid deletion to the repository | classic | equivalence partitioning | normal |
+| `UC-CLN-USER-02` | Business logic | `CleanupService.RemoveUser` | rejects missing event id | classic | equivalence partitioning | normal |
+| `UC-CLN-USER-03` | Business logic | `CleanupService.RemoveUser` | rejects malformed event id | classic | equivalence partitioning | normal |
+| `UC-CLN-USER-04` | Business logic | `CleanupService.RemoveUser` | rejects missing user id | classic | equivalence partitioning | normal |
+| `UC-CLN-DRAFT-01` | Business logic | `CleanupService.RemoveUserTracks` | passes a valid deletion to the repository | london | equivalence partitioning | normal |
+| `UC-CLN-DRAFT-02` | Business logic | `CleanupService.RemoveUserTracks` | rejects a deletion without event id | london | boundary-value analysis | normal |
+| `UC-CLN-DRAFT-03` | Business logic | `CleanupService.RemoveUserTracks` | rejects a deletion without user id | london | boundary-value analysis | normal |
+| `UC-TRK-LIKE-01` | Business logic | `LikeService.Like` | stores like for ready track | classic | state-transition testing | normal |
+| `UC-TRK-LIKE-02` | Business logic | `LikeService.Like` | rejects pending track without storing like | classic | state-transition testing | normal |
+| `UC-TRK-LIKE-03` | Business logic | `LikeService.Like` | rejects processing track without storing like | classic | state-transition testing | normal |
+| `UC-TRK-LIKE-04` | Business logic | `LikeService.Like` | reports missing user id before track lookup | classic | decision-table testing | normal |
+| `UC-TRK-LIKE-05` | Business logic | `LikeService.Like` | propagates not found for unknown track without storing like | classic | equivalence partitioning | normal |
+| `UC-TRK-LIKE-06` | Business logic | `LikeService.Like` | returns track lookup error without storing like | classic | error guessing | normal |
+| `UC-TRK-LIKE-07` | Business logic | `LikeService.Like` | returns add like error | classic | error guessing | normal |
+| `UC-TRK-LIKE-08` | Business logic | `LikeService.Like` | looks up exact track then adds exact like once | london | equivalence partitioning | normal |
+| `UC-TRK-LIKE-09` | Business logic | `LikeService.Like` | calls no collaborator for invalid input | london | equivalence partitioning | normal |
+| `UC-TRK-LIKE-10` | Business logic | `LikeService.Like` | does not call add when lookup fails | london | error guessing | normal |
+| `UC-TRK-LIKE-11` | Business logic | `LikeService.Like` | does not call add for pending track | london | state-transition testing | normal |
+| `UC-LIK-LIST-01` | Business logic | `LikeService.ListLiked` | passes liked ids to the catalog with the viewer filters | classic | state-transition testing | normal |
+| `UC-LIK-LIST-02` | Business logic | `LikeService.ListLiked` | rejects anonymous viewer before reading likes | classic | decision-table testing | normal |
+| `UC-LIK-LIST-03` | Business logic | `LikeService.ListLiked` | forbids reading likes of another user | classic | decision-table testing | normal |
+| `UC-LIK-LIST-04` | Business logic | `LikeService.ListLiked` | returns like repository error without calling the catalog | classic | error guessing | normal |
+| `UC-LIK-LIST-05` | Business logic | `LikeService.ListLiked` | returns catalog error | classic | error guessing | normal |
+| `UC-LIK-PUT-01` | Business logic | `LikeService.PutLike` | treats an existing like as success | classic | state-transition testing | normal |
+| `UC-LIK-PUT-02` | Business logic | `LikeService.PutLike` | forbids liking on behalf of another user | classic | decision-table testing | normal |
+| `UC-TRK-UNLIKE-01` | Business logic | `LikeService.Unlike` | removes only the requested like | classic | equivalence partitioning | normal |
+| `UC-TRK-UNLIKE-02` | Business logic | `LikeService.Unlike` | succeeds idempotently when track is not liked | classic | state-transition testing | normal |
+| `UC-TRK-UNLIKE-03` | Business logic | `LikeService.Unlike` | removes like of pending track without ready check | classic | state-transition testing | normal |
+| `UC-TRK-UNLIKE-04` | Business logic | `LikeService.Unlike` | rejects missing track id without removing like | classic | equivalence partitioning | normal |
+| `UC-TRK-UNLIKE-05` | Business logic | `LikeService.Unlike` | propagates not found for unknown track without removing like | classic | equivalence partitioning | normal |
+| `UC-TRK-UNLIKE-06` | Business logic | `LikeService.Unlike` | returns track lookup error without removing like | classic | error guessing | normal |
+| `UC-TRK-UNLIKE-07` | Business logic | `LikeService.Unlike` | returns remove like error | classic | error guessing | normal |
+| `UC-TRK-BATCH-01` | Business logic | `TrackService.BatchGet` | returns existing tracks of any status and skips missing ids | classic | equivalence partitioning | normal |
+| `UC-TRK-BATCH-02` | Business logic | `TrackService.BatchGet` | rejects an empty id in the batch | classic | boundary-value analysis | normal |
 | `IT-UC-TRK-COMPLETE-01` | Business logic | `TrackService.CompleteUpload` | complete upload moves pending to ready | integration | state-transition testing | blocker |
-| `IT-UC-TRK-COMPLETE-02` | Business logic | `TrackService.CompleteUpload` | complete upload by another user returns unauthorized | integration | decision-table testing | blocker |
+| `IT-UC-TRK-COMPLETE-02` | Business logic | `TrackService.CompleteUpload` | complete upload by another user returns forbidden | integration | decision-table testing | blocker |
 | `IT-UC-TRK-COMPLETE-03` | Business logic | `TrackService.CompleteUpload` | uploaded size mismatch keeps the track pending | integration | boundary-value analysis | critical |
 | `IT-UC-TRK-COMPLETE-04` | Business logic | `TrackService.CompleteUpload` | complete upload of a ready track returns conflict | integration | state-transition testing | normal |
 | `UC-TRK-COMPLETE-01` | Business logic | `TrackService.CompleteUpload` | publishes pending track after verifying upload | classic | state-transition testing | critical |
@@ -695,7 +747,7 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `UC-TRK-COMPLETE-12` | Business logic | `TrackService.CompleteUpload` | returns processing update error and keeps track pending | classic | error guessing | critical |
 | `UC-TRK-COMPLETE-13` | Business logic | `TrackService.CompleteUpload` | returns publish stat error and leaves track processing | classic | error guessing | critical |
 | `UC-TRK-COMPLETE-14` | Business logic | `TrackService.CompleteUpload` | returns ready update error and leaves track processing | classic | error guessing | critical |
-| `IT-UC-TRK-DELETE-01` | Business logic | `TrackService.Delete` | delete removes the track and its likes | integration | equivalence partitioning | normal |
+| `IT-UC-TRK-DELETE-01` | Business logic | `TrackService.Delete` | delete removes the track and queues TrackDeleted | integration | equivalence partitioning | normal |
 | `UC-TRK-DELETE-01` | Business logic | `TrackService.Delete` | deletes stored track | classic | equivalence partitioning | normal |
 | `UC-TRK-DELETE-02` | Business logic | `TrackService.Delete` | rejects empty id without deleting | classic | boundary-value analysis | normal |
 | `UC-TRK-DELETE-03` | Business logic | `TrackService.Delete` | propagates not found for unknown track | classic | equivalence partitioning | normal |
@@ -719,22 +771,6 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `UC-TRK-INIT-08` | Business logic | `TrackService.InitUpload` | returns create error without session | classic | error guessing | critical |
 | `UC-TRK-INIT-09` | Business logic | `TrackService.InitUpload` | deletes created track when presigning fails | classic | error guessing | critical |
 | `UC-TRK-INIT-10` | Business logic | `TrackService.InitUpload` | returns rollback error and drops presign error when cleanup fails | classic | error guessing | critical |
-| `IT-UC-TRK-LIKE-01` | Business logic | `TrackService.Like` | like of a ready track is stored | integration | state-transition testing | normal |
-| `IT-UC-TRK-LIKE-02` | Business logic | `TrackService.Like` | like of a pending track returns conflict | integration | state-transition testing | critical |
-| `IT-UC-TRK-LIKE-03` | Business logic | `TrackService.Like` | like of a processing track returns conflict | integration | state-transition testing | critical |
-| `IT-UC-TRK-LIKE-04` | Business logic | `TrackService.Like` | second like of the same track returns conflict | integration | error guessing | normal |
-| `IT-UC-TRK-LIKE-05` | Business logic | `TrackService.Like` | like of an unknown track returns not found | integration | error guessing | normal |
-| `UC-TRK-LIKE-01` | Business logic | `TrackService.Like` | stores like for ready track | classic | state-transition testing | normal |
-| `UC-TRK-LIKE-02` | Business logic | `TrackService.Like` | rejects pending track without storing like | classic | state-transition testing | normal |
-| `UC-TRK-LIKE-03` | Business logic | `TrackService.Like` | rejects processing track without storing like | classic | state-transition testing | normal |
-| `UC-TRK-LIKE-04` | Business logic | `TrackService.Like` | reports missing user id before track lookup | classic | decision-table testing | normal |
-| `UC-TRK-LIKE-05` | Business logic | `TrackService.Like` | propagates not found for unknown track without storing like | classic | equivalence partitioning | normal |
-| `UC-TRK-LIKE-06` | Business logic | `TrackService.Like` | returns track lookup error without storing like | classic | error guessing | normal |
-| `UC-TRK-LIKE-07` | Business logic | `TrackService.Like` | returns add like error | classic | error guessing | normal |
-| `UC-TRK-LIKE-08` | Business logic | `TrackService.Like` | looks up exact track then adds exact like once | london | equivalence partitioning | normal |
-| `UC-TRK-LIKE-09` | Business logic | `TrackService.Like` | calls no collaborator for invalid input | london | equivalence partitioning | normal |
-| `UC-TRK-LIKE-10` | Business logic | `TrackService.Like` | does not call add when lookup fails | london | error guessing | normal |
-| `UC-TRK-LIKE-11` | Business logic | `TrackService.Like` | does not call add for pending track | london | state-transition testing | normal |
 | `IT-UC-TRK-LIST-01` | Business logic | `TrackService.List` | feed returns only ready tracks for the artist | integration | decision-table testing | critical |
 | `IT-UC-TRK-LIST-02` | Business logic | `TrackService.List` | cursor walks the feed one page at a time | integration | boundary-value analysis | normal |
 | `IT-UC-TRK-LIST-03` | Business logic | `TrackService.List` | limit above 100 is rejected | integration | boundary-value analysis | normal |
@@ -751,10 +787,6 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `UC-TRK-LISTUP-02` | Business logic | `TrackService.ListByUploader` | returns uploader tracks of every status when status is omitted | classic | equivalence partitioning | normal |
 | `UC-TRK-LISTUP-03` | Business logic | `TrackService.ListByUploader` | rejects missing uploader before listing | classic | equivalence partitioning | normal |
 | `UC-TRK-LISTUP-04` | Business logic | `TrackService.ListByUploader` | returns repository list error | classic | error guessing | normal |
-| `IT-UC-TRK-LISTLIKED-01` | Business logic | `TrackService.ListLiked` | liked list hides a liked pending track | integration | state-transition testing | critical |
-| `UC-TRK-LISTLIKED-01` | Business logic | `TrackService.ListLiked` | returns only liked tracks in ready status | classic | state-transition testing | normal |
-| `UC-TRK-LISTLIKED-02` | Business logic | `TrackService.ListLiked` | rejects missing user before listing likes | classic | equivalence partitioning | normal |
-| `UC-TRK-LISTLIKED-03` | Business logic | `TrackService.ListLiked` | returns like repository error | classic | error guessing | normal |
 | `IT-UC-TRK-STREAM-01` | Business logic | `TrackService.StreamURL` | stream url is returned for a ready track | integration | state-transition testing | normal |
 | `IT-UC-TRK-STREAM-02` | Business logic | `TrackService.StreamURL` | stream url of a pending track returns conflict | integration | state-transition testing | critical |
 | `UC-TRK-STREAM-01` | Business logic | `TrackService.StreamURL` | presigns stream url for ready track | classic | state-transition testing | normal |
@@ -763,15 +795,6 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `UC-TRK-STREAM-04` | Business logic | `TrackService.StreamURL` | rejects empty id before lookup | classic | boundary-value analysis | normal |
 | `UC-TRK-STREAM-05` | Business logic | `TrackService.StreamURL` | returns lookup error | classic | error guessing | normal |
 | `UC-TRK-STREAM-06` | Business logic | `TrackService.StreamURL` | returns presign error | classic | error guessing | normal |
-| `IT-UC-TRK-UNLIKE-01` | Business logic | `TrackService.Unlike` | unlike removes the stored like | integration | state-transition testing | normal |
-| `IT-UC-TRK-UNLIKE-02` | Business logic | `TrackService.Unlike` | unlike of a track that was never liked succeeds | integration | state-transition testing | normal |
-| `UC-TRK-UNLIKE-01` | Business logic | `TrackService.Unlike` | removes only the requested like | classic | equivalence partitioning | normal |
-| `UC-TRK-UNLIKE-02` | Business logic | `TrackService.Unlike` | succeeds idempotently when track is not liked | classic | state-transition testing | normal |
-| `UC-TRK-UNLIKE-03` | Business logic | `TrackService.Unlike` | removes like of pending track without ready check | classic | state-transition testing | normal |
-| `UC-TRK-UNLIKE-04` | Business logic | `TrackService.Unlike` | rejects missing track id without removing like | classic | equivalence partitioning | normal |
-| `UC-TRK-UNLIKE-05` | Business logic | `TrackService.Unlike` | propagates not found for unknown track without removing like | classic | equivalence partitioning | normal |
-| `UC-TRK-UNLIKE-06` | Business logic | `TrackService.Unlike` | returns track lookup error without removing like | classic | error guessing | normal |
-| `UC-TRK-UNLIKE-07` | Business logic | `TrackService.Unlike` | returns remove like error | classic | error guessing | normal |
 | `IT-UC-TRK-UPDATE-01` | Business logic | `TrackService.Update` | update persists the title and keeps the status | integration | equivalence partitioning | normal |
 | `UC-TRK-UPDATE-01` | Business logic | `TrackService.Update` | updates title and artist preserving status, owner and object | classic | equivalence partitioning | normal |
 | `UC-TRK-UPDATE-02` | Business logic | `TrackService.Update` | clears artist when artist is omitted | classic | equivalence partitioning | normal |
@@ -785,10 +808,10 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `UC-USR-CREATE-03` | Business logic | `UserService.Create` | reports invalid email before short password | classic | decision-table testing | normal |
 | `UC-USR-CREATE-04` | Business logic | `UserService.Create` | returns hashing error without storing user | classic | error guessing | normal |
 | `UC-USR-CREATE-05` | Business logic | `UserService.Create` | returns repository create error | classic | error guessing | normal |
-| `IT-UC-USR-DELETE-01` | Business logic | `UserService.Delete` | delete of a user removes owned tracks | integration | state-transition testing | normal |
+| `IT-UC-USR-DELETE-01` | Business logic | `UserService.Delete` | delete removes the account and queues UserDeleted for the other services | integration | equivalence partitioning | critical |
 | `UC-USR-DELETE-01` | Business logic | `UserService.Delete` | deletes user and password hash | classic | equivalence partitioning | normal |
 | `UC-USR-DELETE-02` | Business logic | `UserService.Delete` | rejects empty id without deleting | classic | boundary-value analysis | normal |
-| `UC-USR-DELETE-03` | Business logic | `UserService.Delete` | propagates not found for unknown user | classic | equivalence partitioning | normal |
+| `UC-USR-DELETE-03` | Business logic | `UserService.Delete` | maps a missing account to an invalid token | classic | equivalence partitioning | normal |
 | `UC-USR-DELETE-04` | Business logic | `UserService.Delete` | returns repository delete error and keeps user | classic | error guessing | normal |
 | `UC-USR-GET-01` | Business logic | `UserService.GetByID` | returns user by id | classic | equivalence partitioning | normal |
 | `UC-USR-GET-02` | Business logic | `UserService.GetByID` | rejects empty id before lookup | classic | boundary-value analysis | normal |
@@ -802,44 +825,48 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `UC-USR-UPDATE-03` | Business logic | `UserService.Update` | rejects invalid email without updating | classic | equivalence partitioning | normal |
 | `UC-USR-UPDATE-04` | Business logic | `UserService.Update` | propagates not found for unknown user | classic | equivalence partitioning | normal |
 | `UC-USR-UPDATE-05` | Business logic | `UserService.Update` | returns repository update error | classic | error guessing | normal |
+| `IT-DA-CLN-TRACK-01` | Data access | `CleanupRepository.DeleteTrack` | track deletion removes likes and playlist entries and closes the position gap | integration | state-transition testing | critical |
+| `IT-DA-CLN-USER-01` | Data access | `CleanupRepository.DeleteUser` | user deletion removes all social data of the user | integration | state-transition testing | critical |
+| `IT-DA-CLN-USER-02` | Data access | `CleanupRepository.DeleteUser` | redelivered user deletion changes nothing | integration | state-transition testing | critical |
 | `DA-LIKE-ADD-01` | Data access | `TrackLikeRepository.Add` | add sends user and track ids and succeeds on insert | stub | equivalence partitioning | normal |
 | `DA-LIKE-ADD-02` | Data access | `TrackLikeRepository.Add` | add maps unique violation on track_likes_pkey to track already liked | stub | decision-table testing | critical |
-| `DA-LIKE-ADD-03` | Data access | `TrackLikeRepository.Add` | add maps unique violation on another constraint to email already exists | stub | decision-table testing | critical |
-| `DA-LIKE-ADD-04` | Data access | `TrackLikeRepository.Add` | add maps foreign key violation to not found | stub | decision-table testing | critical |
+| `DA-LIKE-ADD-03` | Data access | `TrackLikeRepository.Add` | add maps unique violation on another constraint to unique constraint violated | stub | decision-table testing | critical |
+| `DA-LIKE-ADD-04` | Data access | `TrackLikeRepository.Add` | add reports not found when a tombstone blocks the insert | stub | state-transition testing | critical |
 | `DA-PGX-LIKE-ADD-01` | Data access | `TrackLikeRepository.Add` | add wraps an unavailable database as internal like track error preserving the cause | pgxmock | error guessing | normal |
 | `IT-DA-LIKE-ADD-01` | Data access | `TrackLikeRepository.Add` | add persists a like row | integration | equivalence partitioning | normal |
 | `IT-DA-LIKE-ADD-02` | Data access | `TrackLikeRepository.Add` | duplicate like returns conflict | integration | error guessing | critical |
-| `IT-DA-LIKE-ADD-03` | Data access | `TrackLikeRepository.Add` | like of an unknown track returns not found | integration | error guessing | normal |
+| `IT-DA-LIKE-ADD-03` | Data access | `TrackLikeRepository.Add` | like of a deleted track returns not found | integration | state-transition testing | critical |
 | `IT-DA-LIKE-ADD-04` | Data access | `TrackLikeRepository.Add` | malformed track id returns invalid id | integration | error guessing | normal |
-| `DA-LIKE-LISTREADY-01` | Data access | `TrackLikeRepository.ListReadyByUser` | list ready by user sends user id and ready status and returns liked tracks | stub | equivalence partitioning | normal |
-| `DA-LIKE-LISTREADY-02` | Data access | `TrackLikeRepository.ListReadyByUser` | list ready by user wraps a query failure as internal list liked tracks error | stub | error guessing | normal |
-| `DA-LIKE-LISTREADY-03` | Data access | `TrackLikeRepository.ListReadyByUser` | list ready by user maps a rows iteration error to internal list tracks error | stub | error guessing | normal |
-| `IT-DA-LIKE-LISTREADY-01` | Data access | `TrackLikeRepository.ListReadyByUser` | list ready likes returns the liked ready track | integration | equivalence partitioning | normal |
-| `IT-DA-LIKE-LISTREADY-02` | Data access | `TrackLikeRepository.ListReadyByUser` | list ready likes skips a liked pending track | integration | state-transition testing | critical |
-| `IT-DA-LIKE-LISTREADY-03` | Data access | `TrackLikeRepository.ListReadyByUser` | list ready likes returns only the requested user's likes | integration | equivalence partitioning | normal |
+| `IT-DA-LIKE-ADD-05` | Data access | `TrackLikeRepository.Add` | like by a deleted user returns not found | integration | state-transition testing | critical |
+| `DA-LIKE-IDS-01` | Data access | `TrackLikeRepository.ListTrackIDs` | list returns track ids in row order and closes rows | stub | equivalence partitioning | normal |
+| `DA-LIKE-IDS-02` | Data access | `TrackLikeRepository.ListTrackIDs` | list returns an empty slice when the user has no likes | stub | boundary-value analysis | normal |
+| `DA-LIKE-IDS-03` | Data access | `TrackLikeRepository.ListTrackIDs` | list wraps a scan failure as internal scan liked track error | stub | error guessing | normal |
+| `IT-DA-LIKE-IDS-01` | Data access | `TrackLikeRepository.ListTrackIDs` | list returns the user's liked track ids newest first | integration | equivalence partitioning | normal |
 | `DA-LIKE-REMOVE-01` | Data access | `TrackLikeRepository.Remove` | remove sends user and track ids and succeeds when one row is deleted | stub | equivalence partitioning | normal |
 | `DA-LIKE-REMOVE-02` | Data access | `TrackLikeRepository.Remove` | remove of a missing like succeeds without error | stub | boundary-value analysis | normal |
 | `DA-LIKE-REMOVE-03` | Data access | `TrackLikeRepository.Remove` | remove maps sqlstate 22P02 to invalid id | stub | error guessing | normal |
 | `DA-LIKE-REMOVE-04` | Data access | `TrackLikeRepository.Remove` | remove wraps a driver failure as internal unlike track error | stub | error guessing | normal |
-| `IT-DA-LIKE-REMOVE-01` | Data access | `TrackLikeRepository.Remove` | remove deletes the like and keeps user and track | integration | equivalence partitioning | normal |
+| `IT-DA-LIKE-REMOVE-01` | Data access | `TrackLikeRepository.Remove` | remove deletes only the requested like | integration | equivalence partitioning | normal |
 | `IT-DA-LIKE-REMOVE-02` | Data access | `TrackLikeRepository.Remove` | remove of a missing like succeeds without changes | integration | boundary-value analysis | normal |
 | `DA-PGX-TRK-CREATE-01` | Data access | `TrackRepository.Create` | create sends exact insert arguments and reads back the generated id and object key | pgxmock | equivalence partitioning | critical |
 | `DA-TRK-CREATE-01` | Data access | `TrackRepository.Create` | create sends owner title artist size and status and returns generated id and object key | stub | equivalence partitioning | critical |
-| `DA-TRK-CREATE-02` | Data access | `TrackRepository.Create` | create maps foreign key violation on tracks_user_id_fkey to not found | stub | decision-table testing | critical |
+| `DA-TRK-CREATE-02` | Data access | `TrackRepository.Create` | create refuses an owner recorded in deleted_users | stub | decision-table testing | critical |
 | `IT-DA-TRK-CREATE-01` | Data access | `TrackRepository.Create` | create persists a pending track and derives the object key | integration | equivalence partitioning | critical |
-| `IT-DA-TRK-CREATE-02` | Data access | `TrackRepository.Create` | create for an unknown user returns not found | integration | error guessing | normal |
-| `DA-TRK-DELETE-01` | Data access | `TrackRepository.Delete` | delete sends the id and succeeds when one row is affected | stub | equivalence partitioning | normal |
-| `DA-TRK-DELETE-02` | Data access | `TrackRepository.Delete` | delete maps zero affected rows to track not found | stub | boundary-value analysis | normal |
-| `DA-TRK-DELETE-03` | Data access | `TrackRepository.Delete` | delete maps sqlstate 22P02 to invalid id | stub | error guessing | normal |
+| `IT-DA-TRK-CREATE-02` | Data access | `TrackRepository.Create` | create for a deleted user returns not found | integration | error guessing | critical |
+| `DA-TRK-DELETE-01` | Data access | `TrackRepository.Delete` | delete removes the row and writes TrackDeleted to the outbox in one transaction | pgxmock | equivalence partitioning | normal |
+| `DA-TRK-DELETE-02` | Data access | `TrackRepository.Delete` | delete maps a missing row to track not found and writes no event | pgxmock | boundary-value analysis | normal |
+| `DA-TRK-DELETE-03` | Data access | `TrackRepository.Delete` | delete maps sqlstate 22P02 to invalid id | pgxmock | error guessing | normal |
 | `IT-DA-TRK-DELETE-01` | Data access | `TrackRepository.Delete` | delete removes the track row | integration | equivalence partitioning | normal |
 | `IT-DA-TRK-DELETE-02` | Data access | `TrackRepository.Delete` | delete of an unknown uuid returns not found | integration | error guessing | normal |
-| `IT-DA-TRK-DELETE-03` | Data access | `TrackRepository.Delete` | delete cascades the track's likes | integration | state-transition testing | normal |
+| `IT-DA-TRK-DELETE-03` | Data access | `TrackRepository.Delete` | delete records TrackDeleted with the object key in the outbox | integration | state-transition testing | critical |
+| `IT-DA-TRK-DELUSER-01` | Data access | `TrackRepository.DeleteByUser` | user deletion removes only that user's tracks, records the tombstone and one event per track | integration | equivalence partitioning | critical |
+| `IT-DA-TRK-DELUSER-02` | Data access | `TrackRepository.DeleteByUser` | a redelivered user deletion changes nothing | integration | state-transition testing | normal |
 | `DA-TRK-GET-01` | Data access | `TrackRepository.GetByID` | get by id sends the id and returns the scanned track with status | stub | equivalence partitioning | normal |
 | `DA-TRK-GET-02` | Data access | `TrackRepository.GetByID` | get by id maps pgx no rows to track not found | stub | error guessing | normal |
 | `DA-TRK-GET-03` | Data access | `TrackRepository.GetByID` | get by id maps sqlstate 22P02 to invalid id | stub | error guessing | normal |
 | `IT-DA-TRK-GET-01` | Data access | `TrackRepository.GetByID` | get by id reads a seeded track | integration | equivalence partitioning | normal |
 | `DA-TRK-LIST-01` | Data access | `TrackRepository.List` | list with all filters sends status user and artist and returns scanned tracks | stub | decision-table testing | normal |
-| `DA-TRK-LIST-02` | Data access | `TrackRepository.List` | list with empty filter passes nil for all three filter arguments | stub | boundary-value analysis | normal |
+| `DA-TRK-LIST-02` | Data access | `TrackRepository.List` | list with empty filter passes nil for every filter argument | stub | boundary-value analysis | normal |
 | `DA-TRK-LIST-03` | Data access | `TrackRepository.List` | list with only status filter passes nil user and artist | stub | decision-table testing | normal |
 | `DA-TRK-LIST-04` | Data access | `TrackRepository.List` | list with only user filter passes nil status and artist | stub | decision-table testing | normal |
 | `DA-TRK-LIST-05` | Data access | `TrackRepository.List` | list with only artist filter passes nil status and user | stub | decision-table testing | normal |
@@ -854,6 +881,7 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `IT-DA-TRK-LIST-06` | Data access | `TrackRepository.List` | underscore is not a wildcard | integration | error guessing | critical |
 | `IT-DA-TRK-LIST-07` | Data access | `TrackRepository.List` | cyrillic artist is matched exactly | integration | error guessing | critical |
 | `IT-DA-TRK-LIST-08` | Data access | `TrackRepository.List` | sql text in the filter is treated as data | integration | error guessing | critical |
+| `IT-DA-TRK-LIST-30` | Data access | `TrackRepository.List` | list by ids returns only the listed tracks and an empty id list matches nothing | integration | boundary-value analysis | normal |
 | `DA-TRK-UPDATE-01` | Data access | `TrackRepository.Update` | update sends every column including the explicit object key and returns the updated track | stub | equivalence partitioning | normal |
 | `DA-TRK-UPDATE-02` | Data access | `TrackRepository.Update` | update with empty object key sends the id based default key | stub | boundary-value analysis | critical |
 | `DA-TRK-UPDATE-03` | Data access | `TrackRepository.Update` | update maps pgx no rows to track not found | stub | error guessing | normal |
@@ -866,11 +894,11 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `IT-DA-USR-CREATE-01` | Data access | `UserRepository.Create` | create persists a user row | integration | equivalence partitioning | critical |
 | `IT-DA-USR-CREATE-02` | Data access | `UserRepository.Create` | duplicate email returns conflict | integration | error guessing | critical |
 | `IT-DA-USR-CREATE-03` | Data access | `UserRepository.Create` | email uniqueness in the database is case-sensitive | integration | equivalence partitioning | normal |
-| `DA-USR-DELETE-01` | Data access | `UserRepository.Delete` | delete sends the id and succeeds when one row is affected | stub | equivalence partitioning | normal |
-| `DA-USR-DELETE-02` | Data access | `UserRepository.Delete` | delete maps zero affected rows to user not found | stub | boundary-value analysis | normal |
-| `DA-USR-DELETE-03` | Data access | `UserRepository.Delete` | delete maps sqlstate 22P02 to invalid id | stub | error guessing | normal |
+| `DA-USR-DELETE-01` | Data access | `UserRepository.Delete` | delete removes the row and writes UserDeleted to the outbox in one transaction | pgxmock | equivalence partitioning | normal |
+| `DA-USR-DELETE-02` | Data access | `UserRepository.Delete` | delete maps zero affected rows to user not found and writes no event | pgxmock | boundary-value analysis | normal |
+| `DA-USR-DELETE-03` | Data access | `UserRepository.Delete` | delete maps sqlstate 22P02 to invalid id | pgxmock | error guessing | normal |
 | `IT-DA-USR-DELETE-01` | Data access | `UserRepository.Delete` | delete removes the user row | integration | equivalence partitioning | normal |
-| `IT-DA-USR-DELETE-02` | Data access | `UserRepository.Delete` | delete of a user cascades owned tracks | integration | state-transition testing | normal |
+| `IT-DA-USR-DELETE-02` | Data access | `UserRepository.Delete` | delete records UserDeleted in the outbox in the same transaction | integration | equivalence partitioning | critical |
 | `IT-DA-USR-DELETE-03` | Data access | `UserRepository.Delete` | delete of an unknown uuid returns not found | integration | error guessing | normal |
 | `DA-USR-GETEMAIL-01` | Data access | `UserRepository.GetByEmail` | get by email sends the email and returns the user with password hash | stub | equivalence partitioning | critical |
 | `DA-USR-GETEMAIL-02` | Data access | `UserRepository.GetByEmail` | get by email maps pgx no rows to user not found | stub | error guessing | normal |
@@ -898,20 +926,20 @@ HTTP-слой переводит код в статус в `internal/transport/h
 | `IT-DA-USR-UPDATE-01` | Data access | `UserRepository.Update` | update persists a changed email and name | integration | equivalence partitioning | normal |
 | `IT-DA-USR-UPDATE-02` | Data access | `UserRepository.Update` | update of an unknown uuid returns not found | integration | error guessing | normal |
 | `IT-DA-USR-UPDATE-03` | Data access | `UserRepository.Update` | update to another user's email returns conflict | integration | error guessing | critical |
-| `E2E-DEMO-01` | End to end | `DemoScenario.MVP` | publishes a track and lets another user like and stream it | e2e | state-transition testing | blocker |
+| `E2E-DEMO-01` | End to end | `DemoScenario.MVP` | publishes a track, lets another user like and stream it, and cascades deletions | e2e | state-transition testing | blocker |
 
-Total: 384 cases.
+Total: 402 cases.
 
 <!-- matrix:end -->
 
 ## Известные проблемы и ограничения
 
-- KI-1. Любое нарушение внешнего ключа (SQLSTATE 23503) становится not_found
-  `not found` (HTTP 404). Это фиксируют `IT-DA-TRK-CREATE-02` (трек
-  неизвестного пользователя) и `IT-DA-LIKE-ADD-03` (лайк неизвестного трека).
-  Точнее был бы 409 conflict. Удаление пользователя с треками сюда не попадает:
-  `tracks.user_id` объявлен с `ON DELETE CASCADE`
-  (`IT-DA-USR-DELETE-02`, `IT-UC-USR-DELETE-01`).
+- KI-1. Любое нарушение внешнего ключа (SQLSTATE 23503) внутри базы одного
+  сервиса становится not_found `not found` (HTTP 404). Между сервисами внешних
+  ключей больше нет: удаление пользователя с треками проходит (`IT-DA-USR-DELETE-02`,
+  `IT-UC-USR-DELETE-01`), а его черновики, лайки и подписки убирают консьюмеры
+  `UserDeleted` в Catalog и Social. До обработки события (обычно меньше секунды)
+  эти данные ещё видны.
 - KI-2. `TrackService.Update` и `TrackService.Delete` не принимают
   идентификатор вызывающего, а `PUT/DELETE /v1/tracks/{id}` не проверяют
   владельца. Любой авторизованный пользователь может переименовать или удалить

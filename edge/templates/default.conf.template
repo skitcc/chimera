@@ -1,0 +1,208 @@
+# Rendered by the nginx entrypoint: ${VAR} come from the environment, nginx
+# variables stay as they are. Upstreams are cluster Services, resolved at start.
+
+otel_exporter {
+	endpoint ${OTEL_EXPORTER_ENDPOINT};
+}
+otel_service_name edge;
+otel_trace on;
+# Continue a trace the client started, or start one; the Gateway continues it.
+otel_trace_context propagate;
+
+log_format edge_json escape=json
+	'{"time":"$time_iso8601","service":"edge","level":"INFO","msg":"request",'
+	'"method":"$request_method","uri":"$request_uri","status":$status,'
+	'"duration_s":$request_time,"upstream":"$upstream_addr",'
+	'"trace_id":"$otel_trace_id","gateway_pod":"$upstream_http_x_chimera_instance"}';
+
+map $uri $public_cache {
+	default "public, max-age=86400";
+	~^/legacy/assets/ "public, max-age=31536000, immutable";
+	~^/mirror/assets/ "public, max-age=31536000, immutable";
+	~^/(legacy|mirror|reserved)/ "no-cache";
+	~^/$ "no-cache";
+	~^/index\.html$ "no-cache";
+}
+
+map $uri $no_store {
+	default 0;
+	~^/api/ 1;
+	~^/mirror/api/ 1;
+	~^/admin 1;
+	~^/management 1;
+	~^/status 1;
+	~^/monitoring 1;
+	~^/health$ 1;
+	~^/ready$ 1;
+}
+
+map $http_authorization $has_auth {
+	default 0;
+	~.+ 1;
+}
+
+map "$no_store$has_auth" $cache_control {
+	~^1 "no-store";
+	~^01 "private, no-store";
+	default $public_cache;
+}
+
+map $http_upgrade $connection_upgrade {
+	default upgrade;
+	"" close;
+}
+
+# The Service balances over the Gateway pods. Which database copy serves a call
+# is the services' decision, so the edge no longer splits reads from writes.
+upstream chimera_api {
+	server ${API_UPSTREAM};
+	keepalive 16;
+}
+
+server {
+	listen 80;
+	server_name _;
+	root /usr/share/nginx/html;
+	charset utf-8;
+	client_max_body_size 100m;
+	server_tokens off;
+	absolute_redirect off;
+	access_log /dev/stdout edge_json;
+
+	gzip on;
+	gzip_vary on;
+	gzip_proxied any;
+	gzip_comp_level 5;
+	gzip_min_length 256;
+	gzip_types
+		text/css
+		text/plain
+		text/javascript
+		text/xml
+		application/javascript
+		application/json
+		application/xml
+		application/xml+rss
+		image/svg+xml;
+
+	add_header Server Chimera always;
+	add_header Cache-Control $cache_control always;
+
+	location = /health {
+		otel_trace off;
+		access_log off;
+		default_type application/json;
+		return 200 '{"status":"ok"}';
+	}
+
+	location = /ready {
+		otel_trace off;
+		proxy_pass http://chimera_api/ready;
+		proxy_http_version 1.1;
+		proxy_set_header Connection "";
+		proxy_set_header Host $host;
+	}
+
+	location = /status/nginx {
+		internal;
+		stub_status;
+	}
+
+	location = /status {
+		ssi on;
+		default_type text/html;
+		alias /usr/share/nginx/html/status.html;
+	}
+
+	location = /documentation {
+		default_type "text/markdown; charset=utf-8";
+		alias /usr/share/nginx/html/documentation/architecture.md;
+	}
+
+	location = /management {
+		default_type text/html;
+		alias /usr/share/nginx/html/management.html;
+	}
+
+	location = /monitoring {
+		return 301 /monitoring/;
+	}
+
+	location /monitoring/ {
+		otel_trace off;
+		proxy_pass http://${GRAFANA_UPSTREAM};
+		proxy_http_version 1.1;
+		proxy_set_header Host $host;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Host $host;
+		proxy_set_header X-Forwarded-Proto $scheme;
+		proxy_set_header Upgrade $http_upgrade;
+		proxy_set_header Connection $connection_upgrade;
+	}
+
+	location = /api/v1/docs {
+		return 301 /api/v1/docs/index.html;
+	}
+
+	location = /api/v1/docs/ {
+		return 301 /api/v1/docs/index.html;
+	}
+
+	location ^~ /api/v1/docs/ {
+		otel_trace off;
+		proxy_pass http://chimera_api/swagger/;
+		proxy_http_version 1.1;
+		proxy_set_header Connection "";
+		proxy_set_header Host $host;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_redirect /swagger/ /api/v1/docs/;
+	}
+
+	# /api/v1/tracks reaches the Gateway as /v1/tracks. The Gateway repeats failed
+	# upstream calls itself, so the edge does not repeat a request.
+	location ~ ^/api/(v1/.*)$ {
+		proxy_pass http://chimera_api/$1$is_args$args;
+		proxy_http_version 1.1;
+		proxy_set_header Connection "";
+		proxy_set_header Host $host;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_redirect off;
+		proxy_next_upstream off;
+	}
+
+	location = /mirror {
+		return 301 /mirror/;
+	}
+
+	location ^~ /mirror/api/ {
+		rewrite ^/mirror(/api/.*)$ $1 last;
+	}
+
+	location /mirror/ {
+		proxy_pass http://${MIRROR_UPSTREAM};
+		proxy_http_version 1.1;
+		proxy_set_header Host $host;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	}
+
+	location /legacy/ {
+		proxy_pass http://${WEB_UPSTREAM};
+		proxy_http_version 1.1;
+		proxy_set_header Host $host;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	}
+
+	location = /reserved {
+		return 301 /reserved/;
+	}
+
+	location /reserved/ {
+		try_files /index.html =404;
+	}
+
+	include /etc/nginx/admin.location;
+
+	location / {
+		try_files $uri $uri/ /index.html;
+	}
+}

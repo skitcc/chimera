@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package chimera.catalog.v1;
+
+import "chimera/common/v1/consistency.proto";
+import "chimera/common/v1/page.proto";
+
+option go_package = "chimera/contracts/gen/catalog/v1;catalogv1";
+
+// CatalogService owns tracks, uploads, publishing, streaming and audio objects.
+service CatalogService {
+  rpc ListTracks(ListTracksRequest) returns (ListTracksResponse);
+  // GetTrack applies visibility: a track that is not ready is visible only to its owner.
+  rpc GetTrack(GetTrackRequest) returns (GetTrackResponse);
+  // BatchGetTracks is for trusted internal callers. It ignores visibility and skips missing ids.
+  rpc BatchGetTracks(BatchGetTracksRequest) returns (BatchGetTracksResponse);
+  rpc CreateTrack(CreateTrackRequest) returns (CreateTrackResponse);
+  rpc ReplaceTrack(ReplaceTrackRequest) returns (ReplaceTrackResponse);
+  rpc PatchTrack(PatchTrackRequest) returns (PatchTrackResponse);
+  // DeleteTrack publishes chimera.catalog.track.deleted.v1 to catalog.track.v1.
+  rpc DeleteTrack(DeleteTrackRequest) returns (DeleteTrackResponse);
+  rpc GetStreamURL(GetStreamURLRequest) returns (GetStreamURLResponse);
+}
+
+message Track {
+  string id = 1;
+  string user_id = 2;
+  string title = 3;
+  string artist = 4;
+  // pending, processing or ready.
+  string status = 5;
+  int64 size_bytes = 6;
+}
+
+// TrackIDs restricts a listing to the given tracks. An empty list matches nothing.
+message TrackIDs {
+  repeated string ids = 1;
+}
+
+message ListTracksRequest {
+  chimera.common.v1.PageRequest page = 1;
+  string viewer_id = 2;
+  string user_id = 3;
+  string artist = 4;
+  string status = 5;
+  TrackIDs track_ids = 6;
+}
+
+message ListTracksResponse {
+  repeated Track items = 1;
+  string next_cursor = 2;
+  int64 limit = 3;
+}
+
+message GetTrackRequest {
+  string id = 1;
+  string viewer_id = 2;
+  chimera.common.v1.Consistency consistency = 3;
+}
+
+message GetTrackResponse {
+  Track track = 1;
+}
+
+message BatchGetTracksRequest {
+  repeated string ids = 1;
+  chimera.common.v1.Consistency consistency = 2;
+}
+
+message BatchGetTracksResponse {
+  repeated Track tracks = 1;
+}
+
+message CreateTrackRequest {
+  string actor_id = 1;
+  string title = 2;
+  string artist = 3;
+  int64 size_bytes = 4;
+  // idempotency_key makes a repeated call return the first upload session instead of a second track.
+  string idempotency_key = 5;
+}
+
+message CreateTrackResponse {
+  Track track = 1;
+  string upload_url = 2;
+}
+
+message ReplaceTrackRequest {
+  string actor_id = 1;
+  string id = 2;
+  string title = 3;
+  string artist = 4;
+}
+
+message ReplaceTrackResponse {
+  Track track = 1;
+}
+
+message PatchTrackRequest {
+  string actor_id = 1;
+  string id = 2;
+  optional string title = 3;
+  optional string artist = 4;
+  bool publish = 5;
+}
+
+message PatchTrackResponse {
+  Track track = 1;
+}
+
+message DeleteTrackRequest {
+  string actor_id = 1;
+  string id = 2;
+}
+
+message DeleteTrackResponse {}
+
+message GetStreamURLRequest {
+  string id = 1;
+}
+
+message GetStreamURLResponse {
+  string url = 1;
+}

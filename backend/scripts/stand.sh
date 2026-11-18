@@ -58,16 +58,6 @@ stand_psql() {
 		psql -v ON_ERROR_STOP=1 -U "$POSTGRES_TEST_USER" -d postgres "$@"
 }
 
-stand_require_template() {
-	state=$(docker exec chimera-stand-postgres \
-		psql -v ON_ERROR_STOP=1 -U "$POSTGRES_TEST_USER" -d postgres -tAc \
-		"SELECT CASE WHEN datallowconn THEN 'open' ELSE 'closed' END FROM pg_database WHERE datname = 'chimera_template'")
-	state=$(printf '%s' "$state" | tr -d '[:space:]')
-	if [ "$state" != "closed" ]; then
-		stand_fail "chimera_template is missing or still accepts connections; from backend/ run: make stand-refresh"
-	fi
-}
-
 # stand_fail prints the reason and, for a test launch, records it in Allure.
 # STAND_ALLURE_SUITE is integration or e2e. stand-up leaves it unset.
 stand_fail() {

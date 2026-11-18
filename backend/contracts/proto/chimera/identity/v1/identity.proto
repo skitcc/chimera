@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package chimera.identity.v1;
+
+import "chimera/common/v1/consistency.proto";
+import "chimera/common/v1/page.proto";
+
+option go_package = "chimera/contracts/gen/identity/v1;identityv1";
+
+// IdentityService owns accounts, profiles, passwords and session tokens.
+service IdentityService {
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  // BatchGetUsers returns the users that exist, in no particular order. Missing ids are skipped.
+  rpc BatchGetUsers(BatchGetUsersRequest) returns (BatchGetUsersResponse);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc ReplaceUser(ReplaceUserRequest) returns (ReplaceUserResponse);
+  rpc PatchUser(PatchUserRequest) returns (PatchUserResponse);
+  // DeleteUser publishes chimera.identity.user.deleted.v1 to identity.user.v1.
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+}
+
+message User {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+}
+
+message CreateSessionRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message CreateSessionResponse {
+  string token = 1;
+  User user = 2;
+}
+
+message CreateUserRequest {
+  string email = 1;
+  string name = 2;
+  string password = 3;
+  // idempotency_key makes a repeated call return the first result instead of a conflict.
+  string idempotency_key = 4;
+}
+
+message CreateUserResponse {
+  User user = 1;
+}
+
+message GetUserRequest {
+  string id = 1;
+  chimera.common.v1.Consistency consistency = 2;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message BatchGetUsersRequest {
+  repeated string ids = 1;
+}
+
+message BatchGetUsersResponse {
+  repeated User users = 1;
+}
+
+message ListUsersRequest {
+  chimera.common.v1.PageRequest page = 1;
+}
+
+message ListUsersResponse {
+  repeated User items = 1;
+  string next_cursor = 2;
+  int64 limit = 3;
+}
+
+message ReplaceUserRequest {
+  string actor_id = 1;
+  string id = 2;
+  string email = 3;
+  string name = 4;
+}
+
+message ReplaceUserResponse {
+  User user = 1;
+}
+
+message PatchUserRequest {
+  string actor_id = 1;
+  string id = 2;
+  optional string email = 3;
+  optional string name = 4;
+  optional string password = 5;
+}
+
+message PatchUserResponse {
+  User user = 1;
+}
+
+message DeleteUserRequest {
+  string actor_id = 1;
+  string id = 2;
+}
+
+message DeleteUserResponse {}

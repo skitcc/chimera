@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package chimera.events.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "chimera/contracts/gen/events/v1;eventsv1";
+
+// Envelope is the Kafka record value on every chimera topic.
+// The record key is the id of the entity the event is about,
+// so all events of one entity land in one partition in order.
+message Envelope {
+  // event_id is a UUID. Consumers use it to skip redelivered events.
+  string event_id = 1;
+  // type matches the ce_type record header, for example chimera.identity.user.deleted.v1.
+  string type = 2;
+  google.protobuf.Timestamp occurred_at = 3;
+  // producer is the service that wrote the event: identity, catalog.
+  string producer = 4;
+
+  oneof payload {
+    UserDeleted user_deleted = 10;
+    TrackDeleted track_deleted = 11;
+  }
+}
+
+// UserDeleted is published to identity.user.v1 after an account is removed.
+message UserDeleted {
+  string user_id = 1;
+}
+
+// TrackDeleted is published to catalog.track.v1 after a track row is removed,
+// either by its owner or because its owner was deleted.
+message TrackDeleted {
+  string track_id = 1;
+  string user_id = 2;
+  string object_key = 3;
+}

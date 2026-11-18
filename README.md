@@ -1,6 +1,12 @@
 # Chimera
 
-Uncensorable music. Go API in `backend/`, Sound Chimera web client in `frontend/`.
+Uncensorable music. Go services in `backend/`, Sound Chimera web client in `frontend/`.
+
+The backend is four services in one Go workspace (`backend/go.work`): Identity
+(accounts, sign-in, JWT issuing), Catalog (tracks and files), Social (likes,
+follows, playlists) and Gateway (the public REST API). They talk gRPC inside
+and exchange deletion events through Kafka. See
+[docs/architecture.md](docs/architecture.md).
 
 ## Run
 
@@ -9,12 +15,25 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Welcome page: http://localhost:5173/  
-Client: http://localhost:5173/legacy/  
-API through the web server: http://localhost:5173/api/v1/tracks  
-Swagger: http://localhost:5173/api/v1/docs/  
-Service index: http://localhost:5173/management  
-API process directly: http://127.0.0.1:8080
+UI: http://localhost:5173  
+API (Gateway): http://127.0.0.1:8080  
+Swagger: http://localhost:5173/swagger/index.html
+
+An `.env` from before the split lacks the per-service database passwords and
+Kafka settings: compare it with `.env.example`. The JWT key pair is generated
+into Docker volumes on first start.
+
+## Run in minikube
+
+```bash
+cd backend
+make k8s-images   # build the images into the minikube node
+make k8s-up       # keys, secrets.env, ingress addon, apply, wait
+make k8s-e2e      # the demo scenario through the ingress
+```
+
+UI: http://chimera.192.168.49.2.nip.io  
+`make k8s-status`, `make k8s-logs SVC=catalog`, `make k8s-down`.
 
 ## Backend tests
 
@@ -24,7 +43,8 @@ required on the host.
 ```bash
 cd backend
 make test
-make test-integration
+make stand-up && make test-integration
+make test-e2e
 make test-all
 ```
 

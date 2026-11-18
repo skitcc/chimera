@@ -1,0 +1,18 @@
+# The same init script docker-compose.yml mounts, packaged for Kubernetes,
+# plus the primary and replica entrypoints for WAL streaming.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+generatorOptions:
+  # Runs only on an empty data directory, so a changed script must not roll the StatefulSet.
+  disableNameSuffixHash: true
+configMapGenerator:
+  - name: postgres-init
+    files:
+      - 10-databases.sh=init-databases.sh
+  - name: postgres-scripts
+    files:
+      - primary.sh
+      - replica.sh
+  - name: postgres-exporter-queries
+    files:
+      - queries.yaml=exporter-queries.yaml

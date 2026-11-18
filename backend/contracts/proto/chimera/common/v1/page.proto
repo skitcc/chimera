@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package chimera.common.v1;
+
+option go_package = "chimera/contracts/gen/common/v1;commonv1";
+
+// PageRequest is the raw page window from the client.
+// invalid_limit is set when the client sent a limit that is not a positive number,
+// so the owning service rejects it in the same order as its other checks.
+message PageRequest {
+  int64 limit = 1;
+  string cursor = 2;
+  bool invalid_limit = 3;
+}

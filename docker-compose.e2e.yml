@@ -1,0 +1,19 @@
+# Overlay for scripts/stand-e2e.sh: a private copy of docker-compose.yml with no host
+# ports, so several runs and the dev stack can coexist. The test container joins the
+# project network, so presigned URLs point at the in-network RustFS address.
+services:
+  postgres:
+    ports: !reset []
+  minio:
+    ports: !reset []
+  kafka:
+    ports: !reset []
+  catalog:
+    environment:
+      S3_PRESIGN_ENDPOINT: http://minio:9000
+  gateway:
+    ports: !reset []
+    environment:
+      STREAM_HOST: minio:9000
+  web:
+    ports: !reset []
