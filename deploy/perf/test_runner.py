@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 spec = importlib.util.spec_from_file_location('perf_runner', Path(__file__).with_name('runner.py'))
@@ -20,6 +21,50 @@ def workload(name, ready=True):
 
 
 class RunnerTests(unittest.TestCase):
+    def make_measure_runner(self, out):
+        r = runner.Runner.__new__(runner.Runner)
+        r.out, r.profile, r.prefix = out, 'full', 'fake-perf'
+        r.uid, r.gid = os.getuid(), os.getgid()
+        r.load_cpus, r.docker_sampler = None, None
+        r.base, r.track_bytes, r.image, r.prom_url = 'http://fake', 1024, 'fake-image', 'http://fake-prom'
+        r.containers, r.results = [], []
+        r.snapshot_pods = Mock()
+        return r
+
+    def test_measure_updates_one_html_for_ramp_stress_and_soak_without_real_commands(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            r = self.make_measure_runner(root)
+            def fake_process(args, **kwargs):
+                if args[0] == 'docker':
+                    scenario = next(x.split('=',1)[1] for x in args if x.startswith('SCENARIO='))
+                    out = root/f'full-{scenario}-fault0'
+                    (out/'summary.json').write_text(json.dumps({'scenario':scenario,'phases':[]}))
+                    (out/'http.json').write_text(json.dumps({'requests':10,'error_rate':0,'steps':{}}))
+                return SimpleNamespace(returncode=0)
+            with patch.object(runner.subprocess,'run',side_effect=fake_process), patch.object(runner,'command',return_value=''):
+                for scenario in ('ramp','stress','soak'):
+                    r.measure(scenario,0,10)
+                    html = (root/'report.html').read_text()
+                    self.assertIn(f'full-{scenario}-fault0', html)
+            self.assertEqual(len(r.results),3)
+            self.assertEqual(r.snapshot_pods.call_count,6)
+
+    def test_analysis_timeout_keeps_partial_html_and_records_exit_code(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            r = self.make_measure_runner(root)
+            def fake_process(args, **kwargs):
+                if args[0] == 'docker':
+                    return SimpleNamespace(returncode=0)
+                raise subprocess.TimeoutExpired(args,300)
+            with patch.object(runner.subprocess,'run',side_effect=fake_process), patch.object(runner,'command',return_value=''):
+                with self.assertRaisesRegex(RuntimeError,'scenario failed'):
+                    r.measure('ramp',0,10)
+            self.assertTrue((root/'report.html').exists())
+            self.assertEqual(json.loads((root/'full-ramp-fault0/run.json').read_text())['analysis_exit'],124)
+            self.assertIn('Analysis timed out',(root/'report.html').read_text())
+
     def test_gateway_alone_does_not_mean_ready(self):
         problems = runner.workload_problems([workload('gateway')])
         self.assertIn('identity: workload missing', problems)

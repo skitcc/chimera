@@ -83,7 +83,7 @@ help:
 		'k8s-chaos        Take catalog pods and the Kafka broker away under k6 load' \
 		'k8s-load         Run loadtest/balance.js against the minikube edge' \
 		'k8s-replay-dlq   Move DLQ records back to their topics' \
-		'perf-run         Perf scenario. PROFILE=quick|full SCENARIO=ramp|stress|soak|trio|all|capacity FAULT_RATE=0|0.1|0.2'
+		'perf-run         Perf scenario. PROFILE=quick|full SCENARIO=ramp|stress|soak|trio|all FAULT_RATE=0|0.1|0.2'
 
 BUF = docker run --rm --user $(TEST_UID):$(TEST_GID) -e BUF_CACHE_DIR=/tmp/buf -v "$(ROOT_DIR):/repo" -w /repo/backend/contracts "$(BUF_IMAGE)"
 

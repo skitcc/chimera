@@ -9,7 +9,5 @@ scrape_configs:
     metrics_path: /api/v1/nodes/NODE_NAME/proxy/metrics/cadvisor
     static_configs:
       - targets: ["127.0.0.1:8001"]
-    metric_relabel_configs:
-      - source_labels: [namespace]
-        regex: chimera
-        action: keep
+    # All Kubernetes namespaces: application pods, ingress, control plane,
+    # exporters and observers. Leaf-container selectors are applied in queries.

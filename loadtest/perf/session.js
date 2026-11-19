@@ -15,7 +15,7 @@ const faultRate = Number(__ENV.FAULT_RATE || '0')
 const warmupMs = (Number(__ENV.WARMUP_SEC || (profile === 'quick' ? '10' : '30'))) * 1000
 const stable = Number(__ENV.STABLE_VUS || '10')
 const password = 'password1'
-const trackBytes = Number(__ENV.TRACK_BYTES || '262144')
+const trackBytes = Number(__ENV.TRACK_BYTES || '65536')
 const missingID = '00000000-0000-0000-0000-000000000000'
 
 const sessions = new Counter('sessions')
@@ -50,11 +50,12 @@ function phases() {
   if (scenario === 'soak') return []
   if (scenario === 'stress') {
     const hold = profile === 'quick' ? [30, 30, 60] : [180, 180, 240]
-    const levels = [stable, stable * 4, stable]
+    const levels = [stable, Math.ceil(stable * 1.6), stable]
     return hold.map((sec, i) => ({ sec, vus: levels[i] }))
   }
-  const levels = [10, 25, 50, 100, 160, 240]
-  const sec = profile === 'quick' ? 20 : 100
+
+  const levels = [100, 200, 300, 400, 500, 650]
+  const sec = Number(__ENV.RAMP_STAGE_SEC || (profile === 'quick' ? 20 : 100))
   return levels.map((vus) => ({ sec, vus }))
 }
 
@@ -278,7 +279,9 @@ export function author(data) {
   }
   call('mine', 'GET', `/tracks?user_id=${session.id}`, null, session.token, [200])
   sleep(2)
-  let ownTrack = false
+  let ownTrackID = null
+  // Playlist entries require a ready track. Keep the seeded ready track as
+  // fallback until both upload and publication of our new track succeed.
   let trackID = pick(data.tracks)
   if (!mistaken('create', session.token, session.id)) {
     const created = call('create', 'POST', '/tracks', {
@@ -287,12 +290,12 @@ export function author(data) {
       size: trackBytes,
     }, session.token, [201])
     if (created.status === 201) {
-      trackID = created.json('track.id')
-      ownTrack = true
+      ownTrackID = created.json('track.id')
       const uploadURL = created.json('upload_url')
       const file = call('upload', 'PUT', uploadURL, 'x'.repeat(trackBytes), null, [200, 204])
       if (file.status === 200 || file.status === 204) {
-        call('publish', 'PATCH', `/tracks/${trackID}`, { status: 'ready' }, session.token, [200])
+        const published = call('publish', 'PATCH', `/tracks/${ownTrackID}`, { status: 'ready' }, session.token, [200])
+        if (published.status === 200) trackID = ownTrackID
       }
     }
   }
@@ -310,7 +313,7 @@ export function author(data) {
   }
   sleep(3)
   if (playlist.status === 201) call('playlist-delete', 'DELETE', `/playlists/${playlist.json('id')}`, null, session.token, [204])
-  if (ownTrack) call('track-delete', 'DELETE', `/tracks/${trackID}`, null, session.token, [204])
+  if (ownTrackID) call('track-delete', 'DELETE', `/tracks/${ownTrackID}`, null, session.token, [204])
   sessions.add(1, { phase: phase() })
 }
 

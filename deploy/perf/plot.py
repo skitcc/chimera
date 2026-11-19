@@ -12,10 +12,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-CONTAINERS = ("gateway", "identity", "catalog", "social", "postgres", "kafka", "rustfs", "edge")
-CONTAINER_RE = "gateway|identity|catalog|social|postgres|kafka|rustfs|edge"
 WINDOW_SEC = 1
 PERCENTILES = (0.5, 0.75, 0.9, 0.95, 0.99)
+PLOT_PERCENTILES = (0.5, 0.9, 0.99)
 PLOT_FILES = {
     'latency_over_time.png', 'latency_distribution.png',
     'latency_percentiles.png', 'latency_histogram.png',
@@ -184,27 +183,38 @@ def raw_metrics(out):
                 continue
             ts = datetime.datetime.fromisoformat(data['time'].replace('Z', '+00:00')).timestamp()
             metrics.setdefault(row['metric'], []).append((ts, float(data['value']), data.get('tags', {})))
-    capacity = (load_json(out / 'summary.json') or {}).get('scenario') == 'capacity'
-    if not metrics.get('http_req_duration') or (not capacity and not metrics.get('sessions')):
+    if not metrics.get('http_req_duration') or not metrics.get('sessions'):
         raise ValueError("no measured HTTP requests or completed sessions: setup/scenario failed")
     return metrics
 
 
 def raw_windows(samples, origin, end, percentile=None, include_empty=False):
+    window_count = int(math.floor((end - origin) / WINDOW_SEC + 1e-9))
+    if window_count <= 0:
+        return []
+    windows = [[] for _ in range(window_count)]
+    for timestamp, value, _ in samples:
+        if timestamp < origin:
+            continue
+        index = int((timestamp - origin) // WINDOW_SEC)
+        if 0 <= index < window_count:
+            windows[index].append(value)
+
     points = []
-    cursor = origin + WINDOW_SEC
-    while cursor <= end:
-        values = [v for ts, v, _ in samples if cursor - WINDOW_SEC <= ts < cursor]
-        if values or (include_empty and percentile is None):
-            if percentile is None:
-                value = sum(values) / WINDOW_SEC
-            else:
-                ordered = sorted(values)
-                idx = (len(ordered) - 1) * percentile
-                lo = int(idx)
-                value = ordered[lo] + (ordered[min(lo + 1, len(ordered)-1)] - ordered[lo]) * (idx-lo)
-            points.append((cursor, value))
-        cursor += WINDOW_SEC
+    for index, values in enumerate(windows):
+        cursor = origin + (index + 1) * WINDOW_SEC
+        if not values:
+            if include_empty and percentile is None:
+                points.append((cursor, 0))
+            continue
+        if percentile is None:
+            value = sum(values) / WINDOW_SEC
+        else:
+            ordered = sorted(values)
+            rank = (len(ordered) - 1) * percentile
+            lo = int(rank)
+            value = ordered[lo] + (ordered[min(lo + 1, len(ordered)-1)] - ordered[lo]) * (rank-lo)
+        points.append((cursor, value))
     return points
 
 
@@ -374,14 +384,14 @@ def resource_report(cpu, ram, read, write):
     def index(series):
         out = {}
         for item in series:
-            name = item["labels"].get("container")
+            name = resource_name(item)
             if name:
                 out[name] = item["points"]
         return out
 
     cpu_i, ram_i, read_i, write_i = index(cpu), index(ram), index(read), index(write)
     report = {"gpu": None, "components": []}
-    for name in CONTAINERS:
+    for name in sorted(set(cpu_i) | set(ram_i) | set(read_i) | set(write_i)):
         report["components"].append({
             "component": name,
             "cpu_cores": summarize(cpu_i.get(name, [])),
@@ -390,6 +400,11 @@ def resource_report(cpu, ram, read, write):
             "disk_write_bps": summarize(write_i.get(name, [])),
         })
     return report
+
+
+def resource_name(item):
+    tags = item.get('labels', {})
+    return '/'.join(tags[key] for key in ('namespace', 'container') if tags.get(key))
 
 
 def parse_iostat(text):
@@ -453,15 +468,24 @@ def draw(path, title, lines, ylabel, vlines=None, phases=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.ticker import FuncFormatter, MaxNLocator
 
     events = grouped_events(vlines)
-    fig = plt.figure(figsize=(12, 7.5))
-    grid = fig.add_gridspec(3, 1, height_ratios=[.65, 4.7, max(.9, len(events) * .4)], hspace=.4)
+    active = sum(bool(points) for _, points in lines)
+    legend_rows = math.ceil(active / 3)
+    fig = plt.figure(figsize=(12, 7.5 + max(0, legend_rows - 1) * .24))
+    grid = fig.add_gridspec(4, 1, height_ratios=[.65, 4.7, max(.4, legend_rows * .3),
+                                              max(.9, len(events) * .4)], hspace=.4)
     ax = fig.add_subplot(grid[1])
     band = fig.add_subplot(grid[0], sharex=ax)
-    notes = fig.add_subplot(grid[2])
+    legend = fig.add_subplot(grid[2])
+    legend.axis('off')
+    notes = fig.add_subplot(grid[3])
     fig.suptitle(title, fontsize=12, fontweight='bold', y=.98)
     ax.set_ylabel(ylabel)
+    if ylabel == "RAM, ГиБ":
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=6))
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:.1f}"))
     ax.set_xlabel('Время от начала сценария, с')
     ax.grid(alpha=.2)
     plotted = False
@@ -471,7 +495,9 @@ def draw(path, title, lines, ylabel, vlines=None, phases=None):
         ax.plot([ts for ts, _ in points], [value for _, value in points], label=label)
         plotted = True
     if plotted:
-        ax.legend(loc='upper right', fontsize=8)
+        handles, labels = ax.get_legend_handles_labels()
+        legend.legend(handles, labels, loc='center', ncol=min(3, active),
+                      fontsize=8, frameon=False)
     else:
         ax.text(.5, .5, 'Нет измерений', ha='center', va='center', transform=ax.transAxes)
     # Phase duration/target goes into a dedicated horizontal band, outside data.
@@ -526,31 +552,39 @@ def run_dir(out):
     run = load_json(out / "run.json") or {}
     origin = scenario_start(out)
     end = run.get("end_unix") or (origin + 1 if origin else None)
-    prom = os.environ.get("PROM_URL", "http://127.0.0.1:9095")
+    prom = os.environ.get("PROM_URL")
     step = WINDOW_SEC
     raw = raw_metrics(out)
 
     # Request/session plots use the raw file. Only container resources need Prometheus.
     def resource_series(name, queries):
-        found = first_query(prom, queries, origin, end, step)
+        found = first_query(prom, queries, origin, end, step) if prom else []
         if found:
             return found
         return load_json(out / 'series' / f'{name}.json') or []
 
-    container = f'container=~"{CONTAINER_RE}"'
+    container = 'container!="",container!="POD",pod!=""'
     cpu = resource_series("cpu", [
-        f'sum by (container) (rate(container_cpu_usage_seconds_total{{namespace="chimera",{container}}}[30s]))',
+        f'sum by (namespace, container) (max by (namespace, pod, container) (rate(container_cpu_usage_seconds_total{{{container}}}[30s])))',
     ])
     ram = resource_series("ram", [
-        f'sum by (container) (container_memory_working_set_bytes{{namespace="chimera",{container}}})',
+        f'sum by (namespace, container) (max by (namespace, pod, container) (container_memory_working_set_bytes{{{container}}}))',
     ])
+    cpu_detailed = resource_series('cpu_detailed', [
+        f'max by (namespace, pod, container) (rate(container_cpu_usage_seconds_total{{{container}}}[30s]))',
+    ])
+    ram_detailed = resource_series('ram_detailed', [
+        f'max by (namespace, pod, container) (container_memory_working_set_bytes{{{container}}})',
+    ])
+    save_series(out, 'cpu_detailed', cpu_detailed)
+    save_series(out, 'ram_detailed', ram_detailed)
     disk_read = resource_series("disk_read", [
-        f'sum by (container) (rate(container_fs_reads_bytes_total{{namespace="chimera",{container}}}[30s]))',
-        f'sum by (container) (rate(container_blkio_device_usage_bytes_total{{namespace="chimera",{container},operation="read"}}[30s]))',
+        f'sum by (namespace, container) (rate(container_fs_reads_bytes_total{{{container}}}[30s]))',
+        f'sum by (namespace, container) (rate(container_blkio_device_usage_bytes_total{{{container},operation="read"}}[30s]))',
     ])
     disk_write = resource_series("disk_write", [
-        f'sum by (container) (rate(container_fs_writes_bytes_total{{namespace="chimera",{container}}}[30s]))',
-        f'sum by (container) (rate(container_blkio_device_usage_bytes_total{{namespace="chimera",{container},operation="write"}}[30s]))',
+        f'sum by (namespace, container) (rate(container_fs_writes_bytes_total{{{container}}}[30s]))',
+        f'sum by (namespace, container) (rate(container_blkio_device_usage_bytes_total{{{container},operation="write"}}[30s]))',
     ])
     for name, series in (("cpu", cpu), ("ram", ram), ("disk_read", disk_read), ("disk_write", disk_write)):
         save_series(out, name, series)
@@ -588,8 +622,7 @@ def run_dir(out):
     measured['sessions'] = sum(v for _, v, _ in raw.get('sessions', []))
     measured['failed_logins'] = sum(v for _, v, _ in raw.get('failed_sessions', []))
     measured['expected_fault_actions'] = sum(v for _, v, _ in raw.get('expected_fault', []))
-    measured['stream_bytes'] = (None if summary.get('scenario') == 'capacity' and 'stream_bytes' not in raw
-                                else sum(v for _, v, _ in raw.get('stream_bytes', [])))
+    measured['stream_bytes'] = sum(v for _, v, _ in raw.get('stream_bytes', []))
     measured['statuses'] = statuses
     measured['steps'] = {name: latency_stats([r for r in latencies if r[2].get('step') == name])
                          for name in sorted({r[2].get('step') for r in latencies})}
@@ -615,13 +648,24 @@ def run_dir(out):
     if not any(item['points'] for item in cpu) or not any(item['points'] for item in ram):
         raise ValueError("cAdvisor CPU/RAM samples missing; report is incomplete")
 
+    # Index once: rescanning every request for each second becomes quadratic
+    # on long full/soak runs and used to exceed the analysis timeout.
+    latency_windows, failure_windows = {}, {}
+    for metric, destination in (('http_req_duration', latency_windows), ('http_req_failed', failure_windows)):
+        for row in raw.get(metric, []):
+            bucket = math.floor((row[0] - origin) / WINDOW_SEC)
+            destination.setdefault(bucket, []).append(row)
     windows = []
+    p95_by_time = dict(p95)
     for ts, rps_value in rps_pts:
-        selected = [r for r in latencies if ts - WINDOW_SEC <= r[0] < ts]
-        bad_count = sum(v for t, v, _ in raw.get('http_req_failed', []) if ts - WINDOW_SEC <= t < ts)
+        bucket = round((ts - origin) / WINDOW_SEC) - 1
+        selected = latency_windows.get(bucket, [])
+        failed = failure_windows.get(bucket, [])
+        bad_count = sum(v for _, v, _ in failed)
         windows.append({'end_sec': ts - origin, 'rps': rps_value, 'requests': len(selected),
                         'unexpected_failures': bad_count, 'error_rate': bad_count / len(selected) if selected else None,
-                        'p95_ms': dict(p95).get(ts), 'operations': operation_report(raw, ts - WINDOW_SEC, ts)})
+                        'p95_ms': p95_by_time.get(ts),
+                        'operations': operation_report({'http_req_duration': selected, 'http_req_failed': failed})})
     write_json(out / 'windows.json', windows)
 
     resources = resource_report(cpu, ram, disk_read, disk_write)
@@ -635,9 +679,6 @@ def run_dir(out):
 
     vlines = []
     phase_bands = [{**bound, "start": bound["start"] - origin, "end": bound["end"] - origin} for bound in phase_bounds(summary, origin)] if origin else []
-
-    if summary.get('scenario') == 'capacity':
-        phase_bands = [{'start': 0, 'end': summary['warmup_sec'] + summary['measurement_sec'], 'label': f"Цель: {summary['target_rps']} HTTP RPS"}]
 
     knee = None
     if summary.get("scenario") == "ramp" and origin:
@@ -669,30 +710,25 @@ def run_dir(out):
         return
 
     heading = title_of(summary, "")
-    draw(plots / "latency_over_time.png", heading + "latency p50/p75/p90/p95/p99", [
-        ("p50", rel(p50, origin)), ("p75", rel(p75, origin)), ("p90", rel(p90, origin)),
-        ("p95", rel(p95, origin)), ("p99", rel(p99, origin)),
-    ], "Задержка HTTP, мс", vlines, phase_bands)
+    latency_points = {.5:p50, .9:p90, .99:p99}
+    draw(plots / "latency_over_time.png", heading + "latency p50/p90/p99",
+         [(f'p{int(p*100)}', rel(latency_points[p], origin)) for p in PLOT_PERCENTILES],
+         "Задержка HTTP, мс", vlines, phase_bands)
     api_requests = [(ts, 1, tags) for ts, _, tags in latencies if tags.get('step') not in ('upload', 'stream-body')]
     api_rps = [(ts, value) for ts, value in raw_windows(api_requests, origin, end, include_empty=True)
                if ts - WINDOW_SEC >= origin + float(summary.get('warmup_sec', 0))]
     save_series(out, 'api_rps', [{'labels': {}, 'points': api_rps}])
-    rps_lines = [
-        ('Завершено k6: API + S3', rel(rps_pts, origin)),
+    draw(plots / 'rps_over_time.png', heading + 'HTTP throughput', [
+        ('Все HTTP: API + S3', rel(rps_pts, origin)),
         ('Только API', rel(api_rps, origin)),
-    ]
-    if summary.get('scenario') == 'capacity' and summary.get('target_rps'):
-        target = float(summary['target_rps'])
-        measured_rps = rel(rps_pts, origin)
-        if measured_rps:
-            rps_lines.append(('Цель k6', [(measured_rps[0][0], target), (measured_rps[-1][0], target)]))
-    draw(plots / 'rps_over_time.png', heading + 'HTTP throughput', rps_lines,
-         'Запросов в секунду', vlines, phase_bands)
-    draw(plots / "cpu_over_time.png", heading + "CPU", [(item["labels"].get("container", ""), rel(item["points"], origin)) for item in cpu], "CPU, ядра", vlines, phase_bands)
-    draw(plots / "ram_over_time.png", heading + "RAM", [(item["labels"].get("container", ""), rel(item["points"], origin)) for item in ram], "RAM, байт", vlines, phase_bands)
+    ], 'Завершённых запросов в секунду', vlines, phase_bands)
+    draw(plots / "cpu_over_time.png", heading + "CPU", [(resource_name(item), rel(item["points"], origin)) for item in cpu], "CPU, логические ядра", vlines, phase_bands)
+    gib = 1024 ** 3
+    ram_gib = [(resource_name(item), [(ts, value / gib) for ts, value in rel(item["points"], origin)]) for item in ram]
+    draw(plots / "ram_over_time.png", heading + "RAM", ram_gib, "RAM, ГиБ", vlines, phase_bands)
 
     duration = (summary.get("http_req_duration") or {})
-    bars = [(name, duration.get(name)) for name in ("p(50)", "p(75)", "p(90)", "p(95)", "p(99)")]
+    bars = [(f'p{int(p*100)}', duration.get(f'p({int(p*100)})')) for p in PERCENTILES]
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.set_title(heading + "percentiles")
@@ -713,29 +749,29 @@ def run_dir(out):
         value = measured[f'p{int(p*100)}_ms']
         ax.scatter([p*100], [value], s=20)
         ax.annotate(f'p{int(p*100)}: {value:.2f} ms', (p*100, value), xytext=(-8, 10), textcoords='offset points', ha='right', fontsize=8)
-    ax.set_xlabel('Percent of measured requests (%)')
-    ax.set_ylabel('HTTP duration (ms)')
-    ax.set_title(heading + 'request percentile distribution')
-    ax.legend(loc='upper left')
+    ax.set_xlabel('Доля измеренных запросов (%)')
+    ax.set_ylabel('Задержка HTTP (мс)')
+    ax.set_title(heading + f'Распределение задержек запросов\nИзмерено {len(ordered):,} запросов')
     ax.grid(alpha=.2)
-    ax.secondary_xaxis('top', functions=(lambda x: x * len(ordered) / 100, lambda x: x * 100 / len(ordered))).set_xlabel('Number of requests in latency rank')
+    ax.secondary_xaxis('top', functions=(lambda x: x * len(ordered) / 100, lambda x: x * 100 / len(ordered))).set_xlabel('Число запросов в распределении')
     fig.tight_layout()
     fig.savefig(plots / 'latency_distribution.png')
     plt.close(fig)
 
-    hist_counts = {}
     edges = [5, 10, 20, 50, 100, 200, 400, 800, 1500, 3000, 5000, float('inf')]
-    for edge in edges:
-        hist_counts[str(edge)] = 0
+    labels = ['≤5', '5–10', '10–20', '20–50', '50–100', '100–200',
+              '200–400', '400–800', '800–1500', '1500–3000', '3000–5000', '>5000']
+    hist_counts = [0] * len(edges)
     for _, value, _ in latencies:
-        edge = next(edge for edge in edges if value <= edge)
-        hist_counts[str(edge)] += 1
+        index = next(i for i, edge in enumerate(edges) if value <= edge)
+        hist_counts[index] += 1
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.set_title(heading + "latency histogram")
     if hist_counts:
-        labels = sorted(hist_counts, key=lambda item: float(item))
-        ax.bar(labels, [hist_counts[label] for label in labels])
-        ax.set_ylabel("requests per non-overlapping interval")
+        ax.bar(labels, hist_counts)
+        ax.set_xlabel('Задержка HTTP, диапазон (мс)')
+        ax.set_ylabel('Количество запросов')
+        ax.tick_params(axis='x', labelrotation=35)
     else:
         ax.text(0.5, 0.5, "no samples", ha="center", va="center", transform=ax.transAxes)
     fig.tight_layout()
