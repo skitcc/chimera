@@ -115,7 +115,7 @@ Prometheus забирает метрики через headless Service: три �
 make k8s-up
 ```
 
-Цель сама включает ingress, собирает образы в узел minikube (`make k8s-images` можно вызвать отдельно), применяет `deploy/k8s/overlays/minikube` и ждёт поды. Ключи JWT и `secrets.env` создаются один раз, если их ещё нет. Пароли лежат в `deploy/k8s/overlays/minikube/secrets.env` и в git не попадают.
+Образы предварительно собираются командой `make k8s-images`. Цель `k8s-up` сама включает ingress, применяет `deploy/k8s/overlays/minikube` и ждёт поды. Ключи JWT и `secrets.env` создаются один раз, если их ещё нет. Пароли лежат в `deploy/k8s/overlays/minikube/secrets.env` и в git не попадают.
 
 Повторный `make k8s-up` применяет манифесты заново и ждёт готовности. `make k8s-down` удаляет namespace вместе с томами: базы и бакет станут пустыми.
 

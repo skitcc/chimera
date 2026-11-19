@@ -39,7 +39,7 @@ GO_TEST_FLAGS = -count=1 -p=$(GO_TEST_P) -parallel=$(GO_TEST_PARALLEL)
 
 .PHONY: help proto proto-lint proto-breaking test-image test test-shuffle test-offline stand-up stand-gc stand-down test-integration test-e2e demo-capture demo-requests e2e-dev app-logs test-logs test-all coverage gobco-condition gobco-branch allure-results allure-meta allure-render allure-report allure-open spec-matrix spec-check clean-test-results \
 	k8s-keys k8s-secrets k8s-images k8s-up k8s-down k8s-status k8s-logs k8s-e2e \
-	k8s-monitoring k8s-chaos k8s-load k8s-replay-dlq
+	k8s-monitoring k8s-chaos k8s-load k8s-replay-dlq perf-run perf-prepare perf-restore
 .NOTPARALLEL: test-all
 
 help:
@@ -82,7 +82,8 @@ help:
 		'k8s-monitoring   Print the Grafana, Prometheus and Tempo addresses' \
 		'k8s-chaos        Take catalog pods and the Kafka broker away under k6 load' \
 		'k8s-load         Run loadtest/balance.js against the minikube edge' \
-		'k8s-replay-dlq   Move DLQ records back to their topics'
+		'k8s-replay-dlq   Move DLQ records back to their topics' \
+		'perf-run         Perf scenario. PROFILE=quick|full SCENARIO=ramp|stress|soak|trio|all|capacity FAULT_RATE=0|0.1|0.2'
 
 BUF = docker run --rm --user $(TEST_UID):$(TEST_GID) -e BUF_CACHE_DIR=/tmp/buf -v "$(ROOT_DIR):/repo" -w /repo/backend/contracts "$(BUF_IMAGE)"
 
@@ -334,8 +335,26 @@ k8s-chaos: | $(ARTIFACTS_DIR)
 k8s-load: | $(ARTIFACTS_DIR)
 	docker run --rm --network host --user $(TEST_UID):$(TEST_GID) \
 		-e BASE_URL="http://$(K8S_HOST)" -e SUMMARY_DIR=/out \
+		-e GATEWAY_PODS="$$( $(KUBECTL) -n $(K8S_NAMESPACE) get pods -l app.kubernetes.io/name=gateway -o jsonpath='{.items[*].metadata.name}' )" \
+		-e CATALOG_PODS="$$( $(KUBECTL) -n $(K8S_NAMESPACE) get pods -l app.kubernetes.io/name=catalog -o jsonpath='{.items[*].metadata.name}' )" \
 		-v "$(ROOT_DIR)/loadtest:/loadtest:ro" -v "$(ARTIFACTS_DIR):/out" \
 		"$(K6_IMAGE)" run /loadtest/balance.js
 
 k8s-replay-dlq:
 	KUBECTL="$(KUBECTL)" K8S_NAMESPACE=$(K8S_NAMESPACE) sh "$(ROOT_DIR)/deploy/kafka/replay-dlq.sh"
+
+# CPU pinning is optional: ISOLATE_CPUS=1; sudo additionally configures systemd.
+PROFILE ?= quick
+SCENARIO ?= ramp
+FAULT_RATE ?= 0
+
+perf-run:
+	PROFILE="$(PROFILE)" SCENARIO="$(SCENARIO)" FAULT_RATE="$(FAULT_RATE)" \
+		KUBECTL="$(KUBECTL)" K6_IMAGE="$(K6_IMAGE)" \
+		sh "$(ROOT_DIR)/deploy/perf/run.sh"
+
+perf-prepare:
+	sh "$(ROOT_DIR)/deploy/perf/reset.sh" prepare
+
+perf-restore:
+	sh "$(ROOT_DIR)/deploy/perf/reset.sh" restore

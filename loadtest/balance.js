@@ -10,6 +10,16 @@ const base = __ENV.BASE_URL || 'http://127.0.0.1:5173'
 const gatewayHits = new Counter('gateway_pod')
 const catalogHits = new Counter('catalog_pod')
 
+function podThresholds() {
+  const result = {}
+  for (const [metric, names] of [['gateway_pod', __ENV.GATEWAY_PODS], ['catalog_pod', __ENV.CATALOG_PODS]]) {
+    for (const pod of (names || '').trim().split(/\s+/).filter(Boolean)) {
+      result[`${metric}{pod:${pod}}`] = ['count>0']
+    }
+  }
+  return result
+}
+
 export const options = {
   scenarios: {
     reads: {
@@ -35,10 +45,12 @@ export const options = {
     },
   },
   thresholds: {
+    ...podThresholds(),
     http_req_failed: ['rate<0.01'],
     http_req_duration: ['p(95)<500'],
     'checks{kind:get}': ['rate>0.99'],
     'checks{kind:post}': ['rate>0.99'],
+    'checks{kind:lag}': ['rate==1'],
   },
 }
 
@@ -78,12 +90,14 @@ export function writes() {
 
 export function lag() {
   const created = register(`k6-lag-${Date.now()}@example.com`)
+  if (!check(created, { 'lag registration 201': (r) => r.status === 201 }, { kind: 'lag' })) return
   const id = created.json('id')
   const immediate = http.get(`${base}/api/v1/users/${id}`, {
     responseCallback: http.expectedStatuses(200, 404),
   })
   sleep(2)
   const delayed = http.get(`${base}/api/v1/users/${id}`)
+  check(delayed, { 'lag user visible after 2s': (r) => r.status === 200 }, { kind: 'lag' })
   console.log(`lag post=${created.status} immediate=${immediate.status} delayed=${delayed.status} id=${id}`)
 }
 

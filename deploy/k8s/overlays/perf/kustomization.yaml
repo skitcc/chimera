@@ -1,0 +1,10 @@
+# Applied explicitly with perf-prepare. No storage changes or observer shutdown.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../minikube
+configMapGenerator:
+  - name: gateway-config
+    behavior: merge
+    literals:
+      - AUTH_RATE_LIMIT=100000

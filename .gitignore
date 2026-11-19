@@ -16,5 +16,12 @@ backend/e2e-out/
 backend/test-logs/
 *.drawio.bkp
 backend/e2e-out
+artifacts/
 deploy/k8s/overlays/*/secrets.env
 deploy/k8s/overlays/*/keys/
+
+perf-results/
+
+.perf-run.lock
+
+deploy/perf/__pycache__/
