@@ -227,9 +227,28 @@ def phase_bounds(summary, origin):
     cursor = origin or 0
     for phase in summary.get("phases") or []:
         nxt = cursor + float(phase["sec"])
-        bounds.append({"start": cursor, "end": nxt, "vus": phase["vus"], "sec": phase["sec"]})
+        rate = phase.get("rps")
+        target = rate if rate is not None else phase.get("vus")
+        bound = {
+            "start": cursor, "end": nxt, "vus": phase.get("vus", target),
+            "sec": phase["sec"],
+            "label": f"{float(rate):g} RPS" if rate is not None else f"{phase.get('vus')} VU",
+        }
+        if rate is not None:
+            bound["rps"] = rate
+        bounds.append(bound)
         cursor = nxt
     return bounds
+
+
+def offered_rate_points(summary, origin):
+    points = []
+    for bound in phase_bounds(summary, origin):
+        if bound.get("rps") is None:
+            return []
+        points.append((bound["start"], float(bound["rps"])))
+        points.append((bound["end"], float(bound["rps"])))
+    return points
 
 
 def stage_report(summary, origin, latency, errors, rps, raw=None):
@@ -247,11 +266,15 @@ def stage_report(summary, origin, latency, errors, rps, raw=None):
             if stage_values:
                 lat = {'avg': 0}
                 rate = {'avg': 0}
+        target = bound["rps"] if bound.get("rps") is not None else bound.get("vus")
         if lat is None or rate is None:
-            stages.append({
+            empty = {
                 "vus": bound["vus"], "p95_ms": None, "error_rate": None, "rps": None,
                 "stable": False, "failed": False,
-            })
+            }
+            if bound.get("rps") is not None:
+                empty["target_rps"] = bound["rps"]
+            stages.append(empty)
             continue
         p95 = lat["avg"]
         error_rate = err["avg"] if err else 0
@@ -268,12 +291,16 @@ def stage_report(summary, origin, latency, errors, rps, raw=None):
                 throughput = len(requests) / (bound['end'] - start)
         # Relative jumps on short stages are noisy; they are a warning, not
         # evidence that throughput saturated. Judge the configured absolute SLO.
-        growing = previous is None or bound['vus'] <= previous['vus'] or throughput > previous['rps']
-        failed = error_rate >= 0.01 or p95 > latency_slo or not growing
-        growth = p95 / previous['p95'] if previous and previous['p95'] else None
+        previous_target = previous["target"] if previous else None
+        growing = previous is None or target <= previous_target or throughput > previous["rps"]
+        shortfall = bound.get("rps") is not None and throughput < 0.8 * float(bound["rps"])
+        failed = error_rate >= 0.01 or p95 > latency_slo or not growing or shortfall
+        growth = p95 / previous["p95"] if previous and previous["p95"] else None
         row = {"vus": bound["vus"], "p95_ms": p95, "error_rate": error_rate,
                "rps": throughput, "stable": not failed, "failed": failed,
                "p95_growth": growth, "latency_growth_warning": growth is not None and growth > 2}
+        if bound.get("rps") is not None:
+            row["target_rps"] = bound["rps"]
         if raw:
             row['operations'] = operation_report(raw, start, bound['end'])
             row['object_store_rps'] = sum(values['requests'] for name, values in row['operations'].items() if name in ('upload', 'stream-body')) / (bound['end'] - start)
@@ -281,19 +308,28 @@ def stage_report(summary, origin, latency, errors, rps, raw=None):
             for values in row['operations'].values():
                 values['rps'] = values['requests'] / (bound['end'] - start)
             row['failed_operations'] = [name for name, values in row['operations'].items() if values['error_rate'] >= .01]
-        row['failure_reasons'] = (["unexpected_errors>=1%"] if error_rate >= .01 else []) + (["p95_above_slo"] if p95 > latency_slo else []) + (["rps_did_not_grow"] if not growing else [])
+        row['failure_reasons'] = (["unexpected_errors>=1%"] if error_rate >= .01 else []) + (["p95_above_slo"] if p95 > latency_slo else []) + (["rps_did_not_grow"] if not growing else []) + (["achieved_below_80pct_of_target"] if shortfall else [])
         stages.append(row)
-        previous = {"p95": p95, "rps": throughput, "vus": bound["vus"]}
+        previous = {"p95": p95, "rps": throughput, "vus": bound["vus"], "target": target}
     stable_vus = None
     failed_vus = None
+    stable_http = None
+    uses_rps = any(row.get("target_rps") is not None for row in stages)
     for row in stages:
+        key = row["target_rps"] if row.get("target_rps") is not None else row["vus"]
         if row["stable"]:
-            stable_vus = row["vus"]
+            stable_vus = key
+            stable_http = row["rps"]
         elif row["failed"] and failed_vus is None:
-            failed_vus = row["vus"]
+            failed_vus = key
             break
     return {"stable_vus": stable_vus, "failed_vus": failed_vus, "latency_slo_ms": latency_slo,
-            "capacity_found": failed_vus is not None, "max_tested_vus": max((x["vus"] for x in stages), default=None), "stages": stages}
+            "stable_target_rps": stable_vus if uses_rps else None,
+            "failed_target_rps": failed_vus if uses_rps else None,
+            "stable_http_rps": stable_http if uses_rps else None,
+            "capacity_found": failed_vus is not None,
+            "max_tested_vus": max((x.get("target_rps", x["vus"]) for x in stages if x.get("target_rps", x["vus"]) is not None), default=None),
+            "stages": stages}
 
 
 def recovery_report(summary, origin, latency, errors, raw=None):
@@ -344,21 +380,35 @@ def write_readable_report(out, measured, knee, recovery, phases=None):
              f"p50={measured['p50_ms']:.2f} мс; p75={measured['p75_ms']:.2f}; p90={measured['p90_ms']:.2f}; p95={measured['p95_ms']:.2f}; p99={measured['p99_ms']:.2f}.", '',
              'RPS включает HTTP к API и к объектному хранилищу. Ошибки HTTP и превышение порога задержки не равны падению процесса; рестарты проверяются по Kubernetes и логам.', '']
     if knee:
-        lines += ['## Ступени ramp', '', '| VU | HTTP RPS всего | API RPS | p95, мс | Ошибки | Причины нарушения |', '| --- | --- | --- | --- | --- | --- |']
+        offered = knee.get('stable_target_rps') is not None or any(row.get('target_rps') is not None for row in knee['stages'])
+        goal = 'Цель, HTTP RPS' if offered else 'VU'
+        lines += ['## Ступени ramp', '', f'| {goal} | HTTP RPS всего | API RPS | p95, мс | Ошибки | Причины нарушения |', '| --- | --- | --- | --- | --- | --- |']
         for row in knee['stages']:
+            name = row['target_rps'] if row.get('target_rps') is not None else row['vus']
             if row['p95_ms'] is None:
-                lines.append(f"| {row['vus']} | — | — | — | — | Недостаточно данных |")
+                lines.append(f"| {name} | — | — | — | — | Недостаточно данных |")
             else:
-                lines.append(f"| {row['vus']} | {row['rps']:.2f} | {row.get('api_rps', row['rps']):.2f} | {row['p95_ms']:.2f} | {row['error_rate']:.2%} | {', '.join(row.get('failure_reasons', [])) or 'Нет'} |")
-        if not knee['capacity_found']:
+                lines.append(f"| {name} | {row['rps']:.2f} | {row.get('api_rps', row['rps']):.2f} | {row['p95_ms']:.2f} | {row['error_rate']:.2%} | {', '.join(row.get('failure_reasons', [])) or 'Нет'} |")
+        if offered and not knee['capacity_found']:
+            lines += ['', f"До цели {knee['max_tested_vus']} HTTP RPS предел не определён. Это максимум проверенной нагрузки, а не предел системы. Последняя устойчивая цель дала {knee.get('stable_http_rps')} измеренных HTTP RPS."]
+        elif not knee['capacity_found']:
             lines += ['', f"До {knee['max_tested_vus']} VU предел не определён. Это максимум проверенной нагрузки, а не предел системы."]
+        elif offered and knee.get('stable_target_rps') is None:
+            lines += ['', f"Уже первая цель {knee.get('failed_target_rps')} HTTP RPS нарушает критерий. Причины и операции — в knee.json."]
+        elif offered:
+            measured = knee.get('stable_http_rps')
+            shown = f"{measured:.2f}" if isinstance(measured, (int, float)) else measured
+            lines += ['', f"Последняя устойчивая цель: {knee.get('stable_target_rps')} HTTP RPS (измерено {shown}). Первая цель с нарушением: {knee.get('failed_target_rps')} HTTP RPS. Причины и операции — в knee.json."]
         else:
             lines += ['', f"Первая ступень с нарушением критерия: {knee['failed_vus']} VU. Точные причины, RPS и проблемные операции — в knee.json."]
     if recovery and phases:
-        lines += ['', '## Фазы stress', '', '| VU | HTTP RPS | API RPS | p95, мс | Ошибки |', '| --- | --- | --- | --- | --- |']
+        offered = any(row.get('target_rps') is not None for row in phases)
+        goal = 'Цель, HTTP RPS' if offered else 'VU'
+        lines += ['', '## Фазы stress', '', f'| {goal} | HTTP RPS | API RPS | p95, мс | Ошибки |', '| --- | --- | --- | --- | --- |']
         for row in phases:
             if row['p95_ms'] is not None:
-                lines.append(f"| {row['vus']} | {row['rps']:.2f} | {row.get('api_rps', row['rps']):.2f} | {row['p95_ms']:.2f} | {row['error_rate']:.2%} |")
+                name = row['target_rps'] if row.get('target_rps') is not None else row['vus']
+                lines.append(f"| {name} | {row['rps']:.2f} | {row.get('api_rps', row['rps']):.2f} | {row['p95_ms']:.2f} | {row['error_rate']:.2%} |")
     if recovery:
         lines += ['', '## Восстановление stress', '']
         if recovery.get('recovered'):
@@ -686,15 +736,18 @@ def run_dir(out):
         write_json(out / "knee.json", knee)
         if knee.get("stable_vus") is not None:
             for bound in phase_bounds(summary, origin):
-                if bound["vus"] == knee["stable_vus"]:
-                    vlines.append((bound["end"] - origin, f"Конец последней пройденной ступени: {bound['vus']} VU"))
+                marker = bound.get("rps", bound["vus"])
+                if marker == knee["stable_vus"]:
+                    unit = "RPS" if bound.get("rps") is not None else "VU"
+                    vlines.append((bound["end"] - origin, f"Конец последней пройденной ступени: {marker:g} {unit}"))
                     break
     recovery = None
     if summary.get("scenario") == "stress" and origin:
         recovery = recovery_report(summary, origin, p95, err_pts, raw)
         write_json(out / "recovery.json", recovery)
         if recovery.get("return_unix"):
-            vlines.append((recovery["return_unix"] - origin, "Перегрузка снята: возврат к базовому числу VU"))
+            open_rate = any(phase.get("rps") is not None for phase in summary.get("phases") or [])
+            vlines.append((recovery["return_unix"] - origin, "Перегрузка снята: возврат к базовому RPS" if open_rate else "Перегрузка снята: возврат к базовому числу VU"))
         if recovery.get("recovered"):
             vlines.append((recovery["return_unix"] - origin + recovery["recovery_sec"], "Первое здоровое 1-секундное окно (recovered); не гарантия устойчивости"))
 
@@ -718,10 +771,14 @@ def run_dir(out):
     api_rps = [(ts, value) for ts, value in raw_windows(api_requests, origin, end, include_empty=True)
                if ts - WINDOW_SEC >= origin + float(summary.get('warmup_sec', 0))]
     save_series(out, 'api_rps', [{'labels': {}, 'points': api_rps}])
-    draw(plots / 'rps_over_time.png', heading + 'HTTP throughput', [
+    throughput_lines = [
         ('Все HTTP: API + S3', rel(rps_pts, origin)),
         ('Только API', rel(api_rps, origin)),
-    ], 'Завершённых запросов в секунду', vlines, phase_bands)
+    ]
+    offered = offered_rate_points(summary, origin)
+    if offered:
+        throughput_lines.append(('Цель', rel(offered, origin)))
+    draw(plots / 'rps_over_time.png', heading + 'HTTP throughput', throughput_lines, 'Завершённых запросов в секунду', vlines, phase_bands)
     draw(plots / "cpu_over_time.png", heading + "CPU", [(resource_name(item), rel(item["points"], origin)) for item in cpu], "CPU, логические ядра", vlines, phase_bands)
     gib = 1024 ** 3
     ram_gib = [(resource_name(item), [(ts, value / gib) for ts, value in rel(item["points"], origin)]) for item in ram]

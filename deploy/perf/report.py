@@ -207,8 +207,9 @@ def generate(series):
             body.append('<p class="warning">HTTP-анализ ещё не завершён или исходные данные отсутствуют. Показаны доступные артефакты.</p>')
         phases = read(out/'phases.json',[]) or (read(out/'knee.json',{}) or {}).get('stages',[])
         if phases:
-            body.append(table(['VU','Все HTTP RPS','API RPS','p95, мс','Ошибки','Причины нарушения'],[
-                [p.get('vus'),number(p.get('rps')),number(p.get('api_rps')),number(p.get('p95_ms')),
+            offered = any(p.get('target_rps') is not None for p in phases)
+            body.append(table(['Цель, HTTP RPS' if offered else 'VU','Все HTTP RPS','API RPS','p95, мс','Ошибки','Причины нарушения'],[
+                [p.get('target_rps', p.get('vus')),number(p.get('rps')),number(p.get('api_rps')),number(p.get('p95_ms')),
                  number(p.get('error_rate')*100 if p.get('error_rate') is not None else None)+'%',
                  ', '.join(p.get('failure_reasons',[])) or '—'] for p in phases]))
         recovery = read(out/'recovery.json')

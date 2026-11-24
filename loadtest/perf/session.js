@@ -1,10 +1,9 @@
-// One virtual user is one person for the whole iteration: sign in, do the
-// work of that role, wait. Roles stay at 60% listeners, 25% subscribers and
-// 15% authors. Pauses are fixed so two runs at the same VU count offer the
-// same load.
+// Open arrival-rate model. k6 starts iterations at a fixed rate, so the offered
+// HTTP rate stays flat when responses slow down. Think-time pauses are not
+// used: identical pauses lock every user to the same phase and draw a saw.
+// Roles stay 60% listeners, 25% subscribers, 15% authors.
 import http from 'k6/http'
 import exec from 'k6/execution'
-import { sleep, check } from 'k6'
 import { Counter, Trend, Rate } from 'k6/metrics'
 
 const base = (__ENV.BASE_URL || 'http://chimera.192.168.49.2.nip.io').replace(/\/$/, '')
@@ -13,7 +12,16 @@ const profile = __ENV.PROFILE || 'quick'
 const scenario = __ENV.SCENARIO || 'ramp'
 const faultRate = Number(__ENV.FAULT_RATE || '0')
 const warmupMs = (Number(__ENV.WARMUP_SEC || (profile === 'quick' ? '10' : '30'))) * 1000
-const stable = Number(__ENV.STABLE_VUS || '10')
+const stable = Number(__ENV.STABLE_RPS || '50')
+// Happy-path HTTP calls in one measured iteration, without login.
+// Login is once per seed user in setup: repeating bcrypt on every iteration
+// filled the node until requests and kubectl both timed out.
+// k6 arrival-rate executors accept only integer rates, so each role gets its
+// own time unit. An integer iteration count per that unit equals
+// targetRps * share / calls per second.
+const callsPerIteration = { listeners: 6, subscribers: 7, authors: 9 }
+const shareNum = { listeners: 3, subscribers: 1, authors: 3 }
+const shareDen = { listeners: 5, subscribers: 4, authors: 20 }
 const password = 'password1'
 const trackBytes = Number(__ENV.TRACK_BYTES || '65536')
 const missingID = '00000000-0000-0000-0000-000000000000'
@@ -22,7 +30,6 @@ const sessions = new Counter('sessions')
 const unexpected = new Rate('unexpected_fail')
 const measuredMs = new Trend('measured_ms', true)
 const measuredRequests = new Counter('measured_requests')
-const failedSessions = new Counter('failed_sessions')
 const expectedFault = new Counter('expected_fault')
 const streamBytes = new Counter('stream_bytes')
 const latencyBucket = new Counter('latency_bucket')
@@ -30,65 +37,131 @@ const stepMs = new Trend('step_ms', true)
 
 const buckets = [5, 10, 20, 50, 100, 200, 400, 800, 1500, 3000, 5000]
 
-function split(total) {
-  let listeners = Math.floor(total * 0.6)
-  let subscribers = Math.floor(total * 0.25)
-  let authors = total - listeners - subscribers
-  if (listeners < 1) listeners = 1
-  if (subscribers < 1) subscribers = 1
-  if (authors < 1) authors = 1
-  while (listeners + subscribers + authors > total && total >= 3) {
-    if (listeners >= subscribers && listeners > 1) listeners -= 1
-    else if (subscribers > 1) subscribers -= 1
-    else if (authors > 1) authors -= 1
-    else break
+function rampRates() {
+  const raw = (__ENV.RAMP_RPS || '').trim()
+  const levels = raw
+    ? raw.split(',').map((item) => Number(item.trim())).filter((item) => item > 0)
+    : [25, 50, 100, 200, 350, 600]
+  if (!levels.length) throw new Error('RAMP_RPS must list positive HTTP rates')
+  return levels
+}
+
+function iterationsPerSecond(role, httpRps) {
+  return httpRps * shareNum[role] / (shareDen[role] * callsPerIteration[role])
+}
+
+function formatTimeUnit(ms) {
+  return ms % 1000 === 0 ? `${ms / 1000}s` : `${ms}ms`
+}
+
+// Smallest time unit that makes every requested HTTP rate an integer iteration count.
+function pace(role, levels) {
+  const denom = shareDen[role] * callsPerIteration[role] * 1000
+  const factor = shareNum[role]
+  const whole = levels.every((rps) => Number.isInteger(rps))
+  for (let ms = 1; ms <= 180000; ms += 1) {
+    const counts = []
+    let exact = true
+    for (let i = 0; i < levels.length; i += 1) {
+      const rps = levels[i]
+      if (whole) {
+        const product = rps * factor * ms
+        if (product % denom !== 0) {
+          exact = false
+          break
+        }
+        const count = product / denom
+        if (count < 1) {
+          exact = false
+          break
+        }
+        counts.push(count)
+      } else {
+        const count = iterationsPerSecond(role, rps) * ms / 1000
+        if (count < 1 || Math.abs(count - Math.round(count)) >= 1e-6) {
+          exact = false
+          break
+        }
+        counts.push(Math.round(count))
+      }
+    }
+    if (exact) return { timeUnit: formatTimeUnit(ms), counts }
   }
-  return { listeners, subscribers, authors }
+  throw new Error(`cannot express ${role} rates ${levels.join(',')} as integer k6 arrival rates`)
 }
 
 function phases() {
   if (scenario === 'soak') return []
+  const sec = Number(__ENV.RAMP_STAGE_SEC || (profile === 'quick' ? 20 : 100))
   if (scenario === 'stress') {
     const hold = profile === 'quick' ? [30, 30, 60] : [180, 180, 240]
-    const levels = [stable, Math.ceil(stable * 1.6), stable]
-    return hold.map((sec, i) => ({ sec, vus: levels[i] }))
+    const raw = (__ENV.STRESS_RPS || '').trim()
+    const levels = raw
+      ? raw.split(',').map((item) => Number(item.trim())).filter((item) => item > 0)
+      : [stable, Math.ceil(stable * 1.6), stable]
+    if (!levels.length) throw new Error('STRESS_RPS must list positive HTTP rates')
+    return levels.map((rps, i) => ({ sec: hold[Math.min(i, hold.length - 1)], rps }))
   }
-
-  const levels = [100, 200, 300, 400, 500, 650]
-  const sec = Number(__ENV.RAMP_STAGE_SEC || (profile === 'quick' ? 20 : 100))
-  return levels.map((vus) => ({ sec, vus }))
+  return rampRates().map((rps) => ({ sec, rps }))
 }
 
-function stagesFor(role) {
+function stagesFor(steps, counts) {
   const stages = []
-  for (const phase of phases()) {
-    const n = split(phase.vus)[role]
-    stages.push({ duration: '1s', target: n })
-    stages.push({ duration: `${Math.max(phase.sec - 1, 1)}s`, target: n })
+  let previous = 0
+  for (let i = 0; i < steps.length; i += 1) {
+    const rate = counts[i]
+    if (previous !== rate && steps[i].sec > 1) {
+      stages.push({ duration: '1s', target: rate })
+      stages.push({ duration: `${steps[i].sec - 1}s`, target: rate })
+    } else {
+      stages.push({ duration: `${steps[i].sec}s`, target: rate })
+    }
+    previous = rate
   }
   return stages
 }
 
-function soakOptions() {
-  const n = split(stable)
-  const duration = __ENV.SOAK_DURATION || (profile === 'quick' ? '60s' : '10m')
-  return {
-    listeners: { executor: 'constant-vus', vus: n.listeners, duration, exec: 'listener' },
-    subscribers: { executor: 'constant-vus', vus: n.subscribers, duration, exec: 'subscriber' },
-    authors: { executor: 'constant-vus', vus: n.authors, duration, exec: 'author' },
-  }
+function vuPool(iterRate) {
+  const pre = Math.min(150, Math.max(8, Math.ceil(iterRate * 2)))
+  const max = Math.min(1500, Math.max(pre, Math.ceil(iterRate * 25)))
+  return { preAllocatedVUs: pre, maxVUs: max }
 }
 
-function rampOptions() {
+function scenarioFor(role, exec) {
+  const steps = phases()
+  const levels = scenario === 'soak' ? [stable] : steps.map((step) => step.rps)
+  const maxHttp = Math.max(stable, ...levels)
+  const pool = vuPool(iterationsPerSecond(role, maxHttp))
+  const paced = pace(role, levels)
+  if (scenario === 'soak') {
+    const duration = __ENV.SOAK_DURATION || (profile === 'quick' ? '60s' : '10m')
+    return {
+      executor: 'constant-arrival-rate',
+      rate: paced.counts[0],
+      timeUnit: paced.timeUnit,
+      duration,
+      gracefulStop: '10s',
+      exec,
+      ...pool,
+    }
+  }
   return {
-    listeners: { executor: 'ramping-vus', startVUs: 0, stages: stagesFor('listeners'), gracefulRampDown: '0s', exec: 'listener' },
-    subscribers: { executor: 'ramping-vus', startVUs: 0, stages: stagesFor('subscribers'), gracefulRampDown: '0s', exec: 'subscriber' },
-    authors: { executor: 'ramping-vus', startVUs: 0, stages: stagesFor('authors'), gracefulRampDown: '0s', exec: 'author' },
+    executor: 'ramping-arrival-rate',
+    startRate: 0,
+    timeUnit: paced.timeUnit,
+    stages: stagesFor(steps, paced.counts),
+    gracefulStop: '10s',
+    exec,
+    ...pool,
   }
 }
 
 export const options = {
-  scenarios: scenario === 'soak' ? soakOptions() : rampOptions(),
+  scenarios: {
+    listeners: scenarioFor('listeners', 'listener'),
+    subscribers: scenarioFor('subscribers', 'subscriber'),
+    authors: scenarioFor('authors', 'author'),
+  },
   summaryTrendStats: ['min', 'avg', 'med', 'max', 'p(50)', 'p(75)', 'p(90)', 'p(95)', 'p(99)'],
   noConnectionReuse: false,
   systemTags: ['status', 'method', 'scenario', 'expected_response'],
@@ -171,14 +244,6 @@ function mistaken(step, token, me) {
   return true
 }
 
-function login(email) {
-  if (mistaken('login', null, null)) return { token: '', id: '' }
-  const res = call('login', 'POST', '/sessions', { email, password }, null, [201])
-  check(res, { 'login 201': (r) => r.status === 201 })
-  if (res.status !== 201) return { token: '', id: '' }
-  return { token: res.json('token'), id: res.json('user_id') }
-}
-
 function pick(list) {
   return list[(__VU - 1) % list.length]
 }
@@ -192,9 +257,29 @@ function markStart() {
 // every scenario. The load generator never deploys or resets infrastructure.
 const dataset = __ENV.DATASET_FILE ? JSON.parse(open(__ENV.DATASET_FILE)) : null
 
+function loginQuiet(email) {
+  const res = http.post(`${api}/sessions`, JSON.stringify({ email, password }), {
+    headers: { 'Content-Type': 'application/json' },
+    redirects: 0,
+    timeout: '15s',
+    tags: { step: 'setup-login' },
+  })
+  if (res.status !== 201) throw new Error(`setup login failed for ${email}: HTTP ${res.status || 'no response'}`)
+  return res.json('token')
+}
+
 export function setup() {
   if (!dataset) throw new Error('DATASET_FILE is required; use make -C backend perf-run')
+  for (const role of ['listeners', 'subscribers', 'authors']) {
+    for (const account of dataset[role]) account.token = loginQuiet(account.email)
+  }
   return dataset
+}
+
+function accountOf(list) {
+  const account = pick(list)
+  if (!account.token || !account.id) throw new Error('setup did not attach a session token')
+  return account
 }
 
 function stream(trackID) {
@@ -208,112 +293,82 @@ function stream(trackID) {
 
 export function listener(data) {
   markStart()
-  const account = pick(data.listeners)
+  const account = accountOf(data.listeners)
   const trackID = pick(data.tracks)
-  const session = login(account.email)
-  sleep(2)
-  if (!session.token) {
-    failedSessions.add(1, { phase: phase() })
-    return
+  if (!mistaken('feed', account.token, account.id)) {
+    call('feed', 'GET', '/tracks?limit=20', null, account.token, [200])
   }
-  if (!mistaken('feed', session.token, session.id)) {
-    call('feed', 'GET', '/tracks?limit=20', null, session.token, [200])
+  if (!mistaken('card', account.token, account.id)) {
+    call('card', 'GET', `/tracks/${trackID}`, null, account.token, [200])
   }
-  sleep(3)
-  if (!mistaken('card', session.token, session.id)) {
-    call('card', 'GET', `/tracks/${trackID}`, null, session.token, [200])
+  if (!mistaken('stream', account.token, account.id)) stream(trackID)
+  if (!mistaken('like', account.token, account.id)) {
+    call('like', 'PUT', `/users/${account.id}/likes/${trackID}`, null, account.token, [204])
   }
-  sleep(1)
-  if (!mistaken('stream', session.token, session.id)) stream(trackID)
-  sleep(4)
-  if (!mistaken('like', session.token, session.id)) {
-    call('like', 'PUT', `/users/${session.id}/likes/${trackID}`, null, session.token, [204])
+  if (!mistaken('likes', account.token, account.id)) {
+    call('likes', 'GET', `/tracks?liked_by=${account.id}`, null, account.token, [200])
   }
-  sleep(1)
-  if (!mistaken('likes', session.token, session.id)) {
-    call('likes', 'GET', `/tracks?liked_by=${session.id}`, null, session.token, [200])
-  }
-  sleep(3)
   sessions.add(1, { phase: phase() })
 }
 
 export function subscriber(data) {
   markStart()
-  const account = pick(data.subscribers)
+  const account = accountOf(data.subscribers)
   const author = pick(data.authors)
   const playlist = pick(data.playlists)
-  const session = login(account.email)
-  sleep(2)
-  if (!session.token) {
-    failedSessions.add(1, { phase: phase() })
-    return
+  if (!mistaken('users', account.token, account.id)) {
+    call('users', 'GET', '/users?limit=20', null, account.token, [200])
   }
-  if (!mistaken('users', session.token, session.id)) {
-    call('users', 'GET', '/users?limit=20', null, session.token, [200])
+  if (!mistaken('profile', account.token, account.id)) {
+    call('profile', 'GET', `/users/${author.id}`, null, account.token, [200])
+    call('author-tracks', 'GET', `/tracks?user_id=${author.id}`, null, account.token, [200])
   }
-  sleep(2)
-  if (!mistaken('profile', session.token, session.id)) {
-    call('profile', 'GET', `/users/${author.id}`, null, session.token, [200])
-    call('author-tracks', 'GET', `/tracks?user_id=${author.id}`, null, session.token, [200])
+  if (!mistaken('follow', account.token, account.id)) {
+    call('follow', 'PUT', `/follows/${account.id}/${author.id}`, null, account.token, [204])
   }
-  sleep(3)
-  if (!mistaken('follow', session.token, session.id)) {
-    call('follow', 'PUT', `/follows/${session.id}/${author.id}`, null, session.token, [204])
-  }
-  sleep(1)
-  call('following', 'GET', `/follows?follower_id=${session.id}`, null, session.token, [200])
-  call('playlists', 'GET', `/playlists?owner_id=${author.id}`, null, session.token, [200])
-  call('playlist-tracks', 'GET', `/playlists/${playlist.id}/tracks`, null, session.token, [200])
-  sleep(3)
+  call('following', 'GET', `/follows?follower_id=${account.id}`, null, account.token, [200])
+  call('playlists', 'GET', `/playlists?owner_id=${author.id}`, null, account.token, [200])
+  call('playlist-tracks', 'GET', `/playlists/${playlist.id}/tracks`, null, account.token, [200])
   sessions.add(1, { phase: phase() })
 }
 
 export function author(data) {
   markStart()
-  const account = pick(data.authors)
-  const session = login(account.email)
-  sleep(2)
-  if (!session.token) {
-    failedSessions.add(1, { phase: phase() })
-    return
-  }
-  call('mine', 'GET', `/tracks?user_id=${session.id}`, null, session.token, [200])
-  sleep(2)
+  const account = accountOf(data.authors)
+  call('mine', 'GET', `/tracks?user_id=${account.id}`, null, account.token, [200])
   let ownTrackID = null
   // Playlist entries require a ready track. Keep the seeded ready track as
   // fallback until both upload and publication of our new track succeed.
   let trackID = pick(data.tracks)
-  if (!mistaken('create', session.token, session.id)) {
+  if (!mistaken('create', account.token, account.id)) {
     const created = call('create', 'POST', '/tracks', {
       title: `Live ${__VU}-${__ITER}`,
       artist: 'Live',
       size: trackBytes,
-    }, session.token, [201])
+    }, account.token, [201])
     if (created.status === 201) {
       ownTrackID = created.json('track.id')
       const uploadURL = created.json('upload_url')
       const file = call('upload', 'PUT', uploadURL, 'x'.repeat(trackBytes), null, [200, 204])
       if (file.status === 200 || file.status === 204) {
-        const published = call('publish', 'PATCH', `/tracks/${ownTrackID}`, { status: 'ready' }, session.token, [200])
+        const published = call('publish', 'PATCH', `/tracks/${ownTrackID}`, { status: 'ready' }, account.token, [200])
         if (published.status === 200) trackID = ownTrackID
       }
     }
   }
-  sleep(2)
-  call('card', 'GET', `/tracks/${trackID}`, null, session.token, [200])
+  call('card', 'GET', `/tracks/${trackID}`, null, account.token, [200])
   const playlist = call('playlist', 'POST', '/playlists', {
     title: `Live ${__VU}-${__ITER}`,
     is_public: true,
-  }, session.token, [201])
+  }, account.token, [201])
   if (playlist.status === 201) {
     call('playlist-add', 'POST', `/playlists/${playlist.json('id')}/tracks`, {
       track_id: trackID,
       position: 0,
-    }, session.token, [200, 201, 204])
+    }, account.token, [200, 201, 204])
   }
-  sleep(3)
-  if (playlist.status === 201) call('playlist-delete', 'DELETE', `/playlists/${playlist.json('id')}`, null, session.token, [204])
-  if (ownTrackID) call('track-delete', 'DELETE', `/tracks/${ownTrackID}`, null, session.token, [204])
+  if (playlist.status === 201) call('playlist-delete', 'DELETE', `/playlists/${playlist.json('id')}`, null, account.token, [204])
+  if (ownTrackID) call('track-delete', 'DELETE', `/tracks/${ownTrackID}`, null, account.token, [204])
   sessions.add(1, { phase: phase() })
 }
 
@@ -329,7 +384,8 @@ export function handleSummary(data) {
     profile,
     scenario,
     fault_rate: faultRate,
-    stable_vus: stable,
+    stable_rps: stable,
+    model: 'open-arrival-rate',
     warmup_sec: warmupMs / 1000,
     test_run_ms: data.state && data.state.testRunDurationMs,
     http_req_duration: duration,

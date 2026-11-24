@@ -313,7 +313,9 @@ class Runner:
             if os.getuid() == 0:
                 args += ['--cgroup-parent=chimera-perf-load.slice']
         values = {'BASE_URL': self.base, 'PROFILE': self.profile, 'SCENARIO': scenario,
-                  'FAULT_RATE': str(fault), 'STABLE_VUS': str(stable), 'SUMMARY_DIR': '/out',
+                  'FAULT_RATE': str(fault), 'STABLE_RPS': '' if stable is None else str(stable), 'SUMMARY_DIR': '/out',
+                  'RAMP_RPS': os.getenv('RAMP_RPS', ''),
+                  'STRESS_RPS': os.getenv('STRESS_RPS', ''),
                   'WARMUP_SEC': os.getenv('WARMUP_SEC', '10' if self.profile == 'quick' else '30'),
                   'RAMP_STAGE_SEC': os.getenv('RAMP_STAGE_SEC', ''),
                   'TRACK_BYTES': str(self.track_bytes), 'DATASET_FILE': '/data/dataset.json',
@@ -326,10 +328,10 @@ class Runner:
         args += ['-v', f'{ROOT}/loadtest:/loadtest:ro', '-v', f'{self.out}/{dataset}:/data/dataset.json:ro',
                  '-v', f'{out}:/out', self.image, 'run', '--out', 'experimental-prometheus-rw',
                  '--out', 'json=/out/samples.json.gz', f'/loadtest/perf/{script}']
-        description = f'baseline={stable} VU'
+        description = 'stepped HTTP RPS' if scenario == 'ramp' else f'target={stable} HTTP RPS'
         print(f'measure: {scenario}, fault={fault}, {description}', flush=True)
         started = time.time()
-        result = {'profile': self.profile, 'scenario': scenario, 'fault_rate': fault, 'stable_vus': stable,
+        result = {'profile': self.profile, 'scenario': scenario, 'fault_rate': fault, 'stable_rps': stable,
                   'start_unix': started, 'k6_exit': None, 'success': False}
         write_json(out / 'run.json', result)
         status = None
@@ -427,7 +429,8 @@ class Runner:
             self.observe()
             if self.scenario in ('trio', 'all'):
                 ramp = self.measure('ramp', 0, 10)
-                stable = json.loads((ramp / 'knee.json').read_text()).get('stable_vus')
+                knee = json.loads((ramp / 'knee.json').read_text())
+                stable = knee.get('stable_target_rps') or knee.get('stable_vus')
                 if not stable:
                     raise RuntimeError('ramp found no stable stage; stress/soak are not valid and will not run')
                 self.measure('stress', 0, stable)
@@ -436,7 +439,7 @@ class Runner:
                 if len(soaks) > 1:
                     command([sys.executable, ROOT / 'deploy/perf/plot.py', 'compare', self.out / 'compare', *soaks])
             else:
-                stable = int(os.getenv('STABLE_VUS', '10'))
+                stable = float(os.getenv('STABLE_RPS', os.getenv('STABLE_VUS', '50')))
                 self.measure(self.scenario, self.fault, stable)
         except BaseException as exc:
             (self.out / 'error.txt').write_text(str(exc) + '\n')

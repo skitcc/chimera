@@ -36,6 +36,25 @@ class MetricsTests(unittest.TestCase):
         self.assertFalse(result['capacity_found'])
         self.assertTrue(result['stages'][1]['latency_growth_warning'])
 
+    def test_open_rate_plateau_stays_stable_when_achieved_rps_tracks_target(self):
+        summary = {'phases': [{'sec': 20, 'rps': n} for n in [50, 100]]}
+        result = plot.stage_report(summary, 0, [(10, 40), (30, 40)], [(10, 0), (30, 0)], [(10, 48), (30, 95)])
+        self.assertEqual(result['stable_target_rps'], 100)
+        self.assertFalse(result['capacity_found'])
+        self.assertEqual(result['stages'][1]['target_rps'], 100)
+
+    def test_open_rate_stage_fails_when_achieved_rps_misses_target(self):
+        summary = {'phases': [{'sec': 20, 'rps': n} for n in [100, 200]]}
+        result = plot.stage_report(summary, 0, [(10, 50), (30, 50)], [(10, 0), (30, 0)], [(10, 100), (30, 110)])
+        self.assertEqual(result['stable_target_rps'], 100)
+        self.assertEqual(result['failed_target_rps'], 200)
+        self.assertIn('achieved_below_80pct_of_target', result['stages'][1]['failure_reasons'])
+        self.assertAlmostEqual(result['stable_http_rps'], 100)
+
+    def test_offered_rate_is_a_step_per_plateau(self):
+        summary = {'phases': [{'sec': 20, 'rps': 25}, {'sec': 20, 'rps': 50}]}
+        self.assertEqual(plot.offered_rate_points(summary, 0), [(0, 25), (20, 25), (20, 50), (40, 50)])
+
     def test_latency_slo_violation_is_reported(self):
         summary = {'phases': [{'sec': 20, 'vus': n} for n in [10, 25]]}
         result = plot.stage_report(summary, 0, [(10, 50), (30, 600)], [(10, 0), (30, 0)], [(10, 5), (30, 12)])
