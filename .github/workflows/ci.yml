@@ -56,12 +56,20 @@ jobs:
     name: System under test
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+      E2E_NEW_PASSWORD: ${{ secrets.E2E_NEW_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
       - name: Prepare environment
-        run: cp .env.example .env
+        run: |
+          cp .env.example .env
+          E2E_ENV_OUTPUT=.env sh backend/scripts/e2e-secrets.sh
+
+      - name: Validate E2E repository secrets
+        run: sh backend/scripts/check-e2e-credentials.sh
 
       - name: Start system under test
         run: docker compose up --build --detach --wait --wait-timeout 300
@@ -98,21 +106,33 @@ jobs:
           wait_http "${web}/live"
           wait_http "${web}/api/v1/tracks"
 
+          smoke_password=$E2E_USER_PASSWORD
+          echo "::add-mask::$smoke_password"
+          jq -n --arg password "$smoke_password" '{email:"ci-smoke@example.com",name:"CI",password:$password}' > /tmp/smoke-register.json
+          jq -n --arg password "$smoke_password" '{email:"ci-smoke@example.com",password:$password}' > /tmp/smoke-login.json
           code=$(curl -sS -o /tmp/register.json -w '%{http_code}' \
             -X POST "${api}/v1/users" \
             -H 'Content-Type: application/json' \
-            -d '{"email":"ci-smoke@example.com","name":"CI","password":"password1"}')
+            --data-binary @/tmp/smoke-register.json)
           printf 'register status %s\n' "$code"
           test "$code" = "201"
 
           code=$(curl -sS -o /tmp/session.json -w '%{http_code}' \
             -X POST "${api}/v1/sessions" \
             -H 'Content-Type: application/json' \
-            -d '{"email":"ci-smoke@example.com","password":"password1"}')
+            --data-binary @/tmp/smoke-login.json)
           printf 'session status %s\n' "$code"
+          test "$code" = "202"
+          challenge=$(jq -r .challenge_id /tmp/session.json)
+          mail_id=$(curl -fsS 'http://127.0.0.1:8025/api/v1/search?query=to:ci-smoke@example.com' | jq -r '.messages[0].ID')
+          otp=$(curl -fsS "http://127.0.0.1:8025/api/v1/message/$mail_id" | jq -r '.Text' | sed -n 's/.*Your code: \([0-9]\{6\}\).*/\1/p')
+          echo "::add-mask::$otp"
+          jq -n --arg challenge_id "$challenge" --arg code "$otp" '{challenge_id:$challenge_id,code:$code}' > /tmp/verify.json
+          code=$(curl -sS -o /tmp/session.json -w '%{http_code}' -X POST "${api}/v1/sessions/verify" -H 'Content-Type: application/json' --data-binary @/tmp/verify.json)
           test "$code" = "201"
           token=$(sed -n 's/.*"token":"\([^"]*\)".*/\1/p' /tmp/session.json)
           test -n "$token"
+          echo "::add-mask::$token"
 
           # A token signed by Identity must be accepted by the Gateway and routed to Catalog.
           code=$(curl -sS -o /tmp/track.json -w '%{http_code}' \
@@ -168,7 +188,9 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Prepare environment
-        run: cp .env.example .env
+        run: |
+          cp .env.example .env
+          E2E_ENV_OUTPUT=.env sh backend/scripts/e2e-secrets.sh
 
       - name: Start test stand
         working-directory: backend
@@ -195,12 +217,17 @@ jobs:
     name: Demo scenario
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+      E2E_NEW_PASSWORD: ${{ secrets.E2E_NEW_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
       - name: Prepare environment
-        run: cp .env.example .env
+        run: |
+          cp .env.example .env
+          E2E_ENV_OUTPUT=.env sh backend/scripts/e2e-secrets.sh
 
       - name: Run end-to-end demo
         working-directory: backend
@@ -211,8 +238,13 @@ jobs:
         working-directory: backend
         run: make demo-capture
 
-      - name: Upload end-to-end Allure results
+      - name: Sanitize end-to-end diagnostics
+        id: sanitize
         if: ${{ !cancelled() }}
+        run: python3 backend/scripts/sanitize-auth-artifacts.py backend/e2e-out backend/allure-results
+
+      - name: Upload end-to-end Allure results
+        if: ${{ !cancelled() && steps.sanitize.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           name: e2e-allure-results
@@ -220,9 +252,41 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload traffic capture
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.sanitize.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           name: e2e-traffic
           path: backend/e2e-out
           if-no-files-found: ignore
+
+  auth-e2e:
+    name: Authentication BDD
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+      E2E_NEW_PASSWORD: ${{ secrets.E2E_NEW_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare environment
+        run: cp .env.example .env
+      - name: Test artifact sanitization
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s backend/scripts -p test_sanitize_auth_artifacts.py
+      - name: Run authentication scenarios
+        run: make -C backend test-auth-e2e
+      - name: Verify perf authentication without load
+        run: make -C backend test-auth-perf-compat
+      - name: Sanitize diagnostics
+        id: sanitize
+        if: ${{ !cancelled() }}
+        run: python3 backend/scripts/sanitize-auth-artifacts.py backend/auth-bdd backend/allure-results backend/e2e-out
+      - name: Upload BDD and Allure reports
+        if: ${{ !cancelled() && steps.sanitize.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: auth-bdd-results
+          path: |
+            backend/auth-bdd
+            backend/allure-results
+            backend/e2e-out
+          if-no-files-found: error

@@ -25,3 +25,6 @@ perf-results/
 .perf-run.lock
 
 deploy/perf/__pycache__/
+
+backend/auth-bdd/
+backend/scripts/__pycache__/

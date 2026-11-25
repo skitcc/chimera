@@ -55,7 +55,9 @@ help:
 		'stand-gc         Drop t_* databases that have no sessions' \
 		'stand-down       Stop the stand without deleting its volumes' \
 		'test-integration Run integration tests of every service against the running stand' \
-		'test-e2e         Run the demo against a private compose stack (Gateway, services, Kafka)' \
+		'test-e2e         Run demo, smoke and authentication BDD on a private compose stack' \
+		'test-auth-e2e    Run Identity PostgreSQL integration tests and authentication BDD' \
+		'test-auth-perf-compat Check legacy perf authentication without load' \
 		'demo-capture     Replay the demo with curl and write pcap captures' \
 		'demo-requests    Run the curl demo once against the running dev Gateway (RUN=name)' \
 		'e2e-dev          Run the Go demo once against the running dev Gateway (RUN=name)' \
@@ -131,15 +133,15 @@ test-integration: | $(ARTIFACTS_DIR)
 
 test-e2e: | $(ARTIFACTS_DIR)
 	@test -f "$(ROOT_DIR)/.env" || { printf '%s\n' 'missing ../.env; copy .env.example to .env' >&2; exit 1; }
-	$(MAKE) test-image
 	ARTIFACTS_DIR="$(ARTIFACTS_DIR)" TEST_IMAGE="$(TEST_IMAGE)" \
-		TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" RUN="$(RUN)" \
-		sh scripts/stand-e2e.sh
+		TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" RUN="$(RUN)" E2E_TEST_TAGS="e2e authe2e" \
+		sh scripts/auth-e2e.sh
 
 demo-capture:
 	NETSHOOT_IMAGE="$(NETSHOOT_IMAGE)" sh scripts/demo-capture.sh
 
 DEV_API_URL ?= http://127.0.0.1:8080
+DEV_MAILPIT_URL ?= http://127.0.0.1:8025
 DEV_SERVICES ?= gateway identity catalog social
 RUN ?=
 
@@ -148,7 +150,7 @@ demo-requests:
 	mkdir -p "$(ARTIFACTS_DIR)/e2e-out/runs"; \
 	printf '%s\n' "curl run: make app-logs RUN=curl-$$run"; \
 	docker run --rm --network host --user $(TEST_UID):$(TEST_GID) \
-		-e E2E_API_URL="$(DEV_API_URL)" -e E2E_OUT=/out -e E2E_RUN="$$run" \
+		-e E2E_MAILPIT_URL="$(DEV_MAILPIT_URL)" -e E2E_API_URL="$(DEV_API_URL)" -e E2E_OUT=/out -e E2E_RUN="$$run" \
 		-v "$(ARTIFACTS_DIR)/e2e-out/runs:/out" \
 		-v "$(CURDIR)/scripts/demo-requests.sh:/demo-requests.sh:ro" \
 		"$(NETSHOOT_IMAGE)" sh /demo-requests.sh
@@ -158,7 +160,7 @@ e2e-dev: test-image | $(ARTIFACTS_DIR)
 	printf '%s\n' "go run: make app-logs RUN=go-$$run"; \
 	docker run --rm --network host --user $(TEST_UID):$(TEST_GID) -e HOME=/tmp \
 		-e ALLURE_RESULTS_DIR=/artifacts/allure-results \
-		-e E2E_API_URL="$(DEV_API_URL)" -e E2E_RUN="$$run" \
+		-e E2E_MAILPIT_URL="$(DEV_MAILPIT_URL)" -e E2E_API_URL="$(DEV_API_URL)" -e E2E_RUN="$$run" \
 		-v "$(ARTIFACTS_DIR):/artifacts" "$(TEST_IMAGE)" \
 		go test -count=1 -tags=e2e chimera/e2e/...
 
@@ -187,6 +189,7 @@ allure-results: test-image | $(ARTIFACTS_DIR)
 		go test $(GO_TEST_FLAGS) $(TEST_PACKAGES)
 	$(MAKE) test-integration
 	$(MAKE) test-e2e
+	$(MAKE) test-auth-perf-compat
 
 allure-meta: | $(ARTIFACTS_DIR)
 	mkdir -p "$(ARTIFACTS_DIR)/allure-results"
@@ -317,7 +320,7 @@ k8s-e2e: test-image | $(ARTIFACTS_DIR)
 	printf '%s\n' "go run against http://$(K8S_HOST): make k8s-logs SVC=gateway | grep go-$$run"; \
 	docker run --rm --network host --user $(TEST_UID):$(TEST_GID) -e HOME=/tmp \
 		-e ALLURE_RESULTS_DIR=/artifacts/allure-results \
-		-e E2E_API_URL="http://$(K8S_HOST)/api" -e E2E_RUN="$$run" \
+		-e E2E_MAILPIT_URL="$(DEV_MAILPIT_URL)" -e E2E_API_URL="http://$(K8S_HOST)/api" -e E2E_RUN="$$run" \
 		-v "$(ARTIFACTS_DIR):/artifacts" "$(TEST_IMAGE)" \
 		go test -count=1 -tags=e2e chimera/e2e/...
 
@@ -358,3 +361,17 @@ perf-prepare:
 
 perf-restore:
 	sh "$(ROOT_DIR)/deploy/perf/reset.sh" restore
+
+.PHONY: test-auth-e2e
+AUTH_E2E_TAGS ?= authe2e
+# The script holds the perf lock throughout the build/run; no pre-build here.
+test-auth-e2e: | $(ARTIFACTS_DIR)
+	ARTIFACTS_DIR="$(ARTIFACTS_DIR)" TEST_IMAGE="$(TEST_IMAGE)" \
+		TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" E2E_TEST_TAGS="$(AUTH_E2E_TAGS)" E2E_IDENTITY_INTEGRATION=1 \
+		sh scripts/auth-e2e.sh
+
+.PHONY: test-auth-perf-compat
+test-auth-perf-compat: | $(ARTIFACTS_DIR)
+	ARTIFACTS_DIR="$(ARTIFACTS_DIR)" TEST_IMAGE="$(TEST_IMAGE)" \
+		TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" E2E_TEST_TAGS="perfauth" \
+		sh scripts/auth-e2e.sh

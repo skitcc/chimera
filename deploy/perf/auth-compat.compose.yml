@@ -1,0 +1,8 @@
+# Private, no-load compatibility check. Never used by the ordinary application stack.
+services:
+  identity:
+    environment:
+      AUTH_SECURITY_ENABLED: "false"
+  gateway:
+    environment:
+      AUTH_SECURITY_ENABLED: "false"
