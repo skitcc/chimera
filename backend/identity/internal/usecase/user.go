@@ -7,14 +7,17 @@ import (
 )
 
 type UserService struct {
-	users    UserRepository
-	profiles ProfileRepository
-	hasher   PasswordHasher
+	users           UserRepository
+	profiles        ProfileRepository
+	hasher          PasswordHasher
+	securityEnabled bool
 }
 
 func NewUserService(users UserRepository, profiles ProfileRepository, hasher PasswordHasher) *UserService {
 	return &UserService{users: users, profiles: profiles, hasher: hasher}
 }
+
+func (s *UserService) EnableSecurity() { s.securityEnabled = true }
 
 func (s *UserService) List(ctx context.Context, q domain.PageQuery) (domain.UserPage, error) {
 	if err := q.Validate(); err != nil {
@@ -90,6 +93,9 @@ func (s *UserService) Replace(ctx context.Context, actorID, userID string, in do
 }
 
 func (s *UserService) Patch(ctx context.Context, actorID, userID string, in domain.UserPatch) (domain.User, error) {
+	if s.securityEnabled && in.Password != nil {
+		return domain.User{}, domain.Invalid("use password change verification")
+	}
 	if err := domain.UserID(userID).Validate(); err != nil {
 		return domain.User{}, err
 	}

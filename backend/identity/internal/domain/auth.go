@@ -45,9 +45,13 @@ func (in *LoginInput) Validate() error {
 }
 
 type AuthResult struct {
-	Token string
-	User  User
+	ChallengeID string
+	ExpiresAt   int64
+	Token       string
+	User        User
 }
+
+func NormalizeEmail(email string) string { return normalizeEmail(email) }
 
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))

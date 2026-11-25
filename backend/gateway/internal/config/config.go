@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"net/netip"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,9 +21,10 @@ type HTTP struct {
 }
 
 type Auth struct {
-	PublicKeyFile string
-	RateLimit     int
-	RateWindow    time.Duration
+	SecurityEnabled bool
+	PublicKeyFile   string
+	RateLimit       int
+	RateWindow      time.Duration
 	// TrustedProxies may set X-Forwarded-For. Empty means the peer address
 	// is the client address.
 	TrustedProxies []netip.Prefix
@@ -56,6 +59,13 @@ func Load() (Config, error) {
 	auth, err := loadAuth()
 	if err != nil {
 		return Config{}, err
+	}
+	auth.SecurityEnabled = true
+	if value := os.Getenv("AUTH_SECURITY_ENABLED"); value != "" {
+		auth.SecurityEnabled, err = strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, err
+		}
 	}
 	health, err := env.LoadHealth()
 	if err != nil {

@@ -26,6 +26,7 @@ var (
 	Unauthorized = apperr.Unauthorized
 	Forbidden    = apperr.Forbidden
 	Conflict     = apperr.Conflict
+	Unavailable  = apperr.Unavailable
 	Internal     = apperr.Internal
 	As           = apperr.As
 	Is           = apperr.Is

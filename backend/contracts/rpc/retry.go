@@ -13,6 +13,10 @@ import (
 // A repeat after UNAVAILABLE is safe for every method, because the call did not run.
 // Create* methods are not listed: idempotency_key makes their repeat return the first result.
 var RepeatUnsafe = []string{
+	identityv1.IdentityService_CreateSession_FullMethodName,
+	identityv1.IdentityService_VerifySession_FullMethodName,
+	identityv1.IdentityService_StartRecovery_FullMethodName,
+	identityv1.IdentityService_StartPasswordChange_FullMethodName,
 	identityv1.IdentityService_DeleteUser_FullMethodName,
 	catalogv1.CatalogService_PatchTrack_FullMethodName,
 	catalogv1.CatalogService_DeleteTrack_FullMethodName,

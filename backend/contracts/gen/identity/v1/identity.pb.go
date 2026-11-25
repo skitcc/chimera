@@ -134,7 +134,91 @@ func (x *CreateSessionRequest) GetPassword() string {
 	return ""
 }
 
-type CreateSessionResponse struct {
+type VerifySessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ChallengeId   string                 `protobuf:"bytes,1,opt,name=challenge_id,json=challengeId,proto3" json:"challenge_id,omitempty"`
+	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	Purpose       string                 `protobuf:"bytes,3,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	NewPassword   string                 `protobuf:"bytes,4,opt,name=new_password,json=newPassword,proto3" json:"new_password,omitempty"`
+	ActorId       string                 `protobuf:"bytes,5,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	Email         string                 `protobuf:"bytes,6,opt,name=email,proto3" json:"email,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifySessionRequest) Reset() {
+	*x = VerifySessionRequest{}
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifySessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifySessionRequest) ProtoMessage() {}
+
+func (x *VerifySessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifySessionRequest.ProtoReflect.Descriptor instead.
+func (*VerifySessionRequest) Descriptor() ([]byte, []int) {
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *VerifySessionRequest) GetChallengeId() string {
+	if x != nil {
+		return x.ChallengeId
+	}
+	return ""
+}
+
+func (x *VerifySessionRequest) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *VerifySessionRequest) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *VerifySessionRequest) GetNewPassword() string {
+	if x != nil {
+		return x.NewPassword
+	}
+	return ""
+}
+
+func (x *VerifySessionRequest) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *VerifySessionRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+type VerifySessionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
 	User          *User                  `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
@@ -142,9 +226,335 @@ type CreateSessionResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *VerifySessionResponse) Reset() {
+	*x = VerifySessionResponse{}
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifySessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifySessionResponse) ProtoMessage() {}
+
+func (x *VerifySessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifySessionResponse.ProtoReflect.Descriptor instead.
+func (*VerifySessionResponse) Descriptor() ([]byte, []int) {
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *VerifySessionResponse) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *VerifySessionResponse) GetUser() *User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+type StartRecoveryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartRecoveryRequest) Reset() {
+	*x = StartRecoveryRequest{}
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartRecoveryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartRecoveryRequest) ProtoMessage() {}
+
+func (x *StartRecoveryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartRecoveryRequest.ProtoReflect.Descriptor instead.
+func (*StartRecoveryRequest) Descriptor() ([]byte, []int) {
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *StartRecoveryRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+type StartRecoveryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartRecoveryResponse) Reset() {
+	*x = StartRecoveryResponse{}
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartRecoveryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartRecoveryResponse) ProtoMessage() {}
+
+func (x *StartRecoveryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartRecoveryResponse.ProtoReflect.Descriptor instead.
+func (*StartRecoveryResponse) Descriptor() ([]byte, []int) {
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{5}
+}
+
+type StartPasswordChangeRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ActorId         string                 `protobuf:"bytes,1,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	CurrentPassword string                 `protobuf:"bytes,2,opt,name=current_password,json=currentPassword,proto3" json:"current_password,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *StartPasswordChangeRequest) Reset() {
+	*x = StartPasswordChangeRequest{}
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartPasswordChangeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartPasswordChangeRequest) ProtoMessage() {}
+
+func (x *StartPasswordChangeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartPasswordChangeRequest.ProtoReflect.Descriptor instead.
+func (*StartPasswordChangeRequest) Descriptor() ([]byte, []int) {
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *StartPasswordChangeRequest) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *StartPasswordChangeRequest) GetCurrentPassword() string {
+	if x != nil {
+		return x.CurrentPassword
+	}
+	return ""
+}
+
+type StartPasswordChangeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ChallengeId   string                 `protobuf:"bytes,1,opt,name=challenge_id,json=challengeId,proto3" json:"challenge_id,omitempty"`
+	ExpiresAt     int64                  `protobuf:"varint,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartPasswordChangeResponse) Reset() {
+	*x = StartPasswordChangeResponse{}
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartPasswordChangeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartPasswordChangeResponse) ProtoMessage() {}
+
+func (x *StartPasswordChangeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartPasswordChangeResponse.ProtoReflect.Descriptor instead.
+func (*StartPasswordChangeResponse) Descriptor() ([]byte, []int) {
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *StartPasswordChangeResponse) GetChallengeId() string {
+	if x != nil {
+		return x.ChallengeId
+	}
+	return ""
+}
+
+func (x *StartPasswordChangeResponse) GetExpiresAt() int64 {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return 0
+}
+
+type ValidateSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Version       int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateSessionRequest) Reset() {
+	*x = ValidateSessionRequest{}
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateSessionRequest) ProtoMessage() {}
+
+func (x *ValidateSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateSessionRequest.ProtoReflect.Descriptor instead.
+func (*ValidateSessionRequest) Descriptor() ([]byte, []int) {
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ValidateSessionRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *ValidateSessionRequest) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+type ValidateSessionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateSessionResponse) Reset() {
+	*x = ValidateSessionResponse{}
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateSessionResponse) ProtoMessage() {}
+
+func (x *ValidateSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateSessionResponse.ProtoReflect.Descriptor instead.
+func (*ValidateSessionResponse) Descriptor() ([]byte, []int) {
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{9}
+}
+
+type CreateSessionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	User          *User                  `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	ChallengeId   string                 `protobuf:"bytes,3,opt,name=challenge_id,json=challengeId,proto3" json:"challenge_id,omitempty"`
+	ExpiresAt     int64                  `protobuf:"varint,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
 func (x *CreateSessionResponse) Reset() {
 	*x = CreateSessionResponse{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[2]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -156,7 +566,7 @@ func (x *CreateSessionResponse) String() string {
 func (*CreateSessionResponse) ProtoMessage() {}
 
 func (x *CreateSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[2]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -169,7 +579,7 @@ func (x *CreateSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSessionResponse.ProtoReflect.Descriptor instead.
 func (*CreateSessionResponse) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{2}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CreateSessionResponse) GetToken() string {
@@ -186,6 +596,20 @@ func (x *CreateSessionResponse) GetUser() *User {
 	return nil
 }
 
+func (x *CreateSessionResponse) GetChallengeId() string {
+	if x != nil {
+		return x.ChallengeId
+	}
+	return ""
+}
+
+func (x *CreateSessionResponse) GetExpiresAt() int64 {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return 0
+}
+
 type CreateUserRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Email    string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
@@ -199,7 +623,7 @@ type CreateUserRequest struct {
 
 func (x *CreateUserRequest) Reset() {
 	*x = CreateUserRequest{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[3]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -211,7 +635,7 @@ func (x *CreateUserRequest) String() string {
 func (*CreateUserRequest) ProtoMessage() {}
 
 func (x *CreateUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[3]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -224,7 +648,7 @@ func (x *CreateUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateUserRequest.ProtoReflect.Descriptor instead.
 func (*CreateUserRequest) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{3}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CreateUserRequest) GetEmail() string {
@@ -264,7 +688,7 @@ type CreateUserResponse struct {
 
 func (x *CreateUserResponse) Reset() {
 	*x = CreateUserResponse{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[4]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -276,7 +700,7 @@ func (x *CreateUserResponse) String() string {
 func (*CreateUserResponse) ProtoMessage() {}
 
 func (x *CreateUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[4]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -289,7 +713,7 @@ func (x *CreateUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateUserResponse.ProtoReflect.Descriptor instead.
 func (*CreateUserResponse) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{4}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CreateUserResponse) GetUser() *User {
@@ -309,7 +733,7 @@ type GetUserRequest struct {
 
 func (x *GetUserRequest) Reset() {
 	*x = GetUserRequest{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[5]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -321,7 +745,7 @@ func (x *GetUserRequest) String() string {
 func (*GetUserRequest) ProtoMessage() {}
 
 func (x *GetUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[5]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -334,7 +758,7 @@ func (x *GetUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserRequest.ProtoReflect.Descriptor instead.
 func (*GetUserRequest) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{5}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetUserRequest) GetId() string {
@@ -360,7 +784,7 @@ type GetUserResponse struct {
 
 func (x *GetUserResponse) Reset() {
 	*x = GetUserResponse{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[6]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -372,7 +796,7 @@ func (x *GetUserResponse) String() string {
 func (*GetUserResponse) ProtoMessage() {}
 
 func (x *GetUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[6]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -385,7 +809,7 @@ func (x *GetUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserResponse.ProtoReflect.Descriptor instead.
 func (*GetUserResponse) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{6}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetUserResponse) GetUser() *User {
@@ -404,7 +828,7 @@ type BatchGetUsersRequest struct {
 
 func (x *BatchGetUsersRequest) Reset() {
 	*x = BatchGetUsersRequest{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[7]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -416,7 +840,7 @@ func (x *BatchGetUsersRequest) String() string {
 func (*BatchGetUsersRequest) ProtoMessage() {}
 
 func (x *BatchGetUsersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[7]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -429,7 +853,7 @@ func (x *BatchGetUsersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchGetUsersRequest.ProtoReflect.Descriptor instead.
 func (*BatchGetUsersRequest) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{7}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *BatchGetUsersRequest) GetIds() []string {
@@ -448,7 +872,7 @@ type BatchGetUsersResponse struct {
 
 func (x *BatchGetUsersResponse) Reset() {
 	*x = BatchGetUsersResponse{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[8]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -460,7 +884,7 @@ func (x *BatchGetUsersResponse) String() string {
 func (*BatchGetUsersResponse) ProtoMessage() {}
 
 func (x *BatchGetUsersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[8]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -473,7 +897,7 @@ func (x *BatchGetUsersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchGetUsersResponse.ProtoReflect.Descriptor instead.
 func (*BatchGetUsersResponse) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{8}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *BatchGetUsersResponse) GetUsers() []*User {
@@ -492,7 +916,7 @@ type ListUsersRequest struct {
 
 func (x *ListUsersRequest) Reset() {
 	*x = ListUsersRequest{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[9]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -504,7 +928,7 @@ func (x *ListUsersRequest) String() string {
 func (*ListUsersRequest) ProtoMessage() {}
 
 func (x *ListUsersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[9]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -517,7 +941,7 @@ func (x *ListUsersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUsersRequest.ProtoReflect.Descriptor instead.
 func (*ListUsersRequest) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{9}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListUsersRequest) GetPage() *v1.PageRequest {
@@ -538,7 +962,7 @@ type ListUsersResponse struct {
 
 func (x *ListUsersResponse) Reset() {
 	*x = ListUsersResponse{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[10]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -550,7 +974,7 @@ func (x *ListUsersResponse) String() string {
 func (*ListUsersResponse) ProtoMessage() {}
 
 func (x *ListUsersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[10]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -563,7 +987,7 @@ func (x *ListUsersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUsersResponse.ProtoReflect.Descriptor instead.
 func (*ListUsersResponse) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{10}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListUsersResponse) GetItems() []*User {
@@ -599,7 +1023,7 @@ type ReplaceUserRequest struct {
 
 func (x *ReplaceUserRequest) Reset() {
 	*x = ReplaceUserRequest{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[11]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -611,7 +1035,7 @@ func (x *ReplaceUserRequest) String() string {
 func (*ReplaceUserRequest) ProtoMessage() {}
 
 func (x *ReplaceUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[11]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -624,7 +1048,7 @@ func (x *ReplaceUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplaceUserRequest.ProtoReflect.Descriptor instead.
 func (*ReplaceUserRequest) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{11}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ReplaceUserRequest) GetActorId() string {
@@ -664,7 +1088,7 @@ type ReplaceUserResponse struct {
 
 func (x *ReplaceUserResponse) Reset() {
 	*x = ReplaceUserResponse{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[12]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -676,7 +1100,7 @@ func (x *ReplaceUserResponse) String() string {
 func (*ReplaceUserResponse) ProtoMessage() {}
 
 func (x *ReplaceUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[12]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -689,7 +1113,7 @@ func (x *ReplaceUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplaceUserResponse.ProtoReflect.Descriptor instead.
 func (*ReplaceUserResponse) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{12}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ReplaceUserResponse) GetUser() *User {
@@ -712,7 +1136,7 @@ type PatchUserRequest struct {
 
 func (x *PatchUserRequest) Reset() {
 	*x = PatchUserRequest{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[13]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -724,7 +1148,7 @@ func (x *PatchUserRequest) String() string {
 func (*PatchUserRequest) ProtoMessage() {}
 
 func (x *PatchUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[13]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -737,7 +1161,7 @@ func (x *PatchUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PatchUserRequest.ProtoReflect.Descriptor instead.
 func (*PatchUserRequest) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{13}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *PatchUserRequest) GetActorId() string {
@@ -784,7 +1208,7 @@ type PatchUserResponse struct {
 
 func (x *PatchUserResponse) Reset() {
 	*x = PatchUserResponse{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[14]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -796,7 +1220,7 @@ func (x *PatchUserResponse) String() string {
 func (*PatchUserResponse) ProtoMessage() {}
 
 func (x *PatchUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[14]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -809,7 +1233,7 @@ func (x *PatchUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PatchUserResponse.ProtoReflect.Descriptor instead.
 func (*PatchUserResponse) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{14}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *PatchUserResponse) GetUser() *User {
@@ -829,7 +1253,7 @@ type DeleteUserRequest struct {
 
 func (x *DeleteUserRequest) Reset() {
 	*x = DeleteUserRequest{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[15]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -841,7 +1265,7 @@ func (x *DeleteUserRequest) String() string {
 func (*DeleteUserRequest) ProtoMessage() {}
 
 func (x *DeleteUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[15]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -854,7 +1278,7 @@ func (x *DeleteUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteUserRequest.ProtoReflect.Descriptor instead.
 func (*DeleteUserRequest) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{15}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *DeleteUserRequest) GetActorId() string {
@@ -879,7 +1303,7 @@ type DeleteUserResponse struct {
 
 func (x *DeleteUserResponse) Reset() {
 	*x = DeleteUserResponse{}
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[16]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -891,7 +1315,7 @@ func (x *DeleteUserResponse) String() string {
 func (*DeleteUserResponse) ProtoMessage() {}
 
 func (x *DeleteUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chimera_identity_v1_identity_proto_msgTypes[16]
+	mi := &file_chimera_identity_v1_identity_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -904,7 +1328,7 @@ func (x *DeleteUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteUserResponse.ProtoReflect.Descriptor instead.
 func (*DeleteUserResponse) Descriptor() ([]byte, []int) {
-	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{16}
+	return file_chimera_identity_v1_identity_proto_rawDescGZIP(), []int{24}
 }
 
 var File_chimera_identity_v1_identity_proto protoreflect.FileDescriptor
@@ -918,10 +1342,37 @@ const file_chimera_identity_v1_identity_proto_rawDesc = "" +
 	"\x04name\x18\x03 \x01(\tR\x04name\"H\n" +
 	"\x14CreateSessionRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"\\\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"\xbb\x01\n" +
+	"\x14VerifySessionRequest\x12!\n" +
+	"\fchallenge_id\x18\x01 \x01(\tR\vchallengeId\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12\x18\n" +
+	"\apurpose\x18\x03 \x01(\tR\apurpose\x12!\n" +
+	"\fnew_password\x18\x04 \x01(\tR\vnewPassword\x12\x19\n" +
+	"\bactor_id\x18\x05 \x01(\tR\aactorId\x12\x14\n" +
+	"\x05email\x18\x06 \x01(\tR\x05email\"\\\n" +
+	"\x15VerifySessionResponse\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12-\n" +
+	"\x04user\x18\x02 \x01(\v2\x19.chimera.identity.v1.UserR\x04user\",\n" +
+	"\x14StartRecoveryRequest\x12\x14\n" +
+	"\x05email\x18\x01 \x01(\tR\x05email\"\x17\n" +
+	"\x15StartRecoveryResponse\"b\n" +
+	"\x1aStartPasswordChangeRequest\x12\x19\n" +
+	"\bactor_id\x18\x01 \x01(\tR\aactorId\x12)\n" +
+	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\"_\n" +
+	"\x1bStartPasswordChangeResponse\x12!\n" +
+	"\fchallenge_id\x18\x01 \x01(\tR\vchallengeId\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\x02 \x01(\x03R\texpiresAt\"K\n" +
+	"\x16ValidateSessionRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\"\x19\n" +
+	"\x17ValidateSessionResponse\"\x9e\x01\n" +
 	"\x15CreateSessionResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12-\n" +
-	"\x04user\x18\x02 \x01(\v2\x19.chimera.identity.v1.UserR\x04user\"\x82\x01\n" +
+	"\x04user\x18\x02 \x01(\v2\x19.chimera.identity.v1.UserR\x04user\x12!\n" +
+	"\fchallenge_id\x18\x03 \x01(\tR\vchallengeId\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\x04 \x01(\x03R\texpiresAt\"\x82\x01\n" +
 	"\x11CreateUserRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
@@ -966,9 +1417,13 @@ const file_chimera_identity_v1_identity_proto_rawDesc = "" +
 	"\x11DeleteUserRequest\x12\x19\n" +
 	"\bactor_id\x18\x01 \x01(\tR\aactorId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\"\x14\n" +
-	"\x12DeleteUserResponse2\x8f\x06\n" +
+	"\x12DeleteUserResponse2\xc7\t\n" +
 	"\x0fIdentityService\x12f\n" +
-	"\rCreateSession\x12).chimera.identity.v1.CreateSessionRequest\x1a*.chimera.identity.v1.CreateSessionResponse\x12]\n" +
+	"\rCreateSession\x12).chimera.identity.v1.CreateSessionRequest\x1a*.chimera.identity.v1.CreateSessionResponse\x12f\n" +
+	"\rVerifySession\x12).chimera.identity.v1.VerifySessionRequest\x1a*.chimera.identity.v1.VerifySessionResponse\x12f\n" +
+	"\rStartRecovery\x12).chimera.identity.v1.StartRecoveryRequest\x1a*.chimera.identity.v1.StartRecoveryResponse\x12x\n" +
+	"\x13StartPasswordChange\x12/.chimera.identity.v1.StartPasswordChangeRequest\x1a0.chimera.identity.v1.StartPasswordChangeResponse\x12l\n" +
+	"\x0fValidateSession\x12+.chimera.identity.v1.ValidateSessionRequest\x1a,.chimera.identity.v1.ValidateSessionResponse\x12]\n" +
 	"\n" +
 	"CreateUser\x12&.chimera.identity.v1.CreateUserRequest\x1a'.chimera.identity.v1.CreateUserResponse\x12T\n" +
 	"\aGetUser\x12#.chimera.identity.v1.GetUserRequest\x1a$.chimera.identity.v1.GetUserResponse\x12f\n" +
@@ -991,59 +1446,76 @@ func file_chimera_identity_v1_identity_proto_rawDescGZIP() []byte {
 	return file_chimera_identity_v1_identity_proto_rawDescData
 }
 
-var file_chimera_identity_v1_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_chimera_identity_v1_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_chimera_identity_v1_identity_proto_goTypes = []any{
-	(*User)(nil),                  // 0: chimera.identity.v1.User
-	(*CreateSessionRequest)(nil),  // 1: chimera.identity.v1.CreateSessionRequest
-	(*CreateSessionResponse)(nil), // 2: chimera.identity.v1.CreateSessionResponse
-	(*CreateUserRequest)(nil),     // 3: chimera.identity.v1.CreateUserRequest
-	(*CreateUserResponse)(nil),    // 4: chimera.identity.v1.CreateUserResponse
-	(*GetUserRequest)(nil),        // 5: chimera.identity.v1.GetUserRequest
-	(*GetUserResponse)(nil),       // 6: chimera.identity.v1.GetUserResponse
-	(*BatchGetUsersRequest)(nil),  // 7: chimera.identity.v1.BatchGetUsersRequest
-	(*BatchGetUsersResponse)(nil), // 8: chimera.identity.v1.BatchGetUsersResponse
-	(*ListUsersRequest)(nil),      // 9: chimera.identity.v1.ListUsersRequest
-	(*ListUsersResponse)(nil),     // 10: chimera.identity.v1.ListUsersResponse
-	(*ReplaceUserRequest)(nil),    // 11: chimera.identity.v1.ReplaceUserRequest
-	(*ReplaceUserResponse)(nil),   // 12: chimera.identity.v1.ReplaceUserResponse
-	(*PatchUserRequest)(nil),      // 13: chimera.identity.v1.PatchUserRequest
-	(*PatchUserResponse)(nil),     // 14: chimera.identity.v1.PatchUserResponse
-	(*DeleteUserRequest)(nil),     // 15: chimera.identity.v1.DeleteUserRequest
-	(*DeleteUserResponse)(nil),    // 16: chimera.identity.v1.DeleteUserResponse
-	(v1.Consistency)(0),           // 17: chimera.common.v1.Consistency
-	(*v1.PageRequest)(nil),        // 18: chimera.common.v1.PageRequest
+	(*User)(nil),                        // 0: chimera.identity.v1.User
+	(*CreateSessionRequest)(nil),        // 1: chimera.identity.v1.CreateSessionRequest
+	(*VerifySessionRequest)(nil),        // 2: chimera.identity.v1.VerifySessionRequest
+	(*VerifySessionResponse)(nil),       // 3: chimera.identity.v1.VerifySessionResponse
+	(*StartRecoveryRequest)(nil),        // 4: chimera.identity.v1.StartRecoveryRequest
+	(*StartRecoveryResponse)(nil),       // 5: chimera.identity.v1.StartRecoveryResponse
+	(*StartPasswordChangeRequest)(nil),  // 6: chimera.identity.v1.StartPasswordChangeRequest
+	(*StartPasswordChangeResponse)(nil), // 7: chimera.identity.v1.StartPasswordChangeResponse
+	(*ValidateSessionRequest)(nil),      // 8: chimera.identity.v1.ValidateSessionRequest
+	(*ValidateSessionResponse)(nil),     // 9: chimera.identity.v1.ValidateSessionResponse
+	(*CreateSessionResponse)(nil),       // 10: chimera.identity.v1.CreateSessionResponse
+	(*CreateUserRequest)(nil),           // 11: chimera.identity.v1.CreateUserRequest
+	(*CreateUserResponse)(nil),          // 12: chimera.identity.v1.CreateUserResponse
+	(*GetUserRequest)(nil),              // 13: chimera.identity.v1.GetUserRequest
+	(*GetUserResponse)(nil),             // 14: chimera.identity.v1.GetUserResponse
+	(*BatchGetUsersRequest)(nil),        // 15: chimera.identity.v1.BatchGetUsersRequest
+	(*BatchGetUsersResponse)(nil),       // 16: chimera.identity.v1.BatchGetUsersResponse
+	(*ListUsersRequest)(nil),            // 17: chimera.identity.v1.ListUsersRequest
+	(*ListUsersResponse)(nil),           // 18: chimera.identity.v1.ListUsersResponse
+	(*ReplaceUserRequest)(nil),          // 19: chimera.identity.v1.ReplaceUserRequest
+	(*ReplaceUserResponse)(nil),         // 20: chimera.identity.v1.ReplaceUserResponse
+	(*PatchUserRequest)(nil),            // 21: chimera.identity.v1.PatchUserRequest
+	(*PatchUserResponse)(nil),           // 22: chimera.identity.v1.PatchUserResponse
+	(*DeleteUserRequest)(nil),           // 23: chimera.identity.v1.DeleteUserRequest
+	(*DeleteUserResponse)(nil),          // 24: chimera.identity.v1.DeleteUserResponse
+	(v1.Consistency)(0),                 // 25: chimera.common.v1.Consistency
+	(*v1.PageRequest)(nil),              // 26: chimera.common.v1.PageRequest
 }
 var file_chimera_identity_v1_identity_proto_depIdxs = []int32{
-	0,  // 0: chimera.identity.v1.CreateSessionResponse.user:type_name -> chimera.identity.v1.User
-	0,  // 1: chimera.identity.v1.CreateUserResponse.user:type_name -> chimera.identity.v1.User
-	17, // 2: chimera.identity.v1.GetUserRequest.consistency:type_name -> chimera.common.v1.Consistency
-	0,  // 3: chimera.identity.v1.GetUserResponse.user:type_name -> chimera.identity.v1.User
-	0,  // 4: chimera.identity.v1.BatchGetUsersResponse.users:type_name -> chimera.identity.v1.User
-	18, // 5: chimera.identity.v1.ListUsersRequest.page:type_name -> chimera.common.v1.PageRequest
-	0,  // 6: chimera.identity.v1.ListUsersResponse.items:type_name -> chimera.identity.v1.User
-	0,  // 7: chimera.identity.v1.ReplaceUserResponse.user:type_name -> chimera.identity.v1.User
-	0,  // 8: chimera.identity.v1.PatchUserResponse.user:type_name -> chimera.identity.v1.User
-	1,  // 9: chimera.identity.v1.IdentityService.CreateSession:input_type -> chimera.identity.v1.CreateSessionRequest
-	3,  // 10: chimera.identity.v1.IdentityService.CreateUser:input_type -> chimera.identity.v1.CreateUserRequest
-	5,  // 11: chimera.identity.v1.IdentityService.GetUser:input_type -> chimera.identity.v1.GetUserRequest
-	7,  // 12: chimera.identity.v1.IdentityService.BatchGetUsers:input_type -> chimera.identity.v1.BatchGetUsersRequest
-	9,  // 13: chimera.identity.v1.IdentityService.ListUsers:input_type -> chimera.identity.v1.ListUsersRequest
-	11, // 14: chimera.identity.v1.IdentityService.ReplaceUser:input_type -> chimera.identity.v1.ReplaceUserRequest
-	13, // 15: chimera.identity.v1.IdentityService.PatchUser:input_type -> chimera.identity.v1.PatchUserRequest
-	15, // 16: chimera.identity.v1.IdentityService.DeleteUser:input_type -> chimera.identity.v1.DeleteUserRequest
-	2,  // 17: chimera.identity.v1.IdentityService.CreateSession:output_type -> chimera.identity.v1.CreateSessionResponse
-	4,  // 18: chimera.identity.v1.IdentityService.CreateUser:output_type -> chimera.identity.v1.CreateUserResponse
-	6,  // 19: chimera.identity.v1.IdentityService.GetUser:output_type -> chimera.identity.v1.GetUserResponse
-	8,  // 20: chimera.identity.v1.IdentityService.BatchGetUsers:output_type -> chimera.identity.v1.BatchGetUsersResponse
-	10, // 21: chimera.identity.v1.IdentityService.ListUsers:output_type -> chimera.identity.v1.ListUsersResponse
-	12, // 22: chimera.identity.v1.IdentityService.ReplaceUser:output_type -> chimera.identity.v1.ReplaceUserResponse
-	14, // 23: chimera.identity.v1.IdentityService.PatchUser:output_type -> chimera.identity.v1.PatchUserResponse
-	16, // 24: chimera.identity.v1.IdentityService.DeleteUser:output_type -> chimera.identity.v1.DeleteUserResponse
-	17, // [17:25] is the sub-list for method output_type
-	9,  // [9:17] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	0,  // 0: chimera.identity.v1.VerifySessionResponse.user:type_name -> chimera.identity.v1.User
+	0,  // 1: chimera.identity.v1.CreateSessionResponse.user:type_name -> chimera.identity.v1.User
+	0,  // 2: chimera.identity.v1.CreateUserResponse.user:type_name -> chimera.identity.v1.User
+	25, // 3: chimera.identity.v1.GetUserRequest.consistency:type_name -> chimera.common.v1.Consistency
+	0,  // 4: chimera.identity.v1.GetUserResponse.user:type_name -> chimera.identity.v1.User
+	0,  // 5: chimera.identity.v1.BatchGetUsersResponse.users:type_name -> chimera.identity.v1.User
+	26, // 6: chimera.identity.v1.ListUsersRequest.page:type_name -> chimera.common.v1.PageRequest
+	0,  // 7: chimera.identity.v1.ListUsersResponse.items:type_name -> chimera.identity.v1.User
+	0,  // 8: chimera.identity.v1.ReplaceUserResponse.user:type_name -> chimera.identity.v1.User
+	0,  // 9: chimera.identity.v1.PatchUserResponse.user:type_name -> chimera.identity.v1.User
+	1,  // 10: chimera.identity.v1.IdentityService.CreateSession:input_type -> chimera.identity.v1.CreateSessionRequest
+	2,  // 11: chimera.identity.v1.IdentityService.VerifySession:input_type -> chimera.identity.v1.VerifySessionRequest
+	4,  // 12: chimera.identity.v1.IdentityService.StartRecovery:input_type -> chimera.identity.v1.StartRecoveryRequest
+	6,  // 13: chimera.identity.v1.IdentityService.StartPasswordChange:input_type -> chimera.identity.v1.StartPasswordChangeRequest
+	8,  // 14: chimera.identity.v1.IdentityService.ValidateSession:input_type -> chimera.identity.v1.ValidateSessionRequest
+	11, // 15: chimera.identity.v1.IdentityService.CreateUser:input_type -> chimera.identity.v1.CreateUserRequest
+	13, // 16: chimera.identity.v1.IdentityService.GetUser:input_type -> chimera.identity.v1.GetUserRequest
+	15, // 17: chimera.identity.v1.IdentityService.BatchGetUsers:input_type -> chimera.identity.v1.BatchGetUsersRequest
+	17, // 18: chimera.identity.v1.IdentityService.ListUsers:input_type -> chimera.identity.v1.ListUsersRequest
+	19, // 19: chimera.identity.v1.IdentityService.ReplaceUser:input_type -> chimera.identity.v1.ReplaceUserRequest
+	21, // 20: chimera.identity.v1.IdentityService.PatchUser:input_type -> chimera.identity.v1.PatchUserRequest
+	23, // 21: chimera.identity.v1.IdentityService.DeleteUser:input_type -> chimera.identity.v1.DeleteUserRequest
+	10, // 22: chimera.identity.v1.IdentityService.CreateSession:output_type -> chimera.identity.v1.CreateSessionResponse
+	3,  // 23: chimera.identity.v1.IdentityService.VerifySession:output_type -> chimera.identity.v1.VerifySessionResponse
+	5,  // 24: chimera.identity.v1.IdentityService.StartRecovery:output_type -> chimera.identity.v1.StartRecoveryResponse
+	7,  // 25: chimera.identity.v1.IdentityService.StartPasswordChange:output_type -> chimera.identity.v1.StartPasswordChangeResponse
+	9,  // 26: chimera.identity.v1.IdentityService.ValidateSession:output_type -> chimera.identity.v1.ValidateSessionResponse
+	12, // 27: chimera.identity.v1.IdentityService.CreateUser:output_type -> chimera.identity.v1.CreateUserResponse
+	14, // 28: chimera.identity.v1.IdentityService.GetUser:output_type -> chimera.identity.v1.GetUserResponse
+	16, // 29: chimera.identity.v1.IdentityService.BatchGetUsers:output_type -> chimera.identity.v1.BatchGetUsersResponse
+	18, // 30: chimera.identity.v1.IdentityService.ListUsers:output_type -> chimera.identity.v1.ListUsersResponse
+	20, // 31: chimera.identity.v1.IdentityService.ReplaceUser:output_type -> chimera.identity.v1.ReplaceUserResponse
+	22, // 32: chimera.identity.v1.IdentityService.PatchUser:output_type -> chimera.identity.v1.PatchUserResponse
+	24, // 33: chimera.identity.v1.IdentityService.DeleteUser:output_type -> chimera.identity.v1.DeleteUserResponse
+	22, // [22:34] is the sub-list for method output_type
+	10, // [10:22] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_chimera_identity_v1_identity_proto_init() }
@@ -1051,14 +1523,14 @@ func file_chimera_identity_v1_identity_proto_init() {
 	if File_chimera_identity_v1_identity_proto != nil {
 		return
 	}
-	file_chimera_identity_v1_identity_proto_msgTypes[13].OneofWrappers = []any{}
+	file_chimera_identity_v1_identity_proto_msgTypes[21].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chimera_identity_v1_identity_proto_rawDesc), len(file_chimera_identity_v1_identity_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

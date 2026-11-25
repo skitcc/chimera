@@ -117,6 +117,9 @@ func run(ctx context.Context, log *slog.Logger, cfg config.Config) error {
 	go monitor.Run(ctx)
 
 	verifier := auth.NewVerifier(key)
+	if cfg.Auth.SecurityEnabled {
+		verifier.WithValidation(users.Validate)
+	}
 	router := httpapi.NewRouter(httpapi.Dependencies{
 		Log:            log,
 		Tokens:         verifier,

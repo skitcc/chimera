@@ -40,6 +40,11 @@ x-ready-infra: &ready-infra
     condition: service_completed_successfully
 
 services:
+  mailpit:
+    image: axllent/mailpit:v1.34.0
+    ports:
+      - "127.0.0.1:${MAILPIT_PORT:-8025}:8025"
+
   postgres:
     image: ${POSTGRES_IMAGE:-postgres:17-alpine}
     container_name: ${PROJECT_NAME:-chimera}-postgres
@@ -150,10 +155,19 @@ services:
       DATABASE_URL: postgres://identity:${IDENTITY_DB_PASSWORD}@postgres:5432/identity?sslmode=disable
       JWT_PRIVATE_KEY_FILE: /keys/jwt.pem
       JWT_TTL: ${JWT_TTL}
+      AUTH_SECURITY_ENABLED: "true"
+      AUTH_CODE_HMAC_KEY: ${AUTH_CODE_HMAC_KEY:?set AUTH_CODE_HMAC_KEY to a random secret of at least 32 bytes}
+      SMTP_ADDR: ${SMTP_ADDR:-mailpit:1025}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@chimera.local}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_REQUIRE_TLS: ${SMTP_REQUIRE_TLS:-false}
     volumes:
       - chimera-jwt-private:/keys:ro
     depends_on:
       <<: *ready-infra
+      mailpit:
+        condition: service_started
       keygen:
         condition: service_completed_successfully
 
@@ -209,6 +223,7 @@ services:
       HTTP_WRITE_TIMEOUT: ${HTTP_WRITE_TIMEOUT}
       HTTP_CORS_ORIGIN: http://127.0.0.1:${FRONTEND_PORT:-5173},http://localhost:${FRONTEND_PORT:-5173}
       JWT_PUBLIC_KEY_FILE: /keys/jwt.pub
+      AUTH_SECURITY_ENABLED: "true"
       AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT}
       AUTH_RATE_WINDOW: ${AUTH_RATE_WINDOW}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES}

@@ -139,6 +139,6 @@ type PlaylistTrackPage struct {
 } // @name PlaylistTrackPage
 
 type ErrorResponse struct {
-	Code    string `json:"code" binding:"required" enums:"invalid,unauthorized,forbidden,not_found,conflict,too_many_requests,internal"`
+	Code    string `json:"code" binding:"required" enums:"invalid,unauthorized,forbidden,not_found,conflict,too_many_requests,unavailable,internal"`
 	Message string `json:"message" binding:"required"`
 } // @name Error

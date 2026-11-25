@@ -19,14 +19,18 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	IdentityService_CreateSession_FullMethodName = "/chimera.identity.v1.IdentityService/CreateSession"
-	IdentityService_CreateUser_FullMethodName    = "/chimera.identity.v1.IdentityService/CreateUser"
-	IdentityService_GetUser_FullMethodName       = "/chimera.identity.v1.IdentityService/GetUser"
-	IdentityService_BatchGetUsers_FullMethodName = "/chimera.identity.v1.IdentityService/BatchGetUsers"
-	IdentityService_ListUsers_FullMethodName     = "/chimera.identity.v1.IdentityService/ListUsers"
-	IdentityService_ReplaceUser_FullMethodName   = "/chimera.identity.v1.IdentityService/ReplaceUser"
-	IdentityService_PatchUser_FullMethodName     = "/chimera.identity.v1.IdentityService/PatchUser"
-	IdentityService_DeleteUser_FullMethodName    = "/chimera.identity.v1.IdentityService/DeleteUser"
+	IdentityService_CreateSession_FullMethodName       = "/chimera.identity.v1.IdentityService/CreateSession"
+	IdentityService_VerifySession_FullMethodName       = "/chimera.identity.v1.IdentityService/VerifySession"
+	IdentityService_StartRecovery_FullMethodName       = "/chimera.identity.v1.IdentityService/StartRecovery"
+	IdentityService_StartPasswordChange_FullMethodName = "/chimera.identity.v1.IdentityService/StartPasswordChange"
+	IdentityService_ValidateSession_FullMethodName     = "/chimera.identity.v1.IdentityService/ValidateSession"
+	IdentityService_CreateUser_FullMethodName          = "/chimera.identity.v1.IdentityService/CreateUser"
+	IdentityService_GetUser_FullMethodName             = "/chimera.identity.v1.IdentityService/GetUser"
+	IdentityService_BatchGetUsers_FullMethodName       = "/chimera.identity.v1.IdentityService/BatchGetUsers"
+	IdentityService_ListUsers_FullMethodName           = "/chimera.identity.v1.IdentityService/ListUsers"
+	IdentityService_ReplaceUser_FullMethodName         = "/chimera.identity.v1.IdentityService/ReplaceUser"
+	IdentityService_PatchUser_FullMethodName           = "/chimera.identity.v1.IdentityService/PatchUser"
+	IdentityService_DeleteUser_FullMethodName          = "/chimera.identity.v1.IdentityService/DeleteUser"
 )
 
 // IdentityServiceClient is the client API for IdentityService service.
@@ -36,6 +40,10 @@ const (
 // IdentityService owns accounts, profiles, passwords and session tokens.
 type IdentityServiceClient interface {
 	CreateSession(ctx context.Context, in *CreateSessionRequest, opts ...grpc.CallOption) (*CreateSessionResponse, error)
+	VerifySession(ctx context.Context, in *VerifySessionRequest, opts ...grpc.CallOption) (*VerifySessionResponse, error)
+	StartRecovery(ctx context.Context, in *StartRecoveryRequest, opts ...grpc.CallOption) (*StartRecoveryResponse, error)
+	StartPasswordChange(ctx context.Context, in *StartPasswordChangeRequest, opts ...grpc.CallOption) (*StartPasswordChangeResponse, error)
+	ValidateSession(ctx context.Context, in *ValidateSessionRequest, opts ...grpc.CallOption) (*ValidateSessionResponse, error)
 	CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*CreateUserResponse, error)
 	GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error)
 	// BatchGetUsers returns the users that exist, in no particular order. Missing ids are skipped.
@@ -59,6 +67,46 @@ func (c *identityServiceClient) CreateSession(ctx context.Context, in *CreateSes
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateSessionResponse)
 	err := c.cc.Invoke(ctx, IdentityService_CreateSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityServiceClient) VerifySession(ctx context.Context, in *VerifySessionRequest, opts ...grpc.CallOption) (*VerifySessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VerifySessionResponse)
+	err := c.cc.Invoke(ctx, IdentityService_VerifySession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityServiceClient) StartRecovery(ctx context.Context, in *StartRecoveryRequest, opts ...grpc.CallOption) (*StartRecoveryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StartRecoveryResponse)
+	err := c.cc.Invoke(ctx, IdentityService_StartRecovery_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityServiceClient) StartPasswordChange(ctx context.Context, in *StartPasswordChangeRequest, opts ...grpc.CallOption) (*StartPasswordChangeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StartPasswordChangeResponse)
+	err := c.cc.Invoke(ctx, IdentityService_StartPasswordChange_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *identityServiceClient) ValidateSession(ctx context.Context, in *ValidateSessionRequest, opts ...grpc.CallOption) (*ValidateSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ValidateSessionResponse)
+	err := c.cc.Invoke(ctx, IdentityService_ValidateSession_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -142,6 +190,10 @@ func (c *identityServiceClient) DeleteUser(ctx context.Context, in *DeleteUserRe
 // IdentityService owns accounts, profiles, passwords and session tokens.
 type IdentityServiceServer interface {
 	CreateSession(context.Context, *CreateSessionRequest) (*CreateSessionResponse, error)
+	VerifySession(context.Context, *VerifySessionRequest) (*VerifySessionResponse, error)
+	StartRecovery(context.Context, *StartRecoveryRequest) (*StartRecoveryResponse, error)
+	StartPasswordChange(context.Context, *StartPasswordChangeRequest) (*StartPasswordChangeResponse, error)
+	ValidateSession(context.Context, *ValidateSessionRequest) (*ValidateSessionResponse, error)
 	CreateUser(context.Context, *CreateUserRequest) (*CreateUserResponse, error)
 	GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error)
 	// BatchGetUsers returns the users that exist, in no particular order. Missing ids are skipped.
@@ -163,6 +215,18 @@ type UnimplementedIdentityServiceServer struct{}
 
 func (UnimplementedIdentityServiceServer) CreateSession(context.Context, *CreateSessionRequest) (*CreateSessionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateSession not implemented")
+}
+func (UnimplementedIdentityServiceServer) VerifySession(context.Context, *VerifySessionRequest) (*VerifySessionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method VerifySession not implemented")
+}
+func (UnimplementedIdentityServiceServer) StartRecovery(context.Context, *StartRecoveryRequest) (*StartRecoveryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method StartRecovery not implemented")
+}
+func (UnimplementedIdentityServiceServer) StartPasswordChange(context.Context, *StartPasswordChangeRequest) (*StartPasswordChangeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method StartPasswordChange not implemented")
+}
+func (UnimplementedIdentityServiceServer) ValidateSession(context.Context, *ValidateSessionRequest) (*ValidateSessionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ValidateSession not implemented")
 }
 func (UnimplementedIdentityServiceServer) CreateUser(context.Context, *CreateUserRequest) (*CreateUserResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateUser not implemented")
@@ -220,6 +284,78 @@ func _IdentityService_CreateSession_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IdentityServiceServer).CreateSession(ctx, req.(*CreateSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IdentityService_VerifySession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VerifySessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServiceServer).VerifySession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IdentityService_VerifySession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServiceServer).VerifySession(ctx, req.(*VerifySessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IdentityService_StartRecovery_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartRecoveryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServiceServer).StartRecovery(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IdentityService_StartRecovery_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServiceServer).StartRecovery(ctx, req.(*StartRecoveryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IdentityService_StartPasswordChange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartPasswordChangeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServiceServer).StartPasswordChange(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IdentityService_StartPasswordChange_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServiceServer).StartPasswordChange(ctx, req.(*StartPasswordChangeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IdentityService_ValidateSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IdentityServiceServer).ValidateSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IdentityService_ValidateSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IdentityServiceServer).ValidateSession(ctx, req.(*ValidateSessionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -360,6 +496,22 @@ var IdentityService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateSession",
 			Handler:    _IdentityService_CreateSession_Handler,
+		},
+		{
+			MethodName: "VerifySession",
+			Handler:    _IdentityService_VerifySession_Handler,
+		},
+		{
+			MethodName: "StartRecovery",
+			Handler:    _IdentityService_StartRecovery_Handler,
+		},
+		{
+			MethodName: "StartPasswordChange",
+			Handler:    _IdentityService_StartPasswordChange_Handler,
+		},
+		{
+			MethodName: "ValidateSession",
+			Handler:    _IdentityService_ValidateSession_Handler,
 		},
 		{
 			MethodName: "CreateUser",

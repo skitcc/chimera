@@ -99,12 +99,17 @@ func run(ctx context.Context, log *slog.Logger, cfg config.Config) error {
 	userService := usecase.NewUserService(users, users, hasher)
 	authService := usecase.NewAuthService(users, hasher, auth.NewJWT(key, cfg.Auth.TTL))
 
+	var security *usecase.SecurityService
+	if cfg.Auth.SecurityEnabled {
+		userService.EnableSecurity()
+		security = usecase.NewSecurityService(users, hasher, auth.NewJWT(key, cfg.Auth.TTL), cfg.Auth.SMTP, cfg.Auth.CodeKey)
+	}
 	srv := grpcx.NewServer(log, grpcx.ServerConfig{
 		Instance:         cfg.Base.Instance,
 		MaxConnectionAge: cfg.GRPC.MaxConnectionAge,
 		Interceptors:     []grpc.UnaryServerInterceptor{readpref.Interceptor(grpcapi.ReplicaMethods...)},
 	})
-	identityv1.RegisterIdentityServiceServer(srv, grpcapi.NewServer(userService, authService))
+	identityv1.RegisterIdentityServiceServer(srv, grpcapi.NewServer(userService, authService, security))
 
 	// Kafka and the replica are not readiness dependencies: the outbox holds events
 	// while the broker is down, and reads fall back to the primary.

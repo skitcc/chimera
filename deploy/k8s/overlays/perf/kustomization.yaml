@@ -8,3 +8,8 @@ configMapGenerator:
     behavior: merge
     literals:
       - AUTH_RATE_LIMIT=100000
+      - AUTH_SECURITY_ENABLED=false
+  - name: identity-config
+    behavior: merge
+    literals:
+      - AUTH_SECURITY_ENABLED=false

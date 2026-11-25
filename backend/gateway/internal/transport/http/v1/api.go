@@ -50,6 +50,9 @@ func New(
 func (a *API) Public(r chi.Router) {
 	limited := r.With(middleware.RateLimit(a.limit, a.proxies, a.log, httpapi.WriteAppError))
 	limited.Post("/sessions", a.sessions.Create)
+	limited.Post("/sessions/verify", a.sessions.Verify)
+	limited.Post("/password-recovery", a.sessions.Recover)
+	limited.Post("/password-recovery/verify", a.sessions.RecoverVerify)
 	limited.Post("/users", a.users.Create)
 	r.Get("/users", a.users.List)
 	r.Get("/users/{userId}", a.users.Get)
@@ -66,6 +69,9 @@ func (a *API) Public(r chi.Router) {
 }
 
 func (a *API) Protected(r chi.Router) {
+	r.Post("/password-change", a.sessions.Change)
+	r.Post("/password-change/verify", a.sessions.ChangeVerify)
+	r.Get("/session", a.sessions.Current)
 	r.Put("/users/{userId}", a.users.Replace)
 	r.Patch("/users/{userId}", a.users.Patch)
 	r.Delete("/users/{userId}", a.users.Delete)
