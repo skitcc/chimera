@@ -30,6 +30,7 @@ export function Shell() {
           {user ? (
             <>
               <p className="who">{user.name || user.email}</p>
+              <NavLink to="/password-change">Сменить пароль</NavLink>
               <button type="button" className="text-btn" onClick={logout}>
                 Выйти
               </button>

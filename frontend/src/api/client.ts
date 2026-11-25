@@ -63,19 +63,28 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const data: unknown = await res.json().catch(() => ({}))
   if (!res.ok) {
     const err = data as { code?: string; message?: string }
+    if (res.status === 401 && session.token && (err.message === 'invalid token' || err.message === 'missing token')) {
+      setToken(null)
+      localStorage.removeItem('chimera.user')
+      window.dispatchEvent(new Event('chimera:logout'))
+    }
     throw new ApiError(err.code ?? 'error', err.message ?? res.statusText)
   }
   return data as T
 }
 
-async function login(email: string, password: string): Promise<AuthResponse> {
-  const created = await request<Session>('/api/v1/sessions', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  })
+export type Challenge = { challenge_id: string; expires_at: number }
+async function finishSession(created: Session): Promise<AuthResponse> {
   setUserId(created.user_id)
+  setToken(created.token)
   const user = await request<User>(`/api/v1/users/${created.user_id}`)
   return { token: created.token, user }
+}
+async function login(email: string, password: string): Promise<AuthResponse | Challenge> {
+  const result = await request<Session | Challenge>('/api/v1/sessions', {
+    method: 'POST', body: JSON.stringify({ email, password }),
+  })
+  return 'challenge_id' in result ? result : finishSession(result)
 }
 
 export const api = {
@@ -88,8 +97,19 @@ export const api = {
   },
 
   login,
+  verify: async (challenge_id: string, code: string) => finishSession(await request<Session>('/api/v1/sessions/verify', {
+    method: 'POST', body: JSON.stringify({ challenge_id, code }),
+  })),
+  recover: (email: string) => request<{message: string}>('/api/v1/password-recovery', { method: 'POST', body: JSON.stringify({ email }) }),
+  change: (current_password: string) => request<Challenge>('/api/v1/password-change', { method: 'POST', body: JSON.stringify({ current_password }) }),
+  passwordVerify: (purpose: 'recovery' | 'change', challenge_id: string, code: string, new_password: string, email: string) => request<void>(`/api/v1/password-${purpose}/verify`, {
+    method: 'POST', body: JSON.stringify({ challenge_id, code, new_password, email }),
+  }),
 
-  me: () => request<User>(`/api/v1/users/${currentUserId()}`),
+  me: async () => {
+    await request<void>('/api/v1/session')
+    return request<User>(`/api/v1/users/${currentUserId()}`)
+  },
 
   feed: (params: { cursor?: string; artist?: string } = {}) => {
     const q = new URLSearchParams({ limit: '40' })

@@ -28,6 +28,7 @@ export function App() {
             <Backdrop />
             <Routes>
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/password-change" element={<AuthPage />} />
               <Route element={<Shell />}>
                 <Route path="/" element={<FeedPage />} />
                 <Route path="/library" element={<LibraryPage />} />
