@@ -39,7 +39,7 @@ GO_TEST_FLAGS = -count=1 -p=$(GO_TEST_P) -parallel=$(GO_TEST_PARALLEL)
 
 .PHONY: help proto proto-lint proto-breaking test-image test test-shuffle test-offline stand-up stand-gc stand-down test-integration test-e2e demo-capture demo-requests e2e-dev app-logs test-logs test-all coverage gobco-condition gobco-branch allure-results allure-meta allure-render allure-report allure-open spec-matrix spec-check clean-test-results \
 	k8s-keys k8s-secrets k8s-images k8s-up k8s-down k8s-status k8s-logs k8s-e2e \
-	k8s-monitoring k8s-chaos k8s-load k8s-replay-dlq perf-run perf-prepare perf-restore
+	k8s-monitoring k8s-monitoring-up k8s-chaos k8s-load k8s-replay-dlq perf-run perf-prepare perf-restore
 .NOTPARALLEL: test-all
 
 help:
@@ -82,6 +82,7 @@ help:
 		'k8s-logs         Follow one workload, SVC=gateway|identity|catalog|social|...' \
 		'k8s-e2e          Run the Go demo against the minikube ingress' \
 		'k8s-monitoring   Print the Grafana, Prometheus and Tempo addresses' \
+		'k8s-monitoring-up Start Grafana and Prometheus without redeploying the application' \
 		'k8s-chaos        Take catalog pods and the Kafka broker away under k6 load' \
 		'k8s-load         Run loadtest/balance.js against the minikube edge' \
 		'k8s-replay-dlq   Move DLQ records back to their topics' \
@@ -328,6 +329,15 @@ k8s-monitoring:
 	@echo "grafana    http://$(K8S_HOST)/monitoring/ (anonymous viewer; admin password: GRAFANA_ADMIN_PASSWORD in secrets.env)"
 	@echo "prometheus $(KUBECTL) -n $(K8S_NAMESPACE) port-forward svc/prometheus 9090"
 	@echo "tempo      $(KUBECTL) -n $(K8S_NAMESPACE) port-forward svc/tempo 3200"
+
+# Hold the same lock as the perf runner; restore only these two existing deployments.
+k8s-monitoring-up:
+	flock -n "$(ROOT_DIR)/.perf-run.lock" sh -ec '\
+		$(KUBECTL) -n $(K8S_NAMESPACE) scale deployment/grafana deployment/prometheus --replicas=1; \
+		for d in grafana prometheus; do \
+			$(KUBECTL) -n $(K8S_NAMESPACE) rollout status deployment/$$d --timeout=180s; \
+		done'
+	$(MAKE) k8s-monitoring
 
 # Drops one Catalog pod, then the whole Catalog, then the Postgres replicas, while k6
 # reads the feed. docs/resilience.md has the phases and the measured numbers.

@@ -19,4 +19,6 @@ configMapGenerator:
   - name: grafana-dashboards-provider
     files: [grafana/provisioning/dashboards/dashboards.yml]
   - name: grafana-dashboards
-    files: [grafana/provisioning/dashboards/json/chimera.json]
+    files:
+      - grafana/provisioning/dashboards/json/chimera.json
+      - grafana/provisioning/dashboards/json/chimera-infrastructure.json
