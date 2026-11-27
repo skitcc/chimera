@@ -19,7 +19,9 @@ jobs:
         uses: actions/checkout@v6
       - name: Validate performance scripts and calculations
         run: |
-          sh -n deploy/perf/run.sh deploy/perf/reset.sh deploy/perf/isolate.sh deploy/postgres/primary.sh deploy/postgres/replica.sh deploy/postgres/init-databases.sh
+          for script in deploy/perf/run.sh deploy/perf/reset.sh deploy/perf/isolate.sh deploy/postgres/primary.sh deploy/postgres/replica.sh deploy/postgres/init-databases.sh; do
+            sh -n "$script" || exit 1
+          done
           python3 -m unittest discover -s deploy/perf -p 'test_*.py'
 
   contracts:

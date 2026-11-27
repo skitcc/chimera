@@ -21,7 +21,6 @@ vm.createContext(context);
 vm.runInContext(source, context);
 context.phase = () => 'measure';
 const calls = [];
-context.login = () => ({token:'token', id:'author'});
 context.call = (step, method, path, body) => {
   calls.push({step, path, body});
   const status = step === 'upload' ? UPLOAD : step === 'publish' ? PUBLISH
@@ -29,7 +28,7 @@ context.call = (step, method, path, body) => {
   return {status, json: key => key === 'track.id' ? 'new-track'
     : key === 'upload_url' ? 'http://s3/upload' : 'new-playlist'};
 };
-context.author({authors:[{}], tracks:['seed-ready']});
+context.author({authors:[{token:'token', id:'author'}], tracks:['seed-ready']});
 assert.equal(calls.find(x => x.step === 'playlist-add').body.track_id, EXPECTED);
 assert.equal(calls.find(x => x.step === 'card').path, '/tracks/' + EXPECTED);
 assert.equal(calls.find(x => x.step === 'track-delete').path, '/tracks/new-track');
