@@ -22,7 +22,7 @@ kind: Ingress
 metadata:
   name: chimera-s3
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: 100m
+    nginx.ingress.kubernetemetadatas.io/proxy-body-size: 100m
     nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
 spec:
   ingressClassName: nginx
