@@ -28,6 +28,7 @@ func (j *JWT) Issue(user domain.User) (string, error) {
 	now := time.Now()
 	claims := jwt.MapClaims{
 		"sub":   user.ID,
+		"ver":   user.AuthVersion,
 		"email": user.Email,
 		"exp":   now.Add(j.ttl).Unix(),
 		"iat":   now.Unix(),

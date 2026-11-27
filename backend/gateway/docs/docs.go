@@ -405,6 +405,154 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/password-change": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sessions"
+                ],
+                "summary": "Запросить смену пароля",
+                "parameters": [
+                    {
+                        "description": "Текущий пароль",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.PasswordChangeStart"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/v1.AuthChallenge"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/password-change/verify": {
+            "post": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sessions"
+                ],
+                "summary": "Подтвердить смену пароля и отозвать все сессии",
+                "parameters": [
+                    {
+                        "description": "Код и новый пароль",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.AuthVerify"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/password-recovery": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sessions"
+                ],
+                "summary": "Запросить восстановление доступа",
+                "parameters": [
+                    {
+                        "description": "Email",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.RecoveryStart"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/v1.RecoveryAccepted"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/password-recovery/verify": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sessions"
+                ],
+                "summary": "Подтвердить восстановление; затем войти заново с 2FA",
+                "parameters": [
+                    {
+                        "description": "Код и новый пароль",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.AuthVerify"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/playlists": {
             "get": {
                 "security": [
@@ -1144,9 +1292,33 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/session": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "sessions"
+                ],
+                "summary": "Проверить действительность текущей сессии",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/sessions": {
             "post": {
-                "description": "Открывает сессию и возвращает токен и ` + "`" + `user_id` + "`" + ` владельца.\nНеизвестный email и неверный пароль дают один и тот же ` + "`" + `unauthorized` + "`" + `.",
+                "description": "Проверяет пароль и отправляет email-код. JWT выдаётся после /sessions/verify.\nНеизвестный email и неверный пароль дают один и тот же ` + "`" + `unauthorized` + "`" + `.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1171,9 +1343,15 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Сессия открыта",
+                        "description": "Только perf-режим",
                         "schema": {
                             "$ref": "#/definitions/Session"
+                        }
+                    },
+                    "202": {
+                        "description": "Код отправлен",
+                        "schema": {
+                            "$ref": "#/definitions/v1.AuthChallenge"
                         }
                     },
                     "400": {
@@ -1202,6 +1380,45 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Сбой сервера. Клиенту не отдаются детали.",
+                        "schema": {
+                            "$ref": "#/definitions/Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/sessions/verify": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sessions"
+                ],
+                "summary": "Подтвердить второй фактор",
+                "parameters": [
+                    {
+                        "description": "Проверка и код",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.AuthVerify"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/Session"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/Error"
                         }
@@ -2246,6 +2463,7 @@ const docTemplate = `{
                         "not_found",
                         "conflict",
                         "too_many_requests",
+                        "unavailable",
                         "internal"
                     ]
                 },
@@ -2768,6 +2986,58 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "Ada Lovelace"
+                }
+            }
+        },
+        "v1.AuthChallenge": {
+            "type": "object",
+            "properties": {
+                "challenge_id": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.AuthVerify": {
+            "type": "object",
+            "properties": {
+                "challenge_id": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "new_password": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.PasswordChangeStart": {
+            "type": "object",
+            "properties": {
+                "current_password": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.RecoveryAccepted": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.RecoveryStart": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
                 }
             }
         }

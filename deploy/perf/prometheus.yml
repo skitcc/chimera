@@ -1,0 +1,13 @@
+# Host Prometheus for one perf run. k6 remote-writes here. cAdvisor is reached
+# through kubectl proxy; the node name is substituted by run.sh.
+global:
+  scrape_interval: 1s
+  scrape_timeout: 1s
+
+scrape_configs:
+  - job_name: cadvisor
+    metrics_path: /api/v1/nodes/NODE_NAME/proxy/metrics/cadvisor
+    static_configs:
+      - targets: ["127.0.0.1:8001"]
+    # All Kubernetes namespaces: application pods, ingress, control plane,
+    # exporters and observers. Leaf-container selectors are applied in queries.

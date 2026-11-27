@@ -17,6 +17,8 @@ set -a
 # shellcheck disable=SC1091
 . "$root/.env"
 set +a
+. "$backend/scripts/e2e-secrets.sh"
+sh "$backend/scripts/check-e2e-credentials.sh"
 
 api_port=${API_PORT:-8080}
 project=${PROJECT_NAME:-chimera}
@@ -64,6 +66,8 @@ done
 $compose up --detach --wait --wait-timeout 300
 
 docker run --rm --network host \
+	-e GITHUB_ACTIONS -e E2E_USER_PASSWORD -e E2E_NEW_PASSWORD \
+	-e E2E_MAILPIT_URL="http://127.0.0.1:${MAILPIT_PORT:-8025}" \
 	-e E2E_API_URL="http://127.0.0.1:${api_port}" \
 	-e E2E_OUT=/out \
 	-v "$out:/out" \
@@ -108,4 +112,7 @@ printf '\n--- gRPC ---\n'
 awk '/^# SQL$/ { exit } seen { print } /^# gRPC$/ { seen=1 }' "$out/demo.txt"
 printf '\n--- SQL ---\n'
 awk 'seen { print } /^# SQL$/ { seen=1 }' "$out/demo.txt"
+if [ "${GITHUB_ACTIONS:-}" = true ]; then
+ python3 "$backend/scripts/sanitize-auth-artifacts.py" "$out"
+fi
 printf 'capture written to %s\n' "$out"

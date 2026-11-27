@@ -1,10 +1,12 @@
 package auth_test
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -91,5 +93,32 @@ func TestLoadPublicKey(t *testing.T) {
 	}
 	if _, err := auth.LoadPublicKey(bad); err == nil {
 		t.Fatal("LoadPublicKey() accepted a file without PEM")
+	}
+}
+
+func TestVerifierValidatesPrimaryVersionAndFailsClosed(t *testing.T) {
+	pub, priv := newKey(t)
+	token := sign(t, jwt.SigningMethodEdDSA, priv, jwt.MapClaims{"sub": "user-1", "ver": 2, "exp": time.Now().Add(time.Hour).Unix()})
+	calls := 0
+	verifier := auth.NewVerifier(pub).WithValidation(func(ctx context.Context, id string, version int64) error {
+		calls++
+		if id != "user-1" || version != 2 {
+			t.Fatal("wrong validation input")
+		}
+		return nil
+	})
+	if _, err := verifier.ParseContext(context.Background(), token); err != nil || calls != 1 {
+		t.Fatal("current session rejected")
+	}
+	verifier.WithValidation(func(context.Context, string, int64) error { return errors.New("primary unavailable") })
+	if _, err := verifier.ParseContext(context.Background(), token); !domain.Is(err, domain.CodeUnavailable) {
+		t.Fatal("primary outage must reject access without declaring the token revoked")
+	}
+	legacy := sign(t, jwt.SigningMethodEdDSA, priv, jwt.MapClaims{"sub": "user-1", "exp": time.Now().Add(time.Hour).Unix()})
+	if _, err := verifier.ParseContext(context.Background(), legacy); err == nil {
+		t.Fatal("unversioned token accepted in secure mode")
+	}
+	if _, err := auth.NewVerifier(pub).Parse(legacy); err != nil {
+		t.Fatal("legacy perf token rejected in legacy mode")
 	}
 }

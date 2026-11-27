@@ -25,3 +25,18 @@ GRANT USAGE ON SCHEMA public TO :"reader";
 ALTER DEFAULT PRIVILEGES FOR ROLE :"name" IN SCHEMA public GRANT SELECT ON TABLES TO :"reader";
 SQL
 done
+
+# Runs on a new primary only, under the official entrypoint's temporary server.
+# Compose without replication keeps using this same database initializer.
+if [ -n "${POSTGRES_REPLICATION_USER:-}" ]; then
+  : "${POSTGRES_REPLICATION_PASSWORD:?POSTGRES_REPLICATION_PASSWORD is required}"
+  : "${PGDATA:?PGDATA is required}"
+  case "$POSTGRES_REPLICATION_USER" in
+    *[!a-zA-Z0-9_]*) echo 'replication role must be an identifier' >&2; exit 1 ;;
+  esac
+  psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \
+    -v role="$POSTGRES_REPLICATION_USER" -v password="$POSTGRES_REPLICATION_PASSWORD" <<'SQL'
+CREATE ROLE :"role" WITH REPLICATION LOGIN PASSWORD :'password';
+SQL
+  printf 'host replication %s all scram-sha-256\n' "$POSTGRES_REPLICATION_USER" >> "$PGDATA/pg_hba.conf"
+fi

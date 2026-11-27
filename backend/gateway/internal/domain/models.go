@@ -50,8 +50,10 @@ type LoginInput struct {
 }
 
 type AuthResult struct {
-	Token string
-	User  User
+	ChallengeID string
+	ExpiresAt   int64
+	Token       string
+	User        User
 }
 
 type TrackStatus string

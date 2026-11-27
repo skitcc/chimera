@@ -76,6 +76,9 @@ spec:
             - configMapRef: {name: service-runtime}
             - configMapRef: {name: identity-config}
           env:
+            - name: AUTH_CODE_HMAC_KEY
+              valueFrom:
+                secretKeyRef: {name: chimera-secrets, key: AUTH_CODE_HMAC_KEY, optional: true}
             - name: INSTANCE_NAME
               valueFrom:
                 fieldRef: {fieldPath: metadata.name}

@@ -1,9 +1,10 @@
 package domain
 
 type User struct {
-	ID    string
-	Email string
-	Name  string
+	AuthVersion int64
+	ID          string
+	Email       string
+	Name        string
 }
 
 type AuthUser struct {

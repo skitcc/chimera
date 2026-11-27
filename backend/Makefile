@@ -39,7 +39,7 @@ GO_TEST_FLAGS = -count=1 -p=$(GO_TEST_P) -parallel=$(GO_TEST_PARALLEL)
 
 .PHONY: help proto proto-lint proto-breaking test-image test test-shuffle test-offline stand-up stand-gc stand-down test-integration test-e2e demo-capture demo-requests e2e-dev app-logs test-logs test-all coverage gobco-condition gobco-branch allure-results allure-meta allure-render allure-report allure-open spec-matrix spec-check clean-test-results \
 	k8s-keys k8s-secrets k8s-images k8s-up k8s-down k8s-status k8s-logs k8s-e2e \
-	k8s-monitoring k8s-chaos k8s-load k8s-replay-dlq
+	k8s-monitoring k8s-monitoring-up k8s-chaos k8s-load k8s-replay-dlq perf-run perf-prepare perf-restore
 .NOTPARALLEL: test-all
 
 help:
@@ -55,7 +55,9 @@ help:
 		'stand-gc         Drop t_* databases that have no sessions' \
 		'stand-down       Stop the stand without deleting its volumes' \
 		'test-integration Run integration tests of every service against the running stand' \
-		'test-e2e         Run the demo against a private compose stack (Gateway, services, Kafka)' \
+		'test-e2e         Run demo, smoke and authentication BDD on a private compose stack' \
+		'test-auth-e2e    Run Identity PostgreSQL integration tests and authentication BDD' \
+		'test-auth-perf-compat Check legacy perf authentication without load' \
 		'demo-capture     Replay the demo with curl and write pcap captures' \
 		'demo-requests    Run the curl demo once against the running dev Gateway (RUN=name)' \
 		'e2e-dev          Run the Go demo once against the running dev Gateway (RUN=name)' \
@@ -80,9 +82,11 @@ help:
 		'k8s-logs         Follow one workload, SVC=gateway|identity|catalog|social|...' \
 		'k8s-e2e          Run the Go demo against the minikube ingress' \
 		'k8s-monitoring   Print the Grafana, Prometheus and Tempo addresses' \
+		'k8s-monitoring-up Start Grafana and Prometheus without redeploying the application' \
 		'k8s-chaos        Take catalog pods and the Kafka broker away under k6 load' \
 		'k8s-load         Run loadtest/balance.js against the minikube edge' \
-		'k8s-replay-dlq   Move DLQ records back to their topics'
+		'k8s-replay-dlq   Move DLQ records back to their topics' \
+		'perf-run         Perf scenario. PROFILE=quick|full SCENARIO=ramp|stress|soak|trio|all FAULT_RATE=0|0.1|0.2'
 
 BUF = docker run --rm --user $(TEST_UID):$(TEST_GID) -e BUF_CACHE_DIR=/tmp/buf -v "$(ROOT_DIR):/repo" -w /repo/backend/contracts "$(BUF_IMAGE)"
 
@@ -130,15 +134,15 @@ test-integration: | $(ARTIFACTS_DIR)
 
 test-e2e: | $(ARTIFACTS_DIR)
 	@test -f "$(ROOT_DIR)/.env" || { printf '%s\n' 'missing ../.env; copy .env.example to .env' >&2; exit 1; }
-	$(MAKE) test-image
 	ARTIFACTS_DIR="$(ARTIFACTS_DIR)" TEST_IMAGE="$(TEST_IMAGE)" \
-		TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" RUN="$(RUN)" \
-		sh scripts/stand-e2e.sh
+		TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" RUN="$(RUN)" E2E_TEST_TAGS="e2e authe2e" \
+		sh scripts/auth-e2e.sh
 
 demo-capture:
 	NETSHOOT_IMAGE="$(NETSHOOT_IMAGE)" sh scripts/demo-capture.sh
 
 DEV_API_URL ?= http://127.0.0.1:8080
+DEV_MAILPIT_URL ?= http://127.0.0.1:8025
 DEV_SERVICES ?= gateway identity catalog social
 RUN ?=
 
@@ -147,7 +151,7 @@ demo-requests:
 	mkdir -p "$(ARTIFACTS_DIR)/e2e-out/runs"; \
 	printf '%s\n' "curl run: make app-logs RUN=curl-$$run"; \
 	docker run --rm --network host --user $(TEST_UID):$(TEST_GID) \
-		-e E2E_API_URL="$(DEV_API_URL)" -e E2E_OUT=/out -e E2E_RUN="$$run" \
+		-e E2E_MAILPIT_URL="$(DEV_MAILPIT_URL)" -e E2E_API_URL="$(DEV_API_URL)" -e E2E_OUT=/out -e E2E_RUN="$$run" \
 		-v "$(ARTIFACTS_DIR)/e2e-out/runs:/out" \
 		-v "$(CURDIR)/scripts/demo-requests.sh:/demo-requests.sh:ro" \
 		"$(NETSHOOT_IMAGE)" sh /demo-requests.sh
@@ -157,7 +161,7 @@ e2e-dev: test-image | $(ARTIFACTS_DIR)
 	printf '%s\n' "go run: make app-logs RUN=go-$$run"; \
 	docker run --rm --network host --user $(TEST_UID):$(TEST_GID) -e HOME=/tmp \
 		-e ALLURE_RESULTS_DIR=/artifacts/allure-results \
-		-e E2E_API_URL="$(DEV_API_URL)" -e E2E_RUN="$$run" \
+		-e E2E_MAILPIT_URL="$(DEV_MAILPIT_URL)" -e E2E_API_URL="$(DEV_API_URL)" -e E2E_RUN="$$run" \
 		-v "$(ARTIFACTS_DIR):/artifacts" "$(TEST_IMAGE)" \
 		go test -count=1 -tags=e2e chimera/e2e/...
 
@@ -186,6 +190,7 @@ allure-results: test-image | $(ARTIFACTS_DIR)
 		go test $(GO_TEST_FLAGS) $(TEST_PACKAGES)
 	$(MAKE) test-integration
 	$(MAKE) test-e2e
+	$(MAKE) test-auth-perf-compat
 
 allure-meta: | $(ARTIFACTS_DIR)
 	mkdir -p "$(ARTIFACTS_DIR)/allure-results"
@@ -261,7 +266,7 @@ k8s-keys:
 		-v "$(K8S_OVERLAY)/keys:/keys/private" -v "$(K8S_OVERLAY)/keys:/keys/public" chimera-keygen:local && \
 	echo "wrote $(K8S_OVERLAY)/keys/jwt.pem and jwt.pub"
 
-K8S_SECRET_KEYS := POSTGRES_PASSWORD POSTGRES_REPLICATION_PASSWORD \
+K8S_SECRET_KEYS := AUTH_CODE_HMAC_KEY POSTGRES_PASSWORD POSTGRES_REPLICATION_PASSWORD \
 	IDENTITY_DB_PASSWORD CATALOG_DB_PASSWORD SOCIAL_DB_PASSWORD \
 	IDENTITY_DB_READ_PASSWORD CATALOG_DB_READ_PASSWORD SOCIAL_DB_READ_PASSWORD \
 	S3_SECRET_KEY GRAFANA_ADMIN_PASSWORD ADMIN_PASSWORD
@@ -316,7 +321,7 @@ k8s-e2e: test-image | $(ARTIFACTS_DIR)
 	printf '%s\n' "go run against http://$(K8S_HOST): make k8s-logs SVC=gateway | grep go-$$run"; \
 	docker run --rm --network host --user $(TEST_UID):$(TEST_GID) -e HOME=/tmp \
 		-e ALLURE_RESULTS_DIR=/artifacts/allure-results \
-		-e E2E_API_URL="http://$(K8S_HOST)/api" -e E2E_RUN="$$run" \
+		-e E2E_MAILPIT_URL="$(DEV_MAILPIT_URL)" -e E2E_API_URL="http://$(K8S_HOST)/api" -e E2E_RUN="$$run" \
 		-v "$(ARTIFACTS_DIR):/artifacts" "$(TEST_IMAGE)" \
 		go test -count=1 -tags=e2e chimera/e2e/...
 
@@ -324,6 +329,15 @@ k8s-monitoring:
 	@echo "grafana    http://$(K8S_HOST)/monitoring/ (anonymous viewer; admin password: GRAFANA_ADMIN_PASSWORD in secrets.env)"
 	@echo "prometheus $(KUBECTL) -n $(K8S_NAMESPACE) port-forward svc/prometheus 9090"
 	@echo "tempo      $(KUBECTL) -n $(K8S_NAMESPACE) port-forward svc/tempo 3200"
+
+# Hold the same lock as the perf runner; restore only these two existing deployments.
+k8s-monitoring-up:
+	flock -n "$(ROOT_DIR)/.perf-run.lock" sh -ec '\
+		$(KUBECTL) -n $(K8S_NAMESPACE) scale deployment/grafana deployment/prometheus --replicas=1; \
+		for d in grafana prometheus; do \
+			$(KUBECTL) -n $(K8S_NAMESPACE) rollout status deployment/$$d --timeout=180s; \
+		done'
+	$(MAKE) k8s-monitoring
 
 # Drops one Catalog pod, then the whole Catalog, then the Postgres replicas, while k6
 # reads the feed. docs/resilience.md has the phases and the measured numbers.
@@ -334,8 +348,40 @@ k8s-chaos: | $(ARTIFACTS_DIR)
 k8s-load: | $(ARTIFACTS_DIR)
 	docker run --rm --network host --user $(TEST_UID):$(TEST_GID) \
 		-e BASE_URL="http://$(K8S_HOST)" -e SUMMARY_DIR=/out \
+		-e GATEWAY_PODS="$$( $(KUBECTL) -n $(K8S_NAMESPACE) get pods -l app.kubernetes.io/name=gateway -o jsonpath='{.items[*].metadata.name}' )" \
+		-e CATALOG_PODS="$$( $(KUBECTL) -n $(K8S_NAMESPACE) get pods -l app.kubernetes.io/name=catalog -o jsonpath='{.items[*].metadata.name}' )" \
 		-v "$(ROOT_DIR)/loadtest:/loadtest:ro" -v "$(ARTIFACTS_DIR):/out" \
 		"$(K6_IMAGE)" run /loadtest/balance.js
 
 k8s-replay-dlq:
 	KUBECTL="$(KUBECTL)" K8S_NAMESPACE=$(K8S_NAMESPACE) sh "$(ROOT_DIR)/deploy/kafka/replay-dlq.sh"
+
+# CPU pinning is optional: ISOLATE_CPUS=1; sudo additionally configures systemd.
+PROFILE ?= quick
+SCENARIO ?= ramp
+FAULT_RATE ?= 0
+
+perf-run:
+	PROFILE="$(PROFILE)" SCENARIO="$(SCENARIO)" FAULT_RATE="$(FAULT_RATE)" \
+		KUBECTL="$(KUBECTL)" K6_IMAGE="$(K6_IMAGE)" \
+		sh "$(ROOT_DIR)/deploy/perf/run.sh"
+
+perf-prepare:
+	sh "$(ROOT_DIR)/deploy/perf/reset.sh" prepare
+
+perf-restore:
+	sh "$(ROOT_DIR)/deploy/perf/reset.sh" restore
+
+.PHONY: test-auth-e2e
+AUTH_E2E_TAGS ?= authe2e
+# The script holds the perf lock throughout the build/run; no pre-build here.
+test-auth-e2e: | $(ARTIFACTS_DIR)
+	ARTIFACTS_DIR="$(ARTIFACTS_DIR)" TEST_IMAGE="$(TEST_IMAGE)" \
+		TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" E2E_TEST_TAGS="$(AUTH_E2E_TAGS)" E2E_IDENTITY_INTEGRATION=1 \
+		sh scripts/auth-e2e.sh
+
+.PHONY: test-auth-perf-compat
+test-auth-perf-compat: | $(ARTIFACTS_DIR)
+	ARTIFACTS_DIR="$(ARTIFACTS_DIR)" TEST_IMAGE="$(TEST_IMAGE)" \
+		TEST_UID="$(TEST_UID)" TEST_GID="$(TEST_GID)" E2E_TEST_TAGS="perfauth" \
+		sh scripts/auth-e2e.sh

@@ -50,3 +50,5 @@ make test-all
 
 See [backend/TESTING.md](backend/TESTING.md) for offline runs, shuffle seed
 reproduction, coverage reports, Allure generation, and test conventions.
+
+Аутентификация, SMTP и BDD E2E: [docs/auth-security.md](docs/auth-security.md).

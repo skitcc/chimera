@@ -34,7 +34,10 @@ func TestDemoScenario(t *testing.T) {
 	}
 	artistEmail := "artist-" + suffix + "@example.com"
 	listenerEmail := "listener-" + suffix + "@example.com"
-	const password = "password1"
+	password, _, err := testPasswords()
+	if err != nil {
+		t.Fatal(err)
+	}
 	artistName := "DemoArtist" + suffix
 	title := "Demo Track " + suffix
 	audio := bytes.Repeat([]byte("chimera-demo-audio\n"), 64)
@@ -238,6 +241,10 @@ func TestDemoScenario(t *testing.T) {
 			}))
 			requireStatus(t, http.StatusCreated, status, body)
 			draftID = decode[uploadResponse](t, body).Track.ID
+			// A public stream probe distinguishes a pending row from a deleted
+			// row without relying on the owner's token after account deletion.
+			status, _, body = api.do(t, http.MethodGet, "/v1/tracks/"+draftID+"/stream", "", nil)
+			requireStatus(t, http.StatusConflict, status, body)
 		})
 
 		step("22 delete artist", func(t *testing.T) {
@@ -247,9 +254,9 @@ func TestDemoScenario(t *testing.T) {
 
 		step("23 artist data disappears", func(t *testing.T) {
 			eventually(t, "UserDeleted reached Catalog and Social", func() bool {
-				status, _, body := api.do(t, http.MethodGet, "/v1/tracks/"+draftID, artist.Token, nil)
+				status, _, body := api.do(t, http.MethodGet, "/v1/tracks/"+draftID+"/stream", "", nil)
 				if status != http.StatusNotFound {
-					requireStatus(t, http.StatusOK, status, body)
+					requireStatus(t, http.StatusConflict, status, body)
 					return false
 				}
 				status, _, body = api.do(t, http.MethodGet, "/v1/follows?follower_id="+listener.UserID, "", nil)
@@ -366,10 +373,20 @@ func (c *client) register(t *testing.T, email, name, password string) session {
 	status, _, body = c.do(t, http.MethodPost, "/v1/sessions", "", jsonBody(t, map[string]string{
 		"email": email, "password": password,
 	}))
+	if status == http.StatusAccepted {
+		challenge := decode[struct {
+			ID string `json:"challenge_id"`
+		}](t, body)
+		code, err := emailCode(email, "login")
+		if err != nil {
+			t.Fatal(err)
+		}
+		status, _, body = c.do(t, http.MethodPost, "/v1/sessions/verify", "", jsonBody(t, map[string]string{"challenge_id": challenge.ID, "code": code}))
+	}
 	requireStatus(t, http.StatusCreated, status, body)
 	s := decode[session](t, body)
 	if s.Token == "" || s.UserID != user.ID {
-		t.Fatalf("session response: %s", body)
+		t.Fatal("invalid session response")
 	}
 	return s
 }
@@ -402,7 +419,7 @@ func decode[T any](t *testing.T, raw []byte) T {
 func requireStatus(t *testing.T, want, got int, body []byte) {
 	t.Helper()
 	if got != want {
-		t.Fatalf("status %d, want %d, body %s", got, want, body)
+		t.Fatalf("status %d, want %d", got, want)
 	}
 }
 

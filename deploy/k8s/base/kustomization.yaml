@@ -12,6 +12,7 @@ resources:
   - rustfs.yaml
   - kafka.yaml
   - identity.yaml
+  - mailpit.yaml
   - catalog.yaml
   - social.yaml
   - gateway.yaml
@@ -72,6 +73,9 @@ configMapGenerator:
     literals:
       - JWT_PRIVATE_KEY_FILE=/keys/jwt.pem
       - JWT_TTL=24h
+      - SMTP_ADDR=mailpit:1025
+      - SMTP_REQUIRE_TLS=false
+      - AUTH_SECURITY_ENABLED=true
   - name: catalog-config
     literals:
       - S3_ENDPOINT=http://rustfs:9000
@@ -98,6 +102,7 @@ configMapGenerator:
       - HTTP_READ_HEADER_TIMEOUT=5s
       - HTTP_WRITE_TIMEOUT=15s
       - JWT_PUBLIC_KEY_FILE=/keys/jwt.pub
+      - AUTH_SECURITY_ENABLED=true
       # Each of the 3 Gateway pods counts on its own: 7 x 3 is about the former 20.
       - AUTH_RATE_LIMIT=7
       - AUTH_RATE_WINDOW=1m

@@ -39,7 +39,11 @@ trap finish EXIT
 
 artist_email="artist-${suffix}@example.com"
 listener_email="listener-${suffix}@example.com"
-password=password1
+password=${E2E_USER_PASSWORD:-}
+if [ -z "$password" ]; then
+ [ "${GITHUB_ACTIONS:-}" != true ] || { printf '%s\n' 'E2E_USER_PASSWORD is required from GitHub Actions Secrets' >&2; exit 1; }
+ password=$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')
+fi
 artist_name="DemoArtist${suffix}"
 title="Demo Track ${suffix}"
 audio=$out/audio.bin
@@ -92,7 +96,7 @@ step() {
 	done
 	if [ "$ok" -ne 1 ]; then
 		printf 'expected %s\n' "$expect" >&2
-		cat "$resp" >&2 || true
+		printf '%s\n' 'request failed; response omitted to protect credentials' >&2
 		exit 1
 	fi
 }
@@ -120,6 +124,28 @@ header_value() {
 	' "$2"
 }
 
+login_session() {
+ name=$1
+ email=$2
+ body=$(json_file --arg email "$email" --arg password "$password" '{email:$email,password:$password}')
+ step "$name" POST "$api/v1/sessions" '201|202' "" "$body"
+ challenge=$(jq -r '.challenge_id // empty' "$out/responses/$name.body")
+ if [ -n "$challenge" ]; then
+  mailpit=${E2E_MAILPIT_URL:-http://127.0.0.1:8025}
+  mail_id=
+  tries=0
+  while [ "$tries" -lt 50 ]; do
+   mail_id=$(curl -fsSG "$mailpit/api/v1/search" --data-urlencode "query=to:$email" | jq -r '.messages[0].ID // empty')
+   [ -z "$mail_id" ] || break
+   tries=$((tries+1)); sleep 0.2
+  done
+  [ -n "$mail_id" ] || { printf '%s\n' 'email code not delivered' >&2; exit 1; }
+  otp=$(curl -fsS "$mailpit/api/v1/message/$mail_id" | jq -r '.Text' | sed -n 's/.*Your code: \([0-9]\{6\}\).*/\1/p')
+  body=$(json_file --arg challenge_id "$challenge" --arg code "$otp" '{challenge_id:$challenge_id,code:$code}')
+  step "$name" POST "$api/v1/sessions/verify" 201 "" "$body"
+ fi
+}
+
 event=start
 step 01 GET "$api/ready" 200
 event=
@@ -131,7 +157,7 @@ artist_id=$(jq -er .id "$out/responses/02.body")
 
 body=$(json_file --arg email "$artist_email" --arg password "$password" \
 	'{email:$email, password:$password}')
-step 03 POST "$api/v1/sessions" 201 "" "$body"
+login_session 03 "$artist_email"
 artist_token=$(jq -er .token "$out/responses/03.body")
 
 step 04 GET "$api/v1/users/${artist_id}" 200
@@ -162,7 +188,7 @@ step 10 POST "$api/v1/users" 201 "" "$body"
 listener_id=$(jq -er .id "$out/responses/10.body")
 body=$(json_file --arg email "$listener_email" --arg password "$password" \
 	'{email:$email, password:$password}')
-step 10s POST "$api/v1/sessions" 201 "" "$body"
+login_session 10s "$listener_email"
 listener_token=$(jq -er .token "$out/responses/10s.body")
 
 step 11 PUT "$api/v1/users/${listener_id}/likes/${track}" 401

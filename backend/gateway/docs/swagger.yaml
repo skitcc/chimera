@@ -10,6 +10,7 @@ definitions:
         - not_found
         - conflict
         - too_many_requests
+        - unavailable
         - internal
         type: string
       message:
@@ -396,6 +397,39 @@ definitions:
     - email
     - name
     type: object
+  v1.AuthChallenge:
+    properties:
+      challenge_id:
+        type: string
+      expires_at:
+        type: integer
+    type: object
+  v1.AuthVerify:
+    properties:
+      challenge_id:
+        type: string
+      code:
+        type: string
+      email:
+        type: string
+      new_password:
+        type: string
+    type: object
+  v1.PasswordChangeStart:
+    properties:
+      current_password:
+        type: string
+    type: object
+  v1.RecoveryAccepted:
+    properties:
+      message:
+        type: string
+    type: object
+  v1.RecoveryStart:
+    properties:
+      email:
+        type: string
+    type: object
 info:
   contact: {}
   title: Sound Chimera API
@@ -695,6 +729,98 @@ paths:
       summary: Подписаться на автора
       tags:
       - follows
+  /v1/password-change:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Текущий пароль
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.PasswordChangeStart'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/v1.AuthChallenge'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Запросить смену пароля
+      tags:
+      - sessions
+  /v1/password-change/verify:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Код и новый пароль
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.AuthVerify'
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Подтвердить смену пароля и отозвать все сессии
+      tags:
+      - sessions
+  /v1/password-recovery:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.RecoveryStart'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/v1.RecoveryAccepted'
+      summary: Запросить восстановление доступа
+      tags:
+      - sessions
+  /v1/password-recovery/verify:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Код и новый пароль
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.AuthVerify'
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/Error'
+      summary: Подтвердить восстановление; затем войти заново с 2FA
+      tags:
+      - sessions
   /v1/playlists:
     get:
       description: |-
@@ -1209,12 +1335,26 @@ paths:
       summary: Сменить позицию трека
       tags:
       - playlists
+  /v1/session:
+    get:
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - bearerAuth: []
+      summary: Проверить действительность текущей сессии
+      tags:
+      - sessions
   /v1/sessions:
     post:
       consumes:
       - application/json
       description: |-
-        Открывает сессию и возвращает токен и `user_id` владельца.
+        Проверяет пароль и отправляет email-код. JWT выдаётся после /sessions/verify.
         Неизвестный email и неверный пароль дают один и тот же `unauthorized`.
       operationId: createSession
       parameters:
@@ -1228,9 +1368,13 @@ paths:
       - application/json
       responses:
         "201":
-          description: Сессия открыта
+          description: Только perf-режим
           schema:
             $ref: '#/definitions/Session'
+        "202":
+          description: Код отправлен
+          schema:
+            $ref: '#/definitions/v1.AuthChallenge'
         "400":
           description: Неверное тело, параметр или пустое частичное обновление
           schema:
@@ -1254,6 +1398,31 @@ paths:
           schema:
             $ref: '#/definitions/Error'
       summary: Вход
+      tags:
+      - sessions
+  /v1/sessions/verify:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Проверка и код
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.AuthVerify'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/Session'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/Error'
+      summary: Подтвердить второй фактор
       tags:
       - sessions
   /v1/tracks:

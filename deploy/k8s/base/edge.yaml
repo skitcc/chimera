@@ -1,6 +1,3 @@
-# Edge nginx: the one entry behind the ingress (WebLab#5). Routes /api/v1 to the
-# Gateway, /legacy to web, /mirror to the mirror SPA, /monitoring to Grafana and
-# /admin to adminer behind basic auth. Each request gets a span (ngx_otel_module).
 apiVersion: v1
 kind: Service
 metadata:

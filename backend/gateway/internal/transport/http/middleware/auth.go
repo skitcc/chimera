@@ -46,7 +46,7 @@ func RequireAuth(log Logger, tokens TokenParser, writeErr ErrorWriter) func(http
 				writeErr(r.Context(), w, log, "auth", domain.Unauthorized("missing token"))
 				return
 			}
-			id, err := tokens.Parse(raw)
+			id, err := parseContext(r.Context(), tokens, raw)
 			if err != nil {
 				writeErr(r.Context(), w, log, "auth", err)
 				return
@@ -64,7 +64,7 @@ func OptionalAuth(log Logger, tokens TokenParser, writeErr ErrorWriter) func(htt
 				next.ServeHTTP(w, r)
 				return
 			}
-			id, err := tokens.Parse(raw)
+			id, err := parseContext(r.Context(), tokens, raw)
 			if err != nil {
 				writeErr(r.Context(), w, log, "auth", err)
 				return
@@ -72,4 +72,13 @@ func OptionalAuth(log Logger, tokens TokenParser, writeErr ErrorWriter) func(htt
 			next.ServeHTTP(w, r.WithContext(WithUserID(r.Context(), id)))
 		})
 	}
+}
+
+func parseContext(ctx context.Context, tokens TokenParser, raw string) (string, error) {
+	if parser, ok := tokens.(interface {
+		ParseContext(context.Context, string) (string, error)
+	}); ok {
+		return parser.ParseContext(ctx, raw)
+	}
+	return tokens.Parse(raw)
 }

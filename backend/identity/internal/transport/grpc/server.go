@@ -7,6 +7,7 @@ import (
 	commonv1 "chimera/contracts/gen/common/v1"
 	identityv1 "chimera/contracts/gen/identity/v1"
 	"chimera/identity/internal/domain"
+	"chimera/identity/internal/usecase"
 	"chimera/platform/idempotency"
 	"chimera/platform/readpref"
 )
@@ -35,20 +36,32 @@ type AuthService interface {
 
 type Server struct {
 	identityv1.UnimplementedIdentityServiceServer
-	users UserService
-	auth  AuthService
+	users    UserService
+	auth     AuthService
+	security *usecase.SecurityService
 }
 
-func NewServer(users UserService, auth AuthService) *Server {
-	return &Server{users: users, auth: auth}
+func NewServer(users UserService, auth AuthService, security ...*usecase.SecurityService) *Server {
+	s := &Server{users: users, auth: auth}
+	if len(security) > 0 {
+		s.security = security[0]
+	}
+	return s
 }
 
 func (s *Server) CreateSession(ctx context.Context, req *identityv1.CreateSessionRequest) (*identityv1.CreateSessionResponse, error) {
-	res, err := s.auth.Login(ctx, domain.LoginInput{Email: req.GetEmail(), Password: req.GetPassword()})
+	var res domain.AuthResult
+	var err error
+	in := domain.LoginInput{Email: req.GetEmail(), Password: req.GetPassword()}
+	if s.security != nil {
+		res, err = s.security.Login(ctx, in)
+	} else {
+		res, err = s.auth.Login(ctx, in)
+	}
 	if err != nil {
 		return nil, err
 	}
-	return &identityv1.CreateSessionResponse{Token: res.Token, User: toUser(res.User)}, nil
+	return authResponse(res), nil
 }
 
 func (s *Server) CreateUser(ctx context.Context, req *identityv1.CreateUserRequest) (*identityv1.CreateUserResponse, error) {
@@ -144,4 +157,47 @@ func withConsistency(ctx context.Context, c commonv1.Consistency) context.Contex
 		return readpref.Primary(ctx)
 	}
 	return ctx
+}
+
+func authResponse(res domain.AuthResult) *identityv1.CreateSessionResponse {
+	return &identityv1.CreateSessionResponse{Token: res.Token, User: toUser(res.User), ChallengeId: res.ChallengeID, ExpiresAt: res.ExpiresAt}
+}
+func (s *Server) VerifySession(ctx context.Context, req *identityv1.VerifySessionRequest) (*identityv1.VerifySessionResponse, error) {
+	if s.security == nil {
+		return nil, domain.Invalid("security disabled")
+	}
+	res, err := s.security.Verify(ctx, usecase.SecurityLookup{ChallengeID: req.GetChallengeId(), UserID: req.GetActorId(), Email: req.GetEmail()}, req.GetPurpose(), req.GetCode(), req.GetNewPassword())
+	if err != nil {
+		return nil, err
+	}
+	return &identityv1.VerifySessionResponse{Token: res.Token, User: toUser(res.User)}, nil
+}
+func (s *Server) StartRecovery(ctx context.Context, req *identityv1.StartRecoveryRequest) (*identityv1.StartRecoveryResponse, error) {
+	if s.security == nil {
+		return nil, domain.Invalid("security disabled")
+	}
+	_, err := s.security.Recover(ctx, req.GetEmail())
+	if err != nil {
+		return nil, err
+	}
+	return &identityv1.StartRecoveryResponse{}, nil
+}
+func (s *Server) StartPasswordChange(ctx context.Context, req *identityv1.StartPasswordChangeRequest) (*identityv1.StartPasswordChangeResponse, error) {
+	if s.security == nil {
+		return nil, domain.Invalid("security disabled")
+	}
+	res, err := s.security.Change(ctx, req.GetActorId(), req.GetCurrentPassword())
+	if err != nil {
+		return nil, err
+	}
+	return &identityv1.StartPasswordChangeResponse{ChallengeId: res.ChallengeID, ExpiresAt: res.ExpiresAt}, nil
+}
+func (s *Server) ValidateSession(ctx context.Context, req *identityv1.ValidateSessionRequest) (*identityv1.ValidateSessionResponse, error) {
+	if s.security == nil {
+		return &identityv1.ValidateSessionResponse{}, nil
+	}
+	if err := s.security.Validate(ctx, req.GetUserId(), req.GetVersion()); err != nil {
+		return nil, err
+	}
+	return &identityv1.ValidateSessionResponse{}, nil
 }
